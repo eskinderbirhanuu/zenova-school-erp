@@ -1,0 +1,17 @@
+node_modules/
+__pycache__/
+*.py[cod]
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.db
+*.sqlite3
+.DS_Store
+Thumbs.db
+.agent/
+graphify-out/
+.next/
+*.log

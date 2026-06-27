@@ -1,0 +1,198 @@
+from datetime import datetime
+from sqlalchemy.orm import Session
+from app.models.user import User
+from app.models.role import Role
+from app.models.staff_profile import StaffProfile
+from app.core.security import get_password_hash
+from fastapi import HTTPException
+from app.core.audit import log_audit
+
+
+ROLE_MAP = {
+    "REGISTRAR": "REGISTRAR",
+    "FINANCE": "FINANCE",
+    "HR": "HR",
+    "INVENTORY": "INVENTORY",
+    "LIBRARY": "LIBRARY",
+    "CAFETERIA": "CAFETERIA",
+    "AUDITOR": "AUDITOR",
+}
+
+
+def create_staff(
+    db: Session,
+    staff_id: str,
+    full_name: str,
+    email: str,
+    phone: str,
+    role_name: str,
+    password: str,
+    department: str | None = None,
+    employment_date: datetime | None = None,
+    photo_url: str | None = None,
+    school_id: str | None = None,
+    branch_id: str | None = None,
+    created_by: str | None = None,
+) -> dict:
+    """Create staff (User + StaffProfile)"""
+    if role_name not in ROLE_MAP:
+        raise ValueError(f"Invalid staff role: {role_name}")
+
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        raise ValueError("Email already exists")
+
+    staff_role = db.query(Role).filter(Role.name == role_name).first()
+    if not staff_role:
+        raise ValueError(f"{role_name} role not found. Run seed first.")
+
+    user = User(
+        email=email,
+        hashed_password=get_password_hash(password),
+        full_name=full_name,
+        phone=phone,
+        photo_url=photo_url,
+        is_active=True,
+        must_change_password=True,
+        role_id=staff_role.id,
+        school_id=school_id,
+        branch_id=branch_id,
+    )
+    db.add(user)
+    db.flush()
+
+    profile = StaffProfile(
+        user_id=user.id,
+        staff_id=staff_id,
+        department=department,
+        employment_date=employment_date,
+    )
+    db.add(profile)
+    db.commit()
+    db.refresh(user)
+    db.refresh(profile)
+
+    log_audit(
+        db=db,
+        table_name="users",
+        record_id=user.id,
+        action="STAFF_CREATED",
+        new_data={"email": email, "full_name": full_name, "staff_id": staff_id, "role": role_name},
+        user_id=created_by,
+    )
+
+    return {"user": user, "profile": profile}
+
+
+def list_staff(db: Session, school_id: str | None = None, role_name: str | None = None) -> list[dict]:
+    query = db.query(User).join(StaffProfile, User.id == StaffProfile.user_id).filter(User.is_active == True)
+    if school_id:
+        query = query.filter(User.school_id == school_id)
+    if role_name:
+        role = db.query(Role).filter(Role.name == role_name).first()
+        if role:
+            query = query.filter(User.role_id == role.id)
+
+    users = query.all()
+
+    result = []
+    for user in users:
+        profile = db.query(StaffProfile).filter(StaffProfile.user_id == user.id).first()
+        role = db.query(Role).filter(Role.id == user.role_id).first()
+        if profile and role:
+            result.append({
+                "id": profile.id,
+                "staff_id": profile.staff_id,
+                "user_id": user.id,
+                "full_name": user.full_name,
+                "email": user.email,
+                "phone": user.phone,
+                "role_name": role.name,
+                "department": profile.department,
+                "is_active": user.is_active,
+            })
+    return result
+
+
+def get_staff_by_user_id(db: Session, user_id: str) -> StaffProfile | None:
+    return db.query(StaffProfile).filter(StaffProfile.user_id == user_id).first()
+
+
+def get_staff_by_id(db: Session, profile_id: str, school_id: str) -> dict | None:
+    profile = db.query(StaffProfile).filter(StaffProfile.id == profile_id).first()
+    if not profile:
+        return None
+    user = db.query(User).filter(User.id == profile.user_id, User.school_id == school_id).first()
+    if not user:
+        return None
+    role = db.query(Role).filter(Role.id == user.role_id).first()
+    return {
+        "id": profile.id,
+        "staff_id": profile.staff_id,
+        "user_id": user.id,
+        "full_name": user.full_name,
+        "email": user.email,
+        "phone": user.phone,
+        "role_name": role.name if role else None,
+        "department": profile.department,
+        "employment_date": profile.employment_date,
+        "photo_url": user.photo_url,
+        "is_active": user.is_active,
+        "created_at": user.created_at,
+    }
+
+
+def update_staff(db: Session, profile_id: str, school_id: str, data, user_id: str) -> dict:
+    profile = db.query(StaffProfile).filter(StaffProfile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(404, "Staff not found")
+    user = db.query(User).filter(User.id == profile.user_id, User.school_id == school_id).first()
+    if not user:
+        raise HTTPException(404, "Staff not found in this school")
+    if data.full_name is not None:
+        user.full_name = data.full_name
+    if data.email is not None:
+        existing = db.query(User).filter(User.email == data.email, User.id != user.id).first()
+        if existing:
+            raise HTTPException(409, "Email already in use")
+        user.email = data.email
+    if data.phone is not None:
+        user.phone = data.phone
+    if data.photo_url is not None:
+        user.photo_url = data.photo_url
+    if data.department is not None:
+        profile.department = data.department
+    if data.employment_date is not None:
+        profile.employment_date = data.employment_date
+    db.commit()
+    db.refresh(user)
+    db.refresh(profile)
+    role = db.query(Role).filter(Role.id == user.role_id).first()
+    log_audit(db, user_id, "STAFF_UPDATED", "staff_profiles", profile.id, f"Updated {user.full_name}")
+    return {
+        "id": profile.id,
+        "staff_id": profile.staff_id,
+        "user_id": user.id,
+        "full_name": user.full_name,
+        "email": user.email,
+        "phone": user.phone,
+        "role_name": role.name if role else None,
+        "department": profile.department,
+        "employment_date": profile.employment_date,
+        "photo_url": user.photo_url,
+        "is_active": user.is_active,
+        "created_at": user.created_at,
+    }
+
+
+def deactivate_staff(db: Session, profile_id: str, school_id: str, user_id: str):
+    profile = db.query(StaffProfile).filter(StaffProfile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(404, "Staff not found")
+    user = db.query(User).filter(User.id == profile.user_id, User.school_id == school_id).first()
+    if not user:
+        raise HTTPException(404, "Staff not found in this school")
+    user.is_active = False
+    db.commit()
+    log_audit(db, user_id, "STAFF_DEACTIVATED", "users", user.id, f"Deactivated {user.full_name}")
+    return {"ok": True}

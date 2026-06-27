@@ -1,0 +1,175 @@
+from datetime import datetime, timedelta
+from jose import jwt, JWTError
+from sqlalchemy.orm import Session
+from app.config import settings
+from app.core.security import verify_password, get_password_hash
+from app.models.user import User
+from app.models.role import Role
+from app.models.audit_log import AuditLog
+
+
+def authenticate_user(db: Session, email: str | None = None, employee_id: str | None = None, password: str = "") -> User | None:
+    query = db.query(User).filter(User.is_active == True, User.deleted_at.is_(None))
+    if employee_id:
+        user = query.filter(User.employee_id == employee_id).first()
+    else:
+        user = query.filter(User.email == email).first() if email else None
+    if not user:
+        return None
+    if not verify_password(password, user.hashed_password):
+        return None
+    return user
+
+
+def create_user(
+    db: Session,
+    email: str,
+    password: str,
+    full_name: str,
+    phone: str | None = None,
+    employee_id: str | None = None,
+    role_id: str | None = None,
+    school_id: str | None = None,
+    branch_id: str | None = None,
+    is_superuser: bool = False,
+) -> User:
+    user = User(
+        email=email,
+        employee_id=employee_id,
+        hashed_password=get_password_hash(password),
+        full_name=full_name,
+        phone=phone,
+        role_id=role_id,
+        school_id=school_id,
+        branch_id=branch_id,
+        is_superuser=is_superuser,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    to_encode.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+
+
+def create_refresh_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=7)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+
+
+def decode_token(token: str) -> dict | None:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        return payload
+    except JWTError:
+        return None
+
+
+def get_user_by_id(db: Session, user_id: str) -> User | None:
+    return db.query(User).filter(
+        User.id == user_id,
+        User.is_active == True,
+        User.deleted_at.is_(None),
+    ).first()
+
+
+def get_user_by_email(db: Session, email: str) -> User | None:
+    return db.query(User).filter(
+        User.email == email,
+        User.deleted_at.is_(None),
+    ).first()
+
+
+def log_login_audit(
+    db: Session,
+    user_id: str,
+    action: str,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+):
+    audit = AuditLog(
+        table_name="users",
+        record_id=user_id,
+        action=action,
+        user_id=user_id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        new_data={"action": action},
+    )
+    db.add(audit)
+    db.commit()
+
+
+def log_security_event(
+    db: Session,
+    identifier: str,
+    action: str,
+    ip_address: str | None = None,
+):
+    audit = AuditLog(
+        table_name="users",
+        record_id=identifier,
+        action=f"SECURITY_{action}",
+        user_id=identifier,
+        ip_address=ip_address,
+        user_agent=None,
+        new_data={"action": action, "timestamp": datetime.utcnow().isoformat()},
+    )
+    db.add(audit)
+    db.commit()
+
+
+def update_last_login(db: Session, user_id: str):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.last_login_at = datetime.utcnow()
+        db.commit()
+
+
+def reset_password(db: Session, user_id: str, new_password: str):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.hashed_password = get_password_hash(new_password)
+        user.must_change_password = False
+        db.commit()
+
+
+def authenticate_student_parent(db: Session, student_id_str: str, password: str) -> dict:
+    from app.models.student import Student
+    from app.models.parent_student_link import ParentStudentLink
+    from app.models.parent import Parent
+    student = db.query(Student).filter(
+        Student.student_id == student_id_str, Student.status == "active"
+    ).first()
+    if not student:
+        return {"valid": False, "message": "Student not found"}
+    link = db.query(ParentStudentLink).filter(
+        ParentStudentLink.student_id == student.id
+    ).first()
+    if not link:
+        return {"valid": False, "message": "No parent linked to this student"}
+    parent = db.query(Parent).filter(Parent.id == link.parent_id).first()
+    if not parent or not parent.user_id:
+        return {"valid": False, "message": "Parent has no user account"}
+    user = db.query(User).filter(User.id == parent.user_id, User.is_active == True,
+                                 User.deleted_at.is_(None)).first()
+    if not user:
+        return {"valid": False, "message": "Parent user account not found"}
+    if not verify_password(password, user.hashed_password):
+        return {"valid": False, "message": "Invalid password"}
+    return {"valid": True, "user_id": user.id, "parent_id": parent.id, "student_id": student.id}
+
+
+def get_user_role_name(user: User) -> str | None:
+    if user.is_superuser:
+        return "SUPER_ADMIN"
+    if user.role:
+        return user.role.name
+    return None

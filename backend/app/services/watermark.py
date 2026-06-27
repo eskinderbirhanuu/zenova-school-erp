@@ -1,0 +1,112 @@
+import os
+import json
+import base64
+from typing import Optional
+
+from app.models.student import Student
+from app.models.parent import Parent
+from app.models.school import School
+
+SCHOOL_WATERMARK = os.environ.get("SCHOOL_WATERMARK", "dev")
+
+
+def get_watermark() -> str:
+    return SCHOOL_WATERMARK
+
+
+def encrypt_watermark(school_id: str) -> str:
+    """Simple XOR-based watermark encryption for response headers."""
+    key = SCHOOL_WATERMARK.encode()
+    data = school_id.encode()
+    encrypted = bytes([d ^ key[i % len(key)] for i, d in enumerate(data)])
+    return base64.b64encode(encrypted).decode()
+
+
+def decrypt_watermark(encoded: str) -> Optional[str]:
+    try:
+        key = SCHOOL_WATERMARK.encode()
+        encrypted = base64.b64decode(encoded)
+        decrypted = bytes([e ^ key[i % len(key)] for i, e in enumerate(encrypted)])
+        return decrypted.decode()
+    except Exception:
+        return None
+
+
+# ─── Honeytoken Registry ────────────────────────────────
+# Each school gets unique honeytoken records in seed data.
+# These look like real data but are unique per school.
+# If a cracked version is found, search for these strings
+# to identify which school leaked it.
+
+HONEYTOKEN_REGISTRY: dict[str, dict[str, str]] = {}
+
+
+def register_school_honeytokens(school_id: str, watermark: str):
+    """Register honeytoken data for a school."""
+    HONEYTOKEN_REGISTRY[school_id] = {
+        "watermark": watermark,
+        "honeytoken_student": f"Honeytoken Student [{watermark}]",
+        "honeytoken_mother": f"Honeytoken Mother [{watermark}]",
+        "honeytoken_parent": f"Honeytoken Parent [{watermark}]",
+        "honeytoken_invoice": f"INV-HT-{watermark}-99999",
+        "honeytoken_book_isbn": f"978-0-{hash(watermark) % 100000:05d}-{hash(watermark[::-1]) % 1000:03d}-0",
+    }
+
+
+def get_honeytokens_for_school(school_id: str) -> dict:
+    """Get honeytoken records for a school."""
+    return HONEYTOKEN_REGISTRY.get(school_id, {})
+
+
+def identify_school_from_honeytoken(token: str) -> Optional[str]:
+    """Reverse lookup: find school_id from a honeytoken value."""
+    for school_id, tokens in HONEYTOKEN_REGISTRY.items():
+        if token in tokens.values():
+            return school_id
+    return None
+
+
+def watermark_seed_data(db_session, school_id: str):
+    """Insert honeytoken records into seed data for a school."""
+    from app.database import SessionLocal
+    from app.models.student import Student
+    import uuid
+
+    wm = get_watermark()
+    register_school_honeytokens(school_id, wm)
+    tokens = get_honeytokens_for_school(school_id)
+
+    # Honeytoken student (not visible in normal UI)
+    existing = db_session.query(Student).filter(
+        Student.full_name == tokens["honeytoken_student"]
+    ).first()
+    if not existing:
+        student = Student(
+            id=str(uuid.uuid4()),
+            full_name=tokens["honeytoken_student"],
+            mother_name=tokens["honeytoken_mother"],
+            school_id=school_id,
+            grade="HT",
+            section="Z",
+            stream=None,
+            blood_type="O+",
+            is_active=True,
+        )
+        db_session.add(student)
+
+    # Honeytoken parent
+    existing_parent = db_session.query(Parent).filter(
+        Parent.full_name == tokens["honeytoken_parent"]
+    ).first()
+    if not existing_parent:
+        parent = Parent(
+            id=str(uuid.uuid4()),
+            full_name=tokens["honeytoken_parent"],
+            phone_1=f"+251911{wm[:4]}",
+            phone_2=f"+251922{wm[4:8]}",
+            relationship="guardian",
+            school_id=school_id,
+        )
+        db_session.add(parent)
+
+    db_session.commit()

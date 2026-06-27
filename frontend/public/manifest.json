@@ -1,0 +1,16 @@
+{
+  "name": "ZENOVA School Management",
+  "short_name": "ZENOVA",
+  "description": "Enterprise School Management Platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "categories": ["education", "business"],
+  "scope": "/",
+  "prefer_related_applications": false
+}

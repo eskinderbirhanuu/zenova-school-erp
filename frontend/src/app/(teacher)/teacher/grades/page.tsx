@@ -1,0 +1,48 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { GenericListPage } from "@/components/ui/generic-list-page"
+import { academicService } from "@/services/api"
+import { toast } from "@/hooks/use-toast"
+
+export default function TeacherGradesPage() {
+  const [grades, setGrades] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+
+  useEffect(() => {
+    setLoading(true)
+    academicService.examResults.list({ limit: 200 })
+      .then(res => setGrades(res.data || []))
+      .catch(err => toast({ title: "Failed to load grades", variant: "destructive" }))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const normalized = grades.map((g: any) => ({
+    id: g.id,
+    student: g.student_name || g.student_id || "—",
+    subject: g.subject_name || "—",
+    assignment: g.exam_name || g.assessment_name || "Assignment",
+    score: g.score || g.marks_obtained || 0,
+    grade: g.grade || "—",
+    date: g.created_at ? new Date(g.created_at).toLocaleDateString() : "—",
+  }))
+
+  const filtered = normalized.filter(g => !search || g.student?.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <GenericListPage
+      title="Gradebook" description="Enter and manage student grades"
+      columns={[
+        { key: "student", header: "Student", render: (g) => <span className="font-medium">{g.student}</span> },
+        { key: "assignment", header: "Assignment", render: (g) => <span className="text-muted-foreground">{g.assignment}</span> },
+        { key: "score", header: "Score", render: (g) => <span>{g.score}</span> },
+        { key: "grade", header: "Grade", render: (g) => <span className="font-mono font-bold">{g.grade}</span> },
+        { key: "date", header: "Date", render: (g) => <span className="text-muted-foreground">{g.date}</span> },
+      ]}
+      data={filtered} keyExtractor={(g) => g.id}
+      loading={loading} searchPlaceholder="Search student..." onSearch={setSearch}
+      emptyTitle="No grades entered"
+    />
+  )
+}
