@@ -4,6 +4,7 @@ x-common-env: &common-env
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: zenova_user
       POSTGRES_PASSWORD: "${DB_PASSWORD:-zenova_pass}"
@@ -14,22 +15,35 @@ services:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zenova_user -d zenova_db"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: "${DB_MEM_LIMIT:-512M}"
+          cpus: "${DB_CPU_LIMIT:-1.0}"
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: "${REDIS_MEM_LIMIT:-256M}"
+          cpus: "${REDIS_CPU_LIMIT:-0.5}"
 
   backend:
     build: ./backend
+    restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
@@ -47,9 +61,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: "${BACKEND_MEM_LIMIT:-1024M}"
+          cpus: "${BACKEND_CPU_LIMIT:-2.0}"
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
@@ -58,6 +84,11 @@ services:
       NEXT_PUBLIC_WS_URL: "${FRONTEND_PUBLIC_WS_URL:-ws://localhost:8000/ws}"
     depends_on:
       - backend
+    deploy:
+      resources:
+        limits:
+          memory: "${FRONTEND_MEM_LIMIT:-512M}"
+          cpus: "${FRONTEND_CPU_LIMIT:-1.0}"
 
 volumes:
   pgdata:
