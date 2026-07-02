@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { GradientMeshBackground } from "@/components/3d/gradient-mesh"
 
 const BRANDING_API = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace("/api/v1", "")
+  ? new URL(process.env.NEXT_PUBLIC_API_URL).origin
   : "http://localhost:8000"
 
 interface SchoolBranding {

@@ -16,3 +16,4 @@ class LibraryMember(Base):
     books_borrowed = Column(Integer, default=0)
     status = Column(String(20), default="Active")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

@@ -7,7 +7,7 @@ from app.services import cafeteria_service
 
 router = APIRouter()
 CAFETERIA = [require_role("CAFETERIA")]
-VIEW_CAFE = [require_role("CAFETERIA"), require_role("ADMIN")]
+VIEW_CAFE = [require_role("CAFETERIA", "ADMIN")]
 
 
 @router.post("/cafeteria/products", response_model=ProductResponse, dependencies=CAFETERIA)
@@ -30,16 +30,16 @@ def list_orders(db: Session = Depends(get_db), current_user=Depends(get_current_
     return cafeteria_service.get_orders(db, current_user.school_id)
 
 
-@router.put("/cafeteria/products/{product_id}", response_model=ProductResponse, dependencies=CAFETERIA)
+@router.patch("/cafeteria/products/{product_id}", response_model=ProductResponse, dependencies=CAFETERIA)
 def update_product(product_id: str, data: ProductUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return cafeteria_service.update_product(db, product_id, current_user.school_id, data, current_user.id)
+    return cafeteria_service.update_product(db, product_id, current_user.school_id, data, current_user.id, include_deleted=True)
 
 
 @router.delete("/cafeteria/products/{product_id}", dependencies=CAFETERIA)
 def delete_product(product_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return cafeteria_service.delete_product(db, product_id, current_user.school_id, current_user.id)
+    return cafeteria_service.delete_product(db, product_id, current_user.school_id, current_user.id, include_deleted=True)
 
 
-@router.put("/cafeteria/orders/{order_id}/status", response_model=OrderResponse, dependencies=CAFETERIA)
+@router.patch("/cafeteria/orders/{order_id}/status", response_model=OrderResponse, dependencies=CAFETERIA)
 def update_order_status(order_id: str, data: OrderStatusUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return cafeteria_service.update_order_status(db, order_id, current_user.school_id, data.status, current_user.id)

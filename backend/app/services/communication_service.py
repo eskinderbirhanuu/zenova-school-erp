@@ -8,8 +8,10 @@ from app.core.audit import log_audit
 def create_announcement(db: Session, school_id: str, data, user_id: str):
     a = Announcement(title=data.title, message=data.message, target_roles=data.target_roles,
                      priority=data.priority, school_id=school_id, created_by=user_id)
-    db.add(a); db.commit(); db.refresh(a)
+    db.add(a)
     log_audit(db, user_id, "ANNOUNCEMENT_CREATED", "announcement", a.id, f"'{data.title}'")
+    db.commit()
+    db.refresh(a)
     return a
 
 

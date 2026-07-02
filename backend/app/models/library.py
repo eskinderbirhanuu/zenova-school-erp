@@ -11,6 +11,7 @@ class BookCategory(Base):
     name = Column(String(255), nullable=False)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class Book(Base):
@@ -28,6 +29,7 @@ class Book(Base):
     shelf_location = Column(String(100), nullable=True)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class BookBorrowing(Base):
@@ -45,3 +47,4 @@ class BookBorrowing(Base):
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

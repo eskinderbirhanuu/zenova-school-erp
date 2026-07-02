@@ -13,22 +13,29 @@ from app.models.notification_preference import NotificationPreference
 
 router = APIRouter()
 ADMIN = [require_role("ADMIN")]
-ALL = [require_role("ADMIN"), require_role("DIRECTOR"), require_role("REGISTRAR"),
-       require_role("TEACHER"), require_role("FINANCE"), require_role("HR"),
-       require_role("INVENTORY"), require_role("LIBRARY"), require_role("CAFETERIA")]
-MESSAGING = [require_role("ADMIN"), require_role("DIRECTOR"), require_role("REGISTRAR"),
-             require_role("TEACHER"), require_role("FINANCE"), require_role("HR"),
-             require_role("INVENTORY"), require_role("LIBRARY"), require_role("CAFETERIA")]
+ALL_ROLES = [
+    "ADMIN", "DIRECTOR", "REGISTRAR", "TEACHER",
+    "FINANCE", "HR", "INVENTORY", "LIBRARY", "CAFETERIA",
+]
+ALL = [require_role(*ALL_ROLES)]
+MESSAGING = [require_role(*ALL_ROLES)]
 
 
 @router.post("/announcements", response_model=AnnouncementResponse, dependencies=ADMIN)
-def create_announcement(data: AnnouncementCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def communication_create_announcement(data: AnnouncementCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return communication_service.create_announcement(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/announcements", response_model=list[AnnouncementResponse], dependencies=ALL)
-def list_announcements(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return communication_service.get_announcements(db, current_user.school_id)
+@router.get("/announcements", dependencies=ALL)
+def communication_list_announcements(
+    skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    from app.models.announcement import Announcement
+    q = db.query(Announcement).filter(Announcement.school_id == current_user.school_id).order_by(Announcement.created_at.desc())
+    total = q.count()
+    items = q.offset(skip).limit(limit).all()
+    return {"total": total, "data": items, "skip": skip, "limit": limit}
 
 
 @router.get("/notifications", response_model=list[NotificationResponse], dependencies=ALL)
@@ -50,7 +57,12 @@ def mark_all_read(db: Session = Depends(get_db), current_user=Depends(get_curren
 
 @router.post("/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, dependencies=MESSAGING)
 def send_message(data: MessageCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    recipient = db.query(User).filter(User.id == data.recipient_id, User.deleted_at.is_(None)).first()
+    # Tenant isolation: a non-superuser may only message users in their own school
+    # (prevents cross-tenant messaging and user-id enumeration via 404).
+    q = db.query(User).filter(User.id == data.recipient_id, User.deleted_at.is_(None))
+    if not current_user.is_superuser:
+        q = q.filter(User.school_id == current_user.school_id)
+    recipient = q.first()
     if not recipient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipient not found")
     m = communication_service.send_message(db, current_user.id, data.recipient_id, data.subject, data.message, current_user.school_id)

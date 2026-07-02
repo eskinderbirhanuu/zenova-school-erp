@@ -1,50 +1,49 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { academicService } from "@/services/api"
-import Link from "next/link"
+import { studentPortalService } from "@/services/api"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
-  ClipboardCheck, Award, Calendar, Wallet, Loader2, ArrowRight,
-  BarChart3, BookOpen, Clock, CheckCircle, AlertTriangle
+  ClipboardCheck, Award, Calendar, Wallet, Loader2,
+  BarChart3, BookOpen, Clock, CheckCircle, Sun, Moon, CloudSun,
+  Flame, BellRing
 } from "lucide-react"
 
 import { AnimatedBackground } from "@/components/3d/animated-background"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
-const subjectGrades = [
-  { subject: "Math", grade: 85 },
-  { subject: "English", grade: 92 },
-  { subject: "Science", grade: 78 },
-  { subject: "History", grade: 88 },
-  { subject: "Art", grade: 95 },
-]
+function getGreeting(): { text: string; icon: typeof Sun } {
+  const h = new Date().getHours()
+  if (h < 12) return { text: "Good morning", icon: Sun }
+  if (h < 17) return { text: "Good afternoon", icon: CloudSun }
+  return { text: "Good evening", icon: Moon }
+}
 
-const recentUpdates = [
-  { action: "Assignment due", course: "Math", time: "Tomorrow", badge: "warning" as const },
-  { action: "Exam scheduled", course: "Science", time: "Friday", badge: "info" as const },
-  { action: "Grade posted", course: "English", time: "2 days ago", badge: "success" as const },
-  { action: "Library due", course: "Book", time: "3 days ago", badge: "warning" as const },
-  { action: "New announcement", course: "General", time: "1 week ago", badge: "purple" as const },
-]
+function formatDate(): string {
+  return new Date().toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  })
+}
 
 export default function StudentDashboard() {
-  const [resultsCount, setResultsCount] = useState<string>("—")
+  const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    academicService.examResults.list({ limit: 1 }).then((res) => {
-      const count = res.data?.total ?? res.data?.length
-      setResultsCount(count != null ? String(count) : "—")
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    studentPortalService.dashboard()
+      .then(r => setData(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
+
+  const greeting = useMemo(() => getGreeting(), [])
+  const dateStr = useMemo(() => formatDate(), [])
+  const GreetingIcon = greeting.icon
 
   if (loading) {
     return (
@@ -55,50 +54,102 @@ export default function StudentDashboard() {
     )
   }
 
+  const d = data || {}
+  const grades = d.subject_grades || []
+  const schedule = d.today_schedule || []
+  const assignments = d.upcoming_assignments || []
+
   return (
     <div className="space-y-8 animate-fade-in">
       <AnimatedBackground />
 
       <FadeInUp>
-        <PageHeader
-        title="Student Portal"
-        description="Your academic progress and schedule at a glance."
-      />
+        <div className="relative overflow-hidden rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm p-6 md:p-8">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="rounded-xl bg-primary/10 p-2.5">
+                  <GreetingIcon className="h-5 w-5 text-primary" />
+                </div>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{greeting.text}, {d.student_name || "Student"}</h1>
+              </div>
+              <p className="text-muted-foreground text-sm">{dateStr}</p>
+            </div>
+            {assignments.length > 0 && (
+              <div className="flex items-center gap-2 rounded-full bg-amber-500/10 px-4 py-2 border border-amber-500/20">
+                <Flame className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-semibold text-amber-600">
+                  {assignments.length} upcoming assignment{assignments.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
       </FadeInUp>
 
       <StaggerContainer>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StaggerItem><KPICard title="Attendance Rate" value="94%" icon={ClipboardCheck} trend={{ value: "+1%", positive: true }} accentColor="bg-emerald-500" /></StaggerItem>
-          <StaggerItem><KPICard title="My Results" value={resultsCount} icon={Award} trend={{ value: "A-", positive: true }} /></StaggerItem>
-          <StaggerItem><KPICard title="Timetable" value="6 periods" icon={Calendar} trend={{ value: "Active", positive: true }} /></StaggerItem>
-          <StaggerItem><KPICard title="Wallet Balance" value="$0.00" icon={Wallet} trend={{ value: "-", positive: true }} /></StaggerItem>
+          <StaggerItem>
+            <KPICard
+              title="Attendance Rate"
+              value={`${d.attendance_pct || 0}%`}
+              icon={ClipboardCheck}
+              trend={{ value: `${d.present_days || 0}/${d.total_days || 0} days`, positive: (d.attendance_pct || 0) >= 80 }}
+              accentColor="bg-emerald-500"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <KPICard
+              title="My Results"
+              value={grades.length}
+              icon={Award}
+              trend={{ value: "Subjects", positive: true }}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <KPICard
+              title="Timetable"
+              value={`${schedule.length} today`}
+              icon={Calendar}
+              trend={{ value: "periods", positive: true }}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <KPICard
+              title="Wallet Balance"
+              value={`$${(d.wallet_balance || 0).toFixed(2)}`}
+              icon={Wallet}
+              trend={{ value: "-", positive: true }}
+            />
+          </StaggerItem>
         </div>
       </StaggerContainer>
-
-      <FadeInUp delay={0.2}>
-        <SectionHeader title="Academic Overview" description="Your subject grades and progress" />
-      </FadeInUp>
 
       <div className="grid gap-6 lg:grid-cols-7">
         <FadeInUp delay={0.3} className="lg:col-span-4">
           <Card shadow="colored">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BarChart3 className="h-4 w-4 text-primary" /> Subject Grades
-            </CardTitle>
-            <CardDescription>Current term performance by subject</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={subjectGrades}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
-                <XAxis dataKey="subject" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
-                <Tooltip />
-                <Bar dataKey="grade" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Grade" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BarChart3 className="h-4 w-4 text-primary" /> Subject Grades
+              </CardTitle>
+              <CardDescription>Current term performance by subject</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {grades.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={grades}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
+                    <XAxis dataKey="subject" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
+                    <Tooltip />
+                    <Bar dataKey="score" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Score" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-muted-foreground text-center py-12">No grades available yet</p>
+              )}
+            </CardContent>
           </Card>
         </FadeInUp>
 
@@ -106,80 +157,98 @@ export default function StudentDashboard() {
           <Card shadow="default">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-4 w-4 text-primary" /> Recent Updates
-            </CardTitle>
-            <CardDescription>Latest academic notifications</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentUpdates.map((a, i) => (
-                <div key={i} className="flex items-start gap-3 border-b border-border/50 pb-3 last:border-0 last:pb-0">
-                  <div className="rounded-full bg-primary/5 p-1.5 text-primary">
-                    <BookOpen className="h-3 w-3" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{a.action}</p>
-                    <p className="text-xs text-muted-foreground">{a.course} - {a.time}</p>
-                  </div>
-                  <StatusBadge status={a.badge === "success" ? "Success" : a.badge === "warning" ? "Pending" : a.badge === "purple" ? "Update" : "Info"} variant={a.badge} />
+                <BellRing className="h-4 w-4 text-primary" /> This Week
+              </CardTitle>
+              <CardDescription>Quick summary</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-muted-foreground">Attendance</span>
+                  <span className="text-sm font-semibold">{d.present_days || 0} / {d.total_days || 0}</span>
                 </div>
-              ))}
-            </div>
-          </CardContent>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${d.attendance_pct || 0}%` }} />
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-green-500">Present: {d.present_days || 0}</span>
+                <span className="text-red-500">Absent: {d.absent_days || 0}</span>
+                <span className="text-yellow-500">Late: {d.late_days || 0}</span>
+              </div>
+            </CardContent>
           </Card>
         </FadeInUp>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-7">
-        <FadeInUp delay={0.5} className="lg:col-span-4">
-          <Card shadow="default">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Calendar className="h-4 w-4 text-primary" /> Today&apos;s Schedule
+      <FadeInUp delay={0.15}>
+        <SectionHeader title="Upcoming" description="Assignments and schedule" />
+      </FadeInUp>
+
+      <StaggerContainer>
+        <div className="grid gap-4 md:grid-cols-3">
+          {assignments.length > 0 ? assignments.slice(0, 3).map((a: any, i: number) => (
+            <StaggerItem key={i}>
+              <Card shadow="default" className="hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-xs font-semibold uppercase tracking-wide text-primary">
+                      {a.subject || "General"}
+                    </CardDescription>
+                    <StatusBadge status={a.due_date ? "Active" : "Info"} variant={a.due_date ? "warning" : "info"} />
+                  </div>
+                  <CardTitle className="text-sm font-semibold leading-snug">{a.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span className="font-medium">{a.due_date || "No due date"}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </StaggerItem>
+          )) : (
+            <StaggerItem>
+              <Card>
+                <CardContent className="text-center py-8 text-muted-foreground">No upcoming assignments</CardContent>
+              </Card>
+            </StaggerItem>
+          )}
+        </div>
+      </StaggerContainer>
+
+      <FadeInUp delay={0.5}>
+        <Card shadow="default">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Calendar className="h-4 w-4 text-primary" /> Today's Schedule
             </CardTitle>
             <CardDescription>Your class schedule for today</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-              Schedule integration coming soon
-            </div>
+            {schedule.length > 0 ? (
+              <div className="space-y-3">
+                {schedule.map((p: any, i: number) => (
+                  <div key={i} className="flex items-start gap-4 pb-3 border-b last:border-0 last:pb-0">
+                    <div className="flex flex-col items-center">
+                      <div className="h-3 w-3 rounded-full border-2 border-primary bg-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{p.subject}</span>
+                        <span className="text-xs font-mono text-muted-foreground">{p.time}</span>
+                      </div>
+                      {p.room && <p className="text-xs text-muted-foreground">Room: {p.room}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">No classes scheduled for today</p>
+            )}
           </CardContent>
-          </Card>
-        </FadeInUp>
-
-        <FadeInUp delay={0.6} className="lg:col-span-3">
-          <Card shadow="default">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CheckCircle className="h-4 w-4 text-primary" /> Quick Actions
-            </CardTitle>
-            <CardDescription>Common student tasks</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3">
-              <Link href="/student/results">
-                <Button variant="outline" className="w-full justify-between h-10">
-                  <span className="flex items-center gap-2"><Award className="h-4 w-4" /> View Results</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </Link>
-              <Link href="/student/timetable">
-                <Button variant="outline" className="w-full justify-between h-10">
-                  <span className="flex items-center gap-2"><Calendar className="h-4 w-4" /> My Timetable</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </Link>
-              <Link href="/student/assignments">
-                <Button variant="outline" className="w-full justify-between h-10">
-                  <span className="flex items-center gap-2"><BookOpen className="h-4 w-4" /> Check Assignments</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-          </Card>
-        </FadeInUp>
-      </div>
+        </Card>
+      </FadeInUp>
     </div>
   )
 }

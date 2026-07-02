@@ -7,7 +7,7 @@ import {
   MessageSquare, User, Receipt, Wallet, Notebook,
   TrendingDown, Briefcase, PiggyBank, BarChart3, HardDrive,
   Truck, ShoppingCart, ArrowDown, TrendingUp, type LucideIcon,
-  Plus, Activity, Bell,
+  Plus, Activity, Bell, Megaphone, Download,
 } from "lucide-react"
 
 export const ROLE_DASHBOARD: Record<string, string> = {
@@ -80,18 +80,33 @@ export const SUPER_ADMIN_NAV: NavSection[] = [
 ]
 
 export const ADMIN_NAV: NavSection[] = [
-  { section: "Main", items: [{ href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard }] },
+  { section: "Main", items: [
+    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/admin/setup", label: "Setup Wizard", icon: Activity },
+  ] },
+  { section: "Students", items: [
+    { href: "/admin/students", label: "All Students", icon: Users },
+    { href: "/admin/students/register", label: "Register New", icon: Plus },
+  ]},
   { section: "Management", items: [
     { href: "/admin/branches", label: "Branches", icon: GitBranch },
     { href: "/admin/directors", label: "Directors", icon: UserCog },
     { href: "/admin/academic-years", label: "Academic Years", icon: Calendar },
+    { href: "/admin/classes", label: "Classes & Sections", icon: GraduationCap },
+    { href: "/admin/timetable", label: "Timetable Builder", icon: Calendar },
+    { href: "/admin/subjects", label: "Subjects", icon: BookOpen },
+    { href: "/admin/report-cards", label: "Report Cards", icon: Award },
     { href: "/admin/school", label: "School Profile", icon: Building2 },
+  ]},
+  { section: "Communication", items: [
+    { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+    { href: "/admin/telegram", label: "Telegram Bot", icon: MessageSquare },
   ]},
   { section: "Monitoring", items: [
     { href: "/admin/reports", label: "Reports", icon: FileText },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/admin/exports", label: "Data Export", icon: Download },
     { href: "/admin/audit", label: "Audit Logs", icon: ClipboardList },
-    { href: "/admin/telegram", label: "Telegram Bot", icon: MessageSquare },
     { href: "/admin/settings", label: "Settings", icon: Settings },
   ]},
 ]
@@ -146,6 +161,7 @@ export const TEACHER_NAV: NavSection[] = [
     { href: "/teacher/attendance", label: "Attendance", icon: ClipboardCheck },
     { href: "/teacher/grades", label: "Gradebook", icon: FileSpreadsheet },
     { href: "/teacher/results", label: "Results", icon: Award },
+    { href: "/teacher/marksheet", label: "Mark Sheet", icon: FileSpreadsheet },
   ]},
   { section: "Communication", items: [
     { href: "/teacher/messages", label: "Messages", icon: MessageSquare },
@@ -193,6 +209,7 @@ export const HR_NAV: NavSection[] = [
     { href: "/hr/attendance", label: "Attendance", icon: ClipboardCheck },
   ]},
   { section: "Management", items: [
+    { href: "/hr/leave-requests", label: "Leave Requests", icon: Calendar },
     { href: "/hr/performance", label: "Performance", icon: Award },
     { href: "/hr/recruitment", label: "Recruitment", icon: Briefcase },
   ]},
@@ -268,6 +285,28 @@ export const STUDENT_NAV: NavSection[] = [
   { section: "Finance", items: [{ href: "/student/wallet", label: "Wallet", icon: Wallet }] },
   { section: "Account", items: [{ href: "/student/profile", label: "Profile", icon: User }] },
 ]
+
+export interface RoleAccent {
+  hue: number
+  label: string
+}
+
+export const ROLE_ACCENT: Record<string, RoleAccent> = {
+  SUPER_ADMIN: { hue: 265, label: "Violet" },
+  ADMIN: { hue: 220, label: "Blue" },
+  DIRECTOR: { hue: 200, label: "Cyan" },
+  REGISTRAR: { hue: 280, label: "Purple" },
+  TEACHER: { hue: 160, label: "Green" },
+  FINANCE: { hue: 140, label: "Emerald" },
+  INVENTORY: { hue: 35, label: "Amber" },
+  HR: { hue: 340, label: "Rose" },
+  LIBRARY: { hue: 30, label: "Orange" },
+  CAFETERIA: { hue: 15, label: "Red-Orange" },
+  AUDITOR: { hue: 250, label: "Indigo" },
+  PARENT: { hue: 190, label: "Teal" },
+  STUDENT: { hue: 100, label: "Lime" },
+  DEFAULT: { hue: 220, label: "Blue" },
+}
 
 export const ROLE_NAV_MAP: Record<string, NavSection[]> = {
   SUPER_ADMIN: SUPER_ADMIN_NAV,

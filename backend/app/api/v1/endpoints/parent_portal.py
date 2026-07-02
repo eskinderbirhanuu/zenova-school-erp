@@ -1,0 +1,169 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from app.database import get_db
+from app.api.v1.deps import get_current_user
+from app.models.user import User
+from app.models.parent import Parent
+from app.models.parent_student_link import ParentStudentLink
+from app.models.student import Student
+from app.models.attendance import Attendance
+from app.models.class_ import ClassGrade
+from app.models.exam import ExamResult, Exam
+from app.models.invoice import Invoice
+from app.models.subject import Subject
+from app.models.payment import Payment
+from app.schemas.finance import PaymentCreate
+from app.services import finance_service
+from datetime import datetime, timezone, date as date_type
+
+router = APIRouter(tags=["parent-portal"])
+
+
+@router.get("/parent-portal/dashboard")
+def parent_portal_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not current_user.parent_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not linked to a parent profile")
+
+    parent = db.query(Parent).filter(Parent.id == current_user.parent_id).first()
+    if not parent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
+
+    links = db.query(ParentStudentLink).filter(ParentStudentLink.parent_id == parent.id).all()
+    student_ids = [l.student_id for l in links]
+
+    now = datetime.now(timezone.utc)
+    children_data = []
+
+    for sid in student_ids:
+        student = db.query(Student).filter(Student.id == sid).first()
+        if not student:
+            continue
+
+        total_attendance = db.query(func.count(Attendance.id)).filter(
+            Attendance.student_id == sid
+        ).scalar() or 0
+        present_attendance = db.query(func.count(Attendance.id)).filter(
+            Attendance.student_id == sid, Attendance.status == "present"
+        ).scalar() or 0
+        attendance_pct = round((present_attendance / total_attendance * 100)) if total_attendance > 0 else 0
+
+        link = next((l for l in links if l.student_id == sid), None)
+
+        parent_class = db.query(ClassGrade).filter(ClassGrade.id == student.class_id).first() if student.class_id else None
+
+        exam_results = db.query(ExamResult, Exam, Subject).join(Exam, ExamResult.exam_id == Exam.id).join(Subject, Exam.subject_id == Subject.id).filter(
+            ExamResult.student_id == sid
+        ).order_by(Exam.created_at.desc()).limit(20).all()
+
+        grades = []
+        for er, ex, sub in exam_results:
+            grades.append({
+                "subject": sub.name,
+                "exam": ex.name,
+                "score": float(er.score) if er.score else 0,
+                "grade": er.grade,
+                "max_score": float(ex.max_score) if ex.max_score else 100,
+            })
+
+        invoices = db.query(Invoice).filter(
+            Invoice.student_id == sid
+        ).order_by(Invoice.due_date.desc()).limit(10).all()
+
+        fees = []
+        for inv in invoices:
+            fees.append({
+                "label": f"Invoice {inv.invoice_number}",
+                "amount": f"${float(inv.total_amount):,.2f}",
+                "paid": f"${float(inv.paid_amount):,.2f}",
+                "due": inv.due_date.isoformat() if inv.due_date else None,
+                "status": inv.status,
+            })
+
+        children_data.append({
+            "id": student.id,
+            "full_name": f"{student.first_name} {student.middle_name or ''} {student.last_name}",
+            "student_id": student.student_id,
+            "class_name": parent_class.name if parent_class else "—",
+            "class_code": parent_class.code if parent_class else "—",
+            "relationship": link.relationship if link else "—",
+            "attendance_pct": attendance_pct,
+            "photo_url": student.photo_url,
+            "grades": grades,
+            "fees": fees,
+        })
+
+    return {
+        "parent": {
+            "id": parent.id,
+            "full_name": parent.full_name,
+            "phone": parent.phone_1,
+        },
+        "children": children_data,
+    }
+
+
+def get_linked_student_ids(db: Session, current_user: User) -> list[str]:
+    if not current_user.parent_id:
+        raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
+    links = db.query(ParentStudentLink).filter(
+        ParentStudentLink.parent_id == current_user.parent_id
+    ).all()
+    return [l.student_id for l in links]
+
+
+@router.get("/parent-portal/invoices")
+def parent_invoices(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    student_ids = get_linked_student_ids(db, current_user)
+    invoices = db.query(Invoice).filter(
+        Invoice.student_id.in_(student_ids)
+    ).order_by(Invoice.due_date.desc()).all()
+    return [
+        {
+            "id": inv.id,
+            "invoice_number": inv.invoice_number,
+            "student_id": inv.student_id,
+            "total_amount": float(inv.total_amount),
+            "paid_amount": float(inv.paid_amount),
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "status": inv.status,
+        }
+        for inv in invoices
+    ]
+
+
+@router.post("/parent-portal/payments")
+def parent_make_payment(
+    data: PaymentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    student_ids = get_linked_student_ids(db, current_user)
+    invoice = db.query(Invoice).filter(
+        Invoice.id == data.invoice_id,
+        Invoice.school_id == current_user.school_id,
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.student_id not in student_ids:
+        raise HTTPException(status_code=403, detail="Invoice does not belong to a linked student")
+    if invoice.status == "paid":
+        raise HTTPException(status_code=400, detail="Invoice is already paid")
+
+    if not data.idempotency_key:
+        data.idempotency_key = f"parent:{current_user.id}:{invoice.id}:{int(datetime.now(timezone.utc).timestamp())}"
+    payment = finance_service.record_payment(db, current_user.school_id, data, current_user.id)
+    return {
+        "id": payment.id,
+        "payment_number": payment.payment_number,
+        "amount": float(payment.amount),
+        "payment_method": payment.payment_method,
+        "payment_date": payment.payment_date.isoformat() if payment.payment_date else None,
+        "status": "completed",
+    }

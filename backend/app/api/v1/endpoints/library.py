@@ -10,7 +10,7 @@ from app.models.library_fine import LibraryFine
 
 router = APIRouter()
 LIBRARY = [require_role("LIBRARY")]
-VIEW_LIBRARY = [require_role("LIBRARY"), require_role("ADMIN")]
+VIEW_LIBRARY = [require_role("LIBRARY", "ADMIN")]
 
 
 @router.post("/library/categories", response_model=BookCategoryResponse, dependencies=LIBRARY)
@@ -20,7 +20,8 @@ def create_category(data: BookCategoryCreate, db: Session = Depends(get_db), cur
 
 @router.get("/library/categories", response_model=list[BookCategoryResponse], dependencies=VIEW_LIBRARY)
 def list_categories(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return library_service.get_categories(db, current_user.school_id)
+    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    return library_service.get_categories(db, current_user.school_id, include_deleted=include_deleted)
 
 
 @router.post("/library/books", response_model=BookResponse, dependencies=LIBRARY)
@@ -30,7 +31,7 @@ def create_book(data: BookCreate, db: Session = Depends(get_db), current_user=De
 
 @router.patch("/library/books/{book_id}", response_model=BookResponse, dependencies=LIBRARY)
 def update_book(book_id: str, data: BookUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return library_service.update_book(db, book_id, data, current_user.id)
+    return library_service.update_book(db, book_id, data, current_user.id, current_user.school_id)
 
 
 @router.get("/library/books", response_model=list[BookResponse], dependencies=VIEW_LIBRARY)
@@ -45,7 +46,7 @@ def borrow_book(data: BorrowingCreate, db: Session = Depends(get_db), current_us
 
 @router.post("/library/borrowings/{borrowing_id}/return", dependencies=LIBRARY)
 def return_book(borrowing_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    library_service.return_book(db, borrowing_id, current_user.id)
+    library_service.return_book(db, borrowing_id, current_user.id, current_user.school_id)
     return {"message": "Book returned"}
 
 
@@ -54,15 +55,23 @@ def list_borrowings(status: str = Query(None), db: Session = Depends(get_db), cu
     return library_service.get_borrowings(db, current_user.school_id, status)
 
 
-@router.get("/library/members", dependencies=VIEW_LIBRARY)
+@router.get("/library/members", response_model=dict, dependencies=VIEW_LIBRARY)
 def list_members(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
                  db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    members = db.query(LibraryMember).filter(LibraryMember.school_id == current_user.school_id)
-    return members.order_by(LibraryMember.created_at.desc()).offset(skip).limit(limit).all()
+    q = db.query(LibraryMember).filter(LibraryMember.school_id == current_user.school_id)
+    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+        q = q.execution_options(include_deleted=True)
+    total = q.count()
+    members = q.order_by(LibraryMember.created_at.desc()).offset(skip).limit(limit).all()
+    return {"total": total, "data": members, "skip": skip, "limit": limit}
 
 
-@router.get("/library/fines", dependencies=VIEW_LIBRARY)
+@router.get("/library/fines", response_model=dict, dependencies=VIEW_LIBRARY)
 def list_fines(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
                db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    fines = db.query(LibraryFine).filter(LibraryFine.school_id == current_user.school_id)
-    return fines.order_by(LibraryFine.created_at.desc()).offset(skip).limit(limit).all()
+    q = db.query(LibraryFine).filter(LibraryFine.school_id == current_user.school_id)
+    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+        q = q.execution_options(include_deleted=True)
+    total = q.count()
+    fines = q.order_by(LibraryFine.created_at.desc()).offset(skip).limit(limit).all()
+    return {"total": total, "data": fines, "skip": skip, "limit": limit}

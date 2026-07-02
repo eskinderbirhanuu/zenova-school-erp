@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text, Index
 from app.database import Base
 
@@ -15,7 +15,8 @@ class QRCode(Base):
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=True)
     branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
     expires_at = Column(DateTime, nullable=True)
 
     __table_args__ = (

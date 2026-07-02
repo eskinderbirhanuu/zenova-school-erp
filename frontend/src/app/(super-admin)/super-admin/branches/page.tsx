@@ -1,10 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { branchService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
+import { Plus } from "lucide-react"
+import Link from "next/link"
 
 export default function SuperAdminBranches() {
   const [branches, setBranches] = useState<any[]>([])
@@ -32,6 +35,7 @@ export default function SuperAdminBranches() {
   return (
     <GenericListPage
       title="All Branches" description="View branches across all schools"
+      actions={<Link href="/super-admin/branches/new"><Button><Plus className="h-4 w-4 mr-2" /> New Branch</Button></Link>}
       columns={[
         { key: "school", header: "School ID", render: (b) => <span className="font-mono text-xs">{b.school_id}</span> },
         { key: "name", header: "Branch", render: (b) => <span>{b.name}</span> },

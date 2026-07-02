@@ -1,7 +1,9 @@
 import uuid
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+import struct
+import binascii
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.models.license import License, LicenseType, LicenseStatus
 from app.models.school import School
@@ -13,9 +15,49 @@ from app.core.security import get_password_hash
 from app.core.audit import log_audit
 from app.core.permissions import ROLE_PERMISSIONS
 
+# ─── Base58 alphabet (no 0/O/I/l to avoid confusion) ─────────────
+BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def base58_encode(data: bytes) -> str:
+    """Encode bytes to Base58 string."""
+    n = int.from_bytes(data, "big")
+    chars = []
+    while n > 0:
+        n, r = divmod(n, 58)
+        chars.append(BASE58_ALPHABET[r])
+    # leading zero bytes → '1'
+    for b in data:
+        if b == 0:
+            chars.append("1")
+        else:
+            break
+    return "".join(reversed(chars))
+
+
+def crc32_checksum(data: str) -> str:
+    """Return 8-char CRC-32 hex checksum."""
+    return f"{binascii.crc32(data.encode()) & 0xFFFFFFFF:08X}"
+
+
+def generate_license_key_v2(key_type: str = "M") -> str:
+    """Generate a 256-bit license key.
+    
+    Format: ZNV-{type}-{base58(32 bytes)}-{CRC-32}
+    Types: M=Main, B=Branch, O=Owner, T=Trial
+    
+    256 bits = 2^256 possibilities — cannot be brute-forced.
+    """
+    if key_type not in ("M", "B", "O", "T"):
+        key_type = "M"
+    random_bytes = secrets.token_bytes(32)
+    b58 = base58_encode(random_bytes)
+    cksum = crc32_checksum(b58)
+    return f"ZNV-{key_type}-{b58}-{cksum}"
+
 
 def generate_license_key() -> str:
-    """Generate a license key in format: ZNV-XXXX-XXXX-XXXX-XXXX"""
+    """Legacy: 64-bit key. Kept for backward compatibility."""
     segments = []
     for _ in range(4):
         segment = secrets.token_hex(2).upper()
@@ -24,19 +66,32 @@ def generate_license_key() -> str:
 
 
 def verify_license_key_format(key: str) -> bool:
-    """Validate license key format: ZNV-XXXX-XXXX-XXXX-XXXX"""
+    """Validate license key format.
+    
+    Accepts:
+    - Legacy:    ZNV-XXXX-XXXX-XXXX-XXXX (64-bit)
+    - V2:        ZNV-{M|B|O|T}-{base58}-{CRC32} (256-bit)
+    - SAL:       SAL-XXXX-XXXX-XXXX (Super Admin License)
+    """
     import re
-    pattern = r"^ZNV-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$"
-    return bool(re.match(pattern, key))
-
-
-def checksum_valid(key: str) -> bool:
-    """Simple checksum validation for license key"""
-    clean = key.replace("-", "")
-    total = sum(ord(c) for c in clean[:-1])
-    check_char = clean[-1]
-    expected = chr(65 + (total % 26))
-    return check_char == expected
+    # SAL format (Super Admin License)
+    if re.match(r"^SAL-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$", key):
+        return True
+    # Legacy format
+    if re.match(r"^ZNV-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$", key):
+        return True
+    # V2 format: ZNV-{M|B|O|T}-{base58 43-44 chars}-{CRC32 8 chars}
+    if re.match(r"^ZNV-[MBOT]-[1-9A-HJ-NP-Za-km-z]{43,44}-[A-F0-9]{8}$", key):
+        # Verify CRC-32 checksum
+        try:
+            parts = key.split("-")
+            data = parts[2]
+            expected_crc = parts[3]
+            actual_crc = crc32_checksum(data)
+            return actual_crc == expected_crc
+        except Exception:
+            return False
+    return False
 
 
 def verify_license(db: Session, key: str) -> dict:
@@ -58,7 +113,7 @@ def verify_license(db: Session, key: str) -> dict:
     if license_record.status == LicenseStatus.EXPIRED:
         return {"valid": False, "message": "License has expired"}
 
-    if license_record.valid_until and license_record.valid_until < datetime.utcnow():
+    if license_record.valid_until and license_record.valid_until < datetime.now(timezone.utc):
         license_record.status = LicenseStatus.EXPIRED
         db.commit()
         return {"valid": False, "message": "License has expired"}
@@ -70,7 +125,7 @@ def verify_license(db: Session, key: str) -> dict:
     }
 
 
-def activate_license(db: Session, key: str, school_id: str) -> dict:
+def activate_license(db: Session, key: str, school_id: str, user_id: str = None) -> dict:
     """Activate a license for a specific school"""
     license_record = db.query(License).filter(License.key == key).first()
 
@@ -89,15 +144,15 @@ def activate_license(db: Session, key: str, school_id: str) -> dict:
     license_record.status = LicenseStatus.ACTIVE
     bind_license_to_hardware(db, license_record.id)
     invalidate_license_cache()
-    db.commit()
-
     log_audit(
         db=db,
+        user_id=user_id or "system",
         table_name="licenses",
         record_id=license_record.id,
         action="LICENSE_ACTIVATED",
         new_data={"key": key, "school_id": school_id},
     )
+    db.commit()
 
     return {"activated": True, "message": "License activated successfully"}
 
@@ -116,7 +171,7 @@ def create_license(
         raise ValueError("License key already exists")
 
     if valid_from is None:
-        valid_from = datetime.utcnow()
+        valid_from = datetime.now(timezone.utc)
 
     type_enum = LicenseType(license_type)
 
@@ -134,7 +189,7 @@ def create_license(
     return license_record
 
 
-def update_license_status(db: Session, license_id: str, status: str) -> License | None:
+def update_license_status(db: Session, license_id: str, status: str, user_id: str = None) -> License | None:
     """Update license status (SUPER_ADMIN only)"""
     license_record = db.query(License).filter(License.id == license_id).first()
     if not license_record:
@@ -142,16 +197,16 @@ def update_license_status(db: Session, license_id: str, status: str) -> License 
 
     old_status = license_record.status.value
     license_record.status = LicenseStatus(status)
-    db.commit()
-
     log_audit(
         db=db,
+        user_id=user_id or "system",
         table_name="licenses",
         record_id=license_record.id,
         action="LICENSE_STATUS_CHANGED",
         old_data={"status": old_status},
         new_data={"status": status},
     )
+    db.commit()
 
     return license_record
 
@@ -181,16 +236,16 @@ def create_school(db: Session, name: str, code: str, address: str | None = None,
         logo_url=logo_url,
     )
     db.add(school)
-    db.commit()
-    db.refresh(school)
-
     log_audit(
         db=db,
+        user_id="system",
         table_name="schools",
         record_id=school.id,
         action="SCHOOL_CREATED",
         new_data={"name": name, "code": code},
     )
+    db.commit()
+    db.refresh(school)
 
     return school
 
@@ -212,16 +267,16 @@ def create_branch(db: Session, school_id: str, name: str, code: str,
         school_id=school_id,
     )
     db.add(branch)
-    db.commit()
-    db.refresh(branch)
-
     log_audit(
         db=db,
+        user_id="system",
         table_name="branches",
         record_id=branch.id,
         action="BRANCH_CREATED",
         new_data={"name": name, "code": code, "school_id": school_id},
     )
+    db.commit()
+    db.refresh(branch)
 
     return branch
 
@@ -249,22 +304,22 @@ def create_setup_admin(db: Session, school_id: str, branch_id: str,
         branch_id=branch_id,
     )
     db.add(admin)
-    db.commit()
-    db.refresh(admin)
-
+    db.flush()
     school = db.query(School).filter(School.id == school_id).first()
     if school:
         school.owner_id = admin.id
         school.is_setup_complete = True
-        db.commit()
 
     log_audit(
         db=db,
+        user_id="system",
         table_name="users",
         record_id=admin.id,
         action="SETUP_ADMIN_CREATED",
         new_data={"email": email, "full_name": full_name, "school_id": school_id},
     )
+    db.commit()
+    db.refresh(admin)
 
     return admin
 

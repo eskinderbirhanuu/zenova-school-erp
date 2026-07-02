@@ -27,7 +27,7 @@ export default function TeacherTimetable() {
   useEffect(() => {
     setLoading(true)
     academicService.timetable
-      .list()
+      .byTeacher()
       .then((r: any) => setEntries(r.data || []))
       .catch(() => toast({ title: "Failed to load timetable", variant: "destructive" }))
       .finally(() => setLoading(false))

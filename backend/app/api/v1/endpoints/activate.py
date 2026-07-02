@@ -13,10 +13,19 @@ from app.schemas.license import (
     CreateEmployeeRequest, CreateEmployeeResponse,
     VerifyContactRequest, VerifyContactResponse,
     ResetPasswordRequest, ResetPasswordResponse,
+    IssueRecoveryCodeRequest, IssueRecoveryCodeResponse,
 )
 from app.services import license_service
 from app.services.license_crypto import bind_license_to_hardware, invalidate_license_cache
-from app.core.security import get_password_hash
+from app.core.security import (
+    get_password_hash,
+    issue_password_recovery_code,
+    verify_password_recovery_code,
+    validate_password_strength,
+)
+from app.config import settings
+from app.api.v1.deps import rate_limit, get_current_user
+from app.core.permissions import require_role
 from app.models.school import School
 from app.models.branch import Branch
 from app.models.user import User
@@ -24,6 +33,13 @@ from app.models.role import Role
 from app.models.license import License, LicenseType, LicenseStatus
 
 router = APIRouter(tags=["activate"])
+
+# Rate limiters for public activation endpoints
+LICENSE_CHECK_LIMIT = rate_limit("license_check", 20, 300)       # 20 per 5 min
+ACTIVATE_INIT_LIMIT = rate_limit("activate_init", 3, 3600)       # 3 per hour
+RESET_PASSWORD_LIMIT = rate_limit("reset_password", 5, 900)      # 5 per 15 min
+RECOVERY_ISSUE_LIMIT = rate_limit("recovery_issue", 10, 900)    # 10 per 15 min
+RECOVERY_RESET_LIMIT = rate_limit("recovery_reset", 5, 900)     # 5 per 15 min
 
 
 def _generate_employee_id(db: Session, role_prefix: str) -> str:
@@ -35,14 +51,10 @@ def _generate_employee_id(db: Session, role_prefix: str) -> str:
             return eid
 
 
-SUPER_ADMIN_CONTACT_PHONE = "0901482324"
-SUPER_ADMIN_CONTACT_EMAIL = "eskinderbirhanuu@gmail.com"
-
-
 # ─── Legacy Endpoints (backward compatible) ──────────────
 
 @router.get("/activate/status", response_model=SetupStatusResponse)
-def activate_status(db: Session = Depends(get_db)):
+def activate_status(db: Session = Depends(get_db), _=Depends(LICENSE_CHECK_LIMIT)):
     school = db.query(School).filter(School.is_setup_complete == True).first()
     if not school:
         return SetupStatusResponse(
@@ -61,7 +73,7 @@ def activate_status(db: Session = Depends(get_db)):
 
 
 @router.post("/activate/validate", response_model=ActivateValidateResponse)
-def activate_validate(data: ActivateValidateRequest, db: Session = Depends(get_db)):
+def activate_validate(data: ActivateValidateRequest, db: Session = Depends(get_db), _=Depends(LICENSE_CHECK_LIMIT)):
     result = license_service.verify_license(db, data.key)
     lic = license_service.get_license_status(db)
     return ActivateValidateResponse(
@@ -74,7 +86,7 @@ def activate_validate(data: ActivateValidateRequest, db: Session = Depends(get_d
 
 
 @router.post("/activate/initialize", response_model=ActivateInitializeResponse, status_code=status.HTTP_201_CREATED)
-def activate_initialize(data: ActivateInitializeRequest, db: Session = Depends(get_db)):
+def activate_initialize(data: ActivateInitializeRequest, db: Session = Depends(get_db), _=Depends(ACTIVATE_INIT_LIMIT)):
     existing = db.query(School).filter(School.is_setup_complete == True).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="System already activated")
@@ -95,7 +107,7 @@ def activate_initialize(data: ActivateInitializeRequest, db: Session = Depends(g
 # ─── New Activation Flow v2 ──────────────────────────────
 
 @router.post("/activate/validate-type", response_model=ValidateLicenseTypeResponse)
-def validate_license_type(data: ValidateLicenseTypeRequest, db: Session = Depends(get_db)):
+def validate_license_type(data: ValidateLicenseTypeRequest, db: Session = Depends(get_db), _=Depends(LICENSE_CHECK_LIMIT)):
     """Public: Validate a license key and return its type (MAIN or BRANCH)."""
     result = license_service.verify_license(db, data.key)
     lic = db.query(License).filter(License.key == data.key).first()
@@ -110,7 +122,7 @@ def validate_license_type(data: ValidateLicenseTypeRequest, db: Session = Depend
 
 
 @router.post("/activate/initialize-main", response_model=InitializeMainResponse, status_code=status.HTTP_201_CREATED)
-def initialize_main(data: InitializeMainRequest, db: Session = Depends(get_db)):
+def initialize_main(data: InitializeMainRequest, db: Session = Depends(get_db), _=Depends(ACTIVATE_INIT_LIMIT)):
     """Public: Activate school with MAIN license key. Creates school + admin."""
     existing = db.query(School).filter(School.is_setup_complete == True).first()
     if existing:
@@ -169,7 +181,7 @@ def initialize_main(data: InitializeMainRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/activate/initialize-branch", response_model=InitializeBranchResponse, status_code=status.HTTP_201_CREATED)
-def initialize_branch(data: InitializeBranchRequest, db: Session = Depends(get_db)):
+def initialize_branch(data: InitializeBranchRequest, db: Session = Depends(get_db), _=Depends(ACTIVATE_INIT_LIMIT)):
     """Public: Activate branch with BRANCH license key on branch server.
     Creates branch + director user with auto-generated credentials."""
     school = db.query(School).filter(School.id == data.school_id, School.is_setup_complete == True).first()
@@ -232,8 +244,15 @@ def initialize_branch(data: InitializeBranchRequest, db: Session = Depends(get_d
 
 
 @router.post("/employees/create", response_model=CreateEmployeeResponse, status_code=status.HTTP_201_CREATED)
-def create_employee(data: CreateEmployeeRequest, db: Session = Depends(get_db)):
-    """Director creates employees (teachers, finance, hr, etc.) with auto-generated ID."""
+def create_employee(
+    data: CreateEmployeeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Director+ creates employees (teachers, finance, hr, etc.) with auto-generated ID."""
+    if not current_user.school_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No school assigned")
+
     role = db.query(Role).filter(Role.name == data.role_name).first()
     if not role:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Role '{data.role_name}' not found")
@@ -247,13 +266,14 @@ def create_employee(data: CreateEmployeeRequest, db: Session = Depends(get_db)):
 
     user = User(
         id=str(uuid.uuid4()),
+        school_id=current_user.school_id,
         email=data.email,
         employee_id=eid,
         hashed_password=get_password_hash(password),
         full_name=data.full_name,
         phone=data.phone,
         role_id=role.id,
-        branch_id=data.branch_id,
+        branch_id=data.branch_id or current_user.branch_id,
         must_change_password=True,
         is_active=True,
     )
@@ -267,44 +287,83 @@ def create_employee(data: CreateEmployeeRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/activate/reset-password", response_model=ResetPasswordResponse)
-def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
-    """Public: Reset password using Employee ID + License Key (no email OTP needed)."""
+@router.post("/activate/recovery/issue", response_model=IssueRecoveryCodeResponse)
+def issue_recovery_code(
+    data: IssueRecoveryCodeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = require_role("ADMIN", "SUPER_ADMIN"),
+    _=Depends(RECOVERY_ISSUE_LIMIT),
+):
+    """Admin: Issue a time-bound recovery code for a user (600s TTL)."""
     user = db.query(User).filter(User.employee_id == data.employee_id).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee ID not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Employee ID not found")
+    if current_user.school_id and user.school_id != current_user.school_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="User is not in your school")
+    if user.is_superuser:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Cannot issue recovery code for super admin")
+    code = issue_password_recovery_code(user.id, ttl_seconds=600)
+    return IssueRecoveryCodeResponse(
+        success=True, recovery_code=code, expires_in_seconds=600,
+        message="Recovery code issued. Share it with the user — it expires in 10 minutes.",
+    )
 
-    lic = db.query(License).filter(License.key == data.license_key).first()
-    if not lic:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="License key not found")
 
-    if lic.status != LicenseStatus.ACTIVE:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="License is not active")
-
-    if user.school_id and lic.school_id and user.school_id != lic.school_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Employee ID and License Key do not belong to the same school")
-
+@router.post("/activate/recovery/reset", response_model=ResetPasswordResponse)
+def reset_with_recovery_code(
+    data: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+    _=Depends(RECOVERY_RESET_LIMIT),
+):
+    """Public: Reset password using a recovery code issued by an admin."""
+    user = db.query(User).filter(User.employee_id == data.employee_id).first()
+    if not user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Employee ID not found")
+    if user.is_superuser:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Super admin password cannot be reset via recovery code")
+    if not verify_password_recovery_code(data.recovery_code, user.id):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired recovery code")
+    valid, msg = validate_password_strength(data.new_password)
+    if not valid:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=msg)
+    from app.core.security import verify_password
+    if verify_password(data.new_password, user.hashed_password):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="New password must be different from the current password")
     user.hashed_password = get_password_hash(data.new_password)
     user.must_change_password = False
     db.commit()
-
     return ResetPasswordResponse(
-        success=True, message="Password reset successfully. Login with your Employee ID and new password.",
+        success=True, message="Password reset successfully.",
     )
 
 
 @router.post("/auth/verify-super-admin-contact", response_model=VerifyContactResponse)
-def verify_super_admin_contact(data: VerifyContactRequest, db: Session = Depends(get_db)):
+def verify_super_admin_contact(data: VerifyContactRequest, db: Session = Depends(get_db), _=Depends(RESET_PASSWORD_LIMIT)):
     """Hidden endpoint: verify if contact matches Super Admin credentials.
-    Used by 'Contact Support Team' on welcome page."""
-    is_match = (
-        data.phone.strip() == SUPER_ADMIN_CONTACT_PHONE or
-        data.email.strip().lower() == SUPER_ADMIN_CONTACT_EMAIL or
-        (data.phone.strip() == SUPER_ADMIN_CONTACT_PHONE and
-         data.email.strip().lower() == SUPER_ADMIN_CONTACT_EMAIL)
-    )
+    Used by 'Contact Support Team' on welcome page.
+
+    Security note: this endpoint historically returned `is_super_admin=true` and a
+    distinct "Welcome Super Admin" message, acting as a contact-enumeration oracle.
+    It now returns a constant generic response so callers cannot confirm whether a
+    given phone/email belongs to the Super Admin. Rate-limited to slow brute force.
+    """
+    # The match result is intentionally NOT surfaced to the client.
+    if settings.super_admin_phone and settings.super_admin_email:
+        is_match = (
+            data.phone.strip() == settings.super_admin_phone and
+            data.email.strip().lower() == settings.super_admin_email
+        )
+        if is_match:
+            # Trigger an internal alert (audit) without revealing the result to the caller.
+            try:
+                from app.core.audit import log_audit
+                log_audit(db, "system", "SUPER_ADMIN_CONTACT_MATCH", "users", "super_admin",
+                          "Super Admin contact verified from welcome page")
+                db.commit()
+            except Exception:
+                pass
     return VerifyContactResponse(
-        verified=is_match,
-        is_super_admin=is_match,
-        message="Welcome Super Admin" if is_match else "Support ticket submitted. We will contact you.",
+        verified=False,
+        is_super_admin=False,
+        message="Support ticket submitted. We will contact you.",
     )

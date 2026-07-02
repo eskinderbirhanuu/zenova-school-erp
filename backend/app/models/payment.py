@@ -20,3 +20,4 @@ class Payment(Base):
     received_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     journal_entry_id = Column(String(36), ForeignKey("journal_entries.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

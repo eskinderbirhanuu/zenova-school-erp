@@ -17,3 +17,4 @@ class Event(Base):
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

@@ -4,9 +4,9 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import api from "@/services/api"
+import api, { setupService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
-import { Save, Bell, Lock, Calendar, Globe } from "lucide-react"
+import { Save, Bell, Lock, Calendar, Globe, Server, CheckCircle2, AlertCircle, Loader2, ArrowRight } from "lucide-react"
 
 const sectionDefs = [
   { key: "academic", title: "Academic Settings", icon: Calendar, description: "Term dates, grading scale, and academic year configuration", fields: [
@@ -43,6 +43,14 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  const [vpsUrl, setVpsUrl] = useState("")
+  const [vpsLicense, setVpsLicense] = useState("")
+  const [vpsSchoolId, setVpsSchoolId] = useState("")
+  const [vpsConnecting, setVpsConnecting] = useState(false)
+  const [vpsConnected, setVpsConnected] = useState(false)
+  const [vpsError, setVpsError] = useState("")
+  const [whoami, setWhoami] = useState<any>(null)
+
   useEffect(() => {
     api.get("/settings").then((res) => {
       const s = res.data?.settings || {}
@@ -50,7 +58,29 @@ export default function AdminSettings() {
       sectionDefs.forEach(sec => sec.fields.forEach(f => { defaults[f.key] = s[f.key] || "" }))
       setValues(defaults)
     }).catch(() => {}).finally(() => setLoading(false))
+
+    setupService.installerWhoami().then(r => setWhoami(r.data)).catch(() => {})
   }, [])
+
+  const handleVpsConnect = async () => {
+    setVpsConnecting(true)
+    setVpsError("")
+    try {
+      const res = await api.post("/installer/connect-vps", {
+        vps_url: vpsUrl,
+        school_id: vpsSchoolId,
+        main_license: vpsLicense,
+      })
+      if (res.data.success) {
+        setVpsConnected(true)
+        toast({ title: "VPS Connected", description: res.data.message })
+      }
+    } catch (err: any) {
+      setVpsError(err.response?.data?.detail || "Connection failed")
+    } finally {
+      setVpsConnecting(false)
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -60,6 +90,8 @@ export default function AdminSettings() {
     } catch { toast({ title: "Failed to save", variant: "destructive" }) }
     setSaving(false)
   }
+
+  const isLocal = whoami?.is_main_school || whoami?.is_branch
 
   return (
     <div className="space-y-6">
@@ -72,6 +104,62 @@ export default function AdminSettings() {
           <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
+
+      {isLocal && (
+        <Card className="border-2 border-dashed border-blue-500/30 bg-blue-500/5">
+          <CardHeader className="flex flex-row items-start gap-4">
+            <div className="rounded-lg bg-blue-500/10 p-2">
+              <Server className="h-5 w-5 text-blue-500" />
+            </div>
+            <div className="flex-1">
+              <CardTitle className="text-lg">VPS Connection</CardTitle>
+              <CardDescription>
+                {vpsConnected
+                  ? "Your server is connected to a VPS. Data sync is active."
+                  : "Connect your local server to a VPS for remote access and backup."}
+              </CardDescription>
+            </div>
+            {vpsConnected && (
+              <div className="flex items-center gap-2 text-sm text-green-500">
+                <CheckCircle2 className="h-4 w-4" /> Connected
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            {vpsConnected ? (
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <CheckCircle2 className="h-4 w-4" /> Sync enabled at {vpsUrl || vpsSchoolId}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">VPS URL</label>
+                    <Input value={vpsUrl} onChange={e => setVpsUrl(e.target.value)} placeholder="https://schoola-vps.com" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">School ID</label>
+                    <Input value={vpsSchoolId} onChange={e => setVpsSchoolId(e.target.value.toUpperCase())} placeholder="SCH-0001" className="font-mono" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Main License</label>
+                    <Input value={vpsLicense} onChange={e => setVpsLicense(e.target.value.toUpperCase())} placeholder="LIC-ABC-123" className="font-mono" />
+                  </div>
+                </div>
+                {vpsError && (
+                  <div className="flex items-center gap-2 text-sm text-red-500">
+                    <AlertCircle className="h-4 w-4" /> {vpsError}
+                  </div>
+                )}
+                <Button onClick={handleVpsConnect} disabled={vpsConnecting || !vpsUrl || !vpsSchoolId || !vpsLicense}>
+                  {vpsConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                  {vpsConnecting ? "Connecting..." : "Connect VPS"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {sectionDefs.map((s, i) => {

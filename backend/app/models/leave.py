@@ -13,6 +13,7 @@ class LeaveType(Base):
     is_paid = Column(Boolean, default=True)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class LeaveRequest(Base):
@@ -21,6 +22,7 @@ class LeaveRequest(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     staff_profile_id = Column(String(36), ForeignKey("staff_profiles.id"), nullable=False)
     leave_type_id = Column(String(36), ForeignKey("leave_types.id"), nullable=False)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     days = Column(Integer, nullable=False)
@@ -28,6 +30,7 @@ class LeaveRequest(Base):
     status = Column(String(20), default="pending")
     approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class LeaveBalance(Base):
@@ -36,7 +39,9 @@ class LeaveBalance(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     staff_profile_id = Column(String(36), ForeignKey("staff_profiles.id"), nullable=False)
     leave_type_id = Column(String(36), ForeignKey("leave_types.id"), nullable=False)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     year = Column(Integer, nullable=False)
     total_days = Column(Integer, nullable=False)
     used_days = Column(Integer, default=0)
     remaining_days = Column(Integer, nullable=False)
+    deleted_at = Column(DateTime, nullable=True)

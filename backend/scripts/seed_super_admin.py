@@ -1,7 +1,7 @@
 import uuid
 import secrets
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.core.security import get_password_hash
@@ -49,8 +49,8 @@ def seed():
             key=demo_license_key,
             license_type=LicenseType.MAIN,
             status=LicenseStatus.ACTIVE,
-            valid_from=datetime.utcnow(),
-            valid_until=datetime.utcnow() + timedelta(days=365),
+            valid_from=datetime.now(timezone.utc),
+            valid_until=datetime.now(timezone.utc) + timedelta(days=365),
             max_users="Unlimited",
         )
         db.add(demo_license)
@@ -65,7 +65,7 @@ def seed():
         print(f"  Phone        : {SUPER_ADMIN_PHONE}")
         print("─" * 50)
         print(f"  Demo License : {demo_license_key}")
-        print(f"  Expires      : {(datetime.utcnow() + timedelta(days=365)).strftime('%Y-%m-%d')}")
+        print(f"  Expires      : {(datetime.now(timezone.utc) + timedelta(days=365)).strftime('%Y-%m-%d')}")
         print("=" * 50)
         print("  Login at: http://<server-ip>/login")
         print("=" * 50)

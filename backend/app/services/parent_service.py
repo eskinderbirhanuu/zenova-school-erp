@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.parent import Parent
 from app.models.parent_student_link import ParentStudentLink
@@ -40,11 +40,10 @@ def create_parent(
     return parent
 
 
-def smart_search_parents(db: Session, query: str, school_id: str | None = None) -> list[Parent]:
+def smart_search_parents(db: Session, query: str, school_id: str | None = None, include_deleted: bool = False) -> list[Parent]:
     """Smart search: phone, national_id, passport_id, kebele_id, name"""
     like = f"%{query}%"
     q = db.query(Parent).filter(
-        Parent.deleted_at.is_(None),
         db.or_(
             Parent.phone_1.ilike(like),
             Parent.phone_2.ilike(like),
@@ -54,23 +53,29 @@ def smart_search_parents(db: Session, query: str, school_id: str | None = None) 
             Parent.full_name.ilike(like),
         ),
     )
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
     if school_id:
         q = q.filter(Parent.school_id == school_id)
     return q.all()
 
 
-def get_parent(db: Session, parent_id: str) -> Parent | None:
-    return db.query(Parent).filter(
-        Parent.id == parent_id,
-        Parent.deleted_at.is_(None),
-    ).first()
+def get_parent(db: Session, parent_id: str, school_id: str = None, include_deleted: bool = False) -> Parent | None:
+    q = db.query(Parent).filter(Parent.id == parent_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if school_id:
+        q = q.filter(Parent.school_id == school_id)
+    return q.first()
 
 
-def update_parent(db: Session, parent_id: str, data: dict) -> Parent | None:
-    parent = db.query(Parent).filter(
-        Parent.id == parent_id,
-        Parent.deleted_at.is_(None),
-    ).first()
+def update_parent(db: Session, parent_id: str, data: dict, school_id: str = None, include_deleted: bool = False) -> Parent | None:
+    q = db.query(Parent).filter(Parent.id == parent_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if school_id:
+        q = q.filter(Parent.school_id == school_id)
+    parent = q.first()
     if not parent:
         return None
 
@@ -78,7 +83,7 @@ def update_parent(db: Session, parent_id: str, data: dict) -> Parent | None:
         if value is not None and hasattr(parent, key):
             setattr(parent, key, value)
 
-    parent.updated_at = datetime.utcnow()
+    parent.updated_at = datetime.now(timezone.utc)
     db.commit()
     return parent
 
@@ -89,11 +94,16 @@ def link_parent_to_student(
     student_id: str,
     relationship: str | None = None,
     is_primary: bool = False,
+    school_id: str | None = None,
+    user_id: str = None,
 ) -> ParentStudentLink:
-    existing = db.query(ParentStudentLink).filter(
+    q = db.query(ParentStudentLink).filter(
         ParentStudentLink.parent_id == parent_id,
         ParentStudentLink.student_id == student_id,
-    ).first()
+    )
+    if school_id:
+        q = q.filter(ParentStudentLink.school_id == school_id)
+    existing = q.first()
 
     if existing:
         return existing
@@ -103,46 +113,51 @@ def link_parent_to_student(
         student_id=student_id,
         relationship=relationship,
         is_primary=is_primary,
+        school_id=school_id,
     )
     db.add(link)
-    db.commit()
-
     log_audit(
         db=db,
+        user_id=user_id or "system",
         table_name="parent_student_links",
         record_id=f"{parent_id}_{student_id}",
         action="PARENT_LINKED",
         new_data={"parent_id": parent_id, "student_id": student_id},
     )
+    db.commit()
 
     return link
 
 
-def unlink_parent_from_student(db: Session, parent_id: str, student_id: str) -> bool:
-    link = db.query(ParentStudentLink).filter(
+def unlink_parent_from_student(db: Session, parent_id: str, student_id: str, school_id: str = None, user_id: str = None) -> bool:
+    q = db.query(ParentStudentLink).filter(
         ParentStudentLink.parent_id == parent_id,
         ParentStudentLink.student_id == student_id,
-    ).first()
+    )
+    if school_id:
+        q = q.filter(ParentStudentLink.school_id == school_id)
+    link = q.first()
     if not link:
         return False
 
-    db.delete(link)
-    db.commit()
-
+    link.deleted_at = datetime.now(timezone.utc)
     log_audit(
         db=db,
+        user_id=user_id or "system",
         table_name="parent_student_links",
         record_id=f"{parent_id}_{student_id}",
         action="PARENT_UNLINKED",
     )
+    db.commit()
 
     return True
 
 
-def get_linked_students(db: Session, parent_id: str) -> list[ParentStudentLink]:
-    return db.query(ParentStudentLink).filter(
-        ParentStudentLink.parent_id == parent_id,
-    ).all()
+def get_linked_students(db: Session, parent_id: str, school_id: str = None) -> list[ParentStudentLink]:
+    q = db.query(ParentStudentLink).filter(ParentStudentLink.parent_id == parent_id)
+    if school_id:
+        q = q.filter(ParentStudentLink.school_id == school_id)
+    return q.all()
 
 
 def get_linked_parents(db: Session, student_id: str) -> list[ParentStudentLink]:
@@ -151,14 +166,16 @@ def get_linked_parents(db: Session, student_id: str) -> list[ParentStudentLink]:
     ).all()
 
 
-def delete_parent(db: Session, parent_id: str) -> bool:
-    parent = db.query(Parent).filter(
-        Parent.id == parent_id,
-        Parent.deleted_at.is_(None),
-    ).first()
+def delete_parent(db: Session, parent_id: str, school_id: str = None, include_deleted: bool = False) -> bool:
+    q = db.query(Parent).filter(Parent.id == parent_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if school_id:
+        q = q.filter(Parent.school_id == school_id)
+    parent = q.first()
     if not parent:
         return False
 
-    parent.deleted_at = datetime.utcnow()
+    parent.deleted_at = datetime.now(timezone.utc)
     db.commit()
     return True

@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zenova-backend
+  namespace: zenova
+spec:
+  selector:
+    app: zenova-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zenova-backend
+  namespace: zenova
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zenova-backend
+  template:
+    metadata:
+      labels:
+        app: zenova-backend
+    spec:
+      containers:
+        - name: backend
+          image: zenova/backend:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: zenova-config
+            - secretRef:
+                name: zenova-secrets
+          env:
+            - name: ALLOWED_ORIGINS
+              value: "https://zenova.example.com,https://www.zenova.example.com"
+            - name: TRUSTED_NETWORKS
+              value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+          volumeMounts:
+            - name: backend-data
+              mountPath: /app/backend/data
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/ready
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health/live
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+      volumes:
+        - name: backend-data
+          persistentVolumeClaim:
+            claimName: zenova-backend-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zenova-backend-pvc
+  namespace: zenova
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

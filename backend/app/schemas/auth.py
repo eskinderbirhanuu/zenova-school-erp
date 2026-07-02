@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
@@ -24,6 +24,8 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     employee_id: str | None = None
     role_name: str | None = None
+    mfa_required: bool = False
+    mfa_token: str | None = None
 
 
 class RefreshRequest(BaseModel):
@@ -39,6 +41,33 @@ class ResetPasswordRequest(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
 
 
+class MFASetupResponse(BaseModel):
+    secret: str
+    qr_code_url: str
+    backup_codes: list[str] = []
+
+
+class MFAVerifyResponse(BaseModel):
+    backup_codes: list[str]
+
+
+class MFADisableRequest(BaseModel):
+    password: str
+
+
+class MFABackupCodesResponse(BaseModel):
+    backup_codes: list[str]
+
+
+class MFAVerifyRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class MFALoginRequest(BaseModel):
+    mfa_code: str = Field(..., min_length=6, max_length=6)
+    mfa_token: str
+
+
 class UserResponse(BaseModel):
     id: str
     email: str
@@ -48,14 +77,14 @@ class UserResponse(BaseModel):
     is_active: bool
     is_superuser: bool
     is_view_only: bool
+    mfa_enabled: bool = False
     role_id: str | None
     role_name: str | None
     school_id: str | None
     branch_id: str | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LoginAuditResponse(BaseModel):
@@ -66,5 +95,4 @@ class LoginAuditResponse(BaseModel):
     user_agent: str | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

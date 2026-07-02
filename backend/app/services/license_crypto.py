@@ -4,7 +4,8 @@ import os
 import platform
 import subprocess
 import base64
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from cryptography.hazmat.primitives import hashes, serialization
@@ -17,91 +18,239 @@ from app.models.license import License, LicenseStatus
 from app.core.redis_client import get_redis
 
 
-# ─── Machine Fingerprinting ───────────────────────────────
+# ─── Machine Fingerprinting (8 components + 75% tolerance) ─
 
-def get_machine_fingerprint() -> str:
-    components = []
+FINGERPRINT_COMPONENT_NAMES = [
+    "mac",
+    "cpu_serial",
+    "machine_id",
+    "disk_serial",
+    "hostname",
+    "os_version",
+    "dmi_uuid",
+    "boot_id",
+]
 
-    # MAC address
+
+def _collect_fingerprint_components() -> dict:
+    """Collect 8 hardware/software fingerprint components."""
+    comp = {}
+    system = platform.system()
+
+    # 1. MAC address
     try:
-        if platform.system() == "Linux":
-            for iface in ["eth0", "enp0s3", "enp0s8", "ens33", "enx*"]:
-                path = f"/sys/class/net/{iface}/address"
+        if system == "Linux":
+            for iface_name in os.listdir("/sys/class/net"):
+                path = f"/sys/class/net/{iface_name}/address"
                 if os.path.exists(path):
                     with open(path) as f:
                         addr = f.read().strip()
-                        if addr and addr != "00:00:00:00:00:00":
-                            components.append(addr)
+                        if addr and addr != "00:00:00:00:00:00" and addr != "ff:ff:ff:ff:ff:ff":
+                            comp["mac"] = addr
                             break
         else:
-            import uuid
-            components.append(str(uuid.getnode()))
+            comp["mac"] = str(uuid.getnode())
     except Exception:
-        components.append("no-mac")
+        comp["mac"] = "no-mac"
 
-    # CPU info
+    # 2. CPU serial
     try:
-        if platform.system() == "Linux" and os.path.exists("/proc/cpuinfo"):
+        if system == "Linux" and os.path.exists("/proc/cpuinfo"):
             with open("/proc/cpuinfo") as f:
                 for line in f:
                     if "Serial" in line:
-                        components.append(line.split(":")[1].strip())
+                        comp["cpu_serial"] = line.split(":")[1].strip()
                         break
     except Exception:
         pass
+    if "cpu_serial" not in comp:
+        comp["cpu_serial"] = "no-cpu-serial"
 
-    # Machine ID
+    # 3. Machine ID
     try:
         if os.path.exists("/etc/machine-id"):
             with open("/etc/machine-id") as f:
-                components.append(f.read().strip())
+                comp["machine_id"] = f.read().strip()
         elif os.path.exists("/var/lib/dbus/machine-id"):
             with open("/var/lib/dbus/machine-id") as f:
-                components.append(f.read().strip())
+                comp["machine_id"] = f.read().strip()
+        elif system == "Windows":
+            result = subprocess.run(
+                ["wmic", "csproduct", "get", "UUID"],
+                capture_output=True, text=True, timeout=5,
+            )
+            for line in result.stdout.split("\n"):
+                line = line.strip()
+                if line and line != "UUID":
+                    comp["machine_id"] = line
+                    break
     except Exception:
-        components.append("no-machine-id")
+        pass
+    if "machine_id" not in comp:
+        comp["machine_id"] = "no-machine-id"
 
-    # Disk serial
+    # 4. Disk serial
     try:
-        if platform.system() == "Linux":
+        if system == "Linux":
             result = subprocess.run(
                 ["udevadm", "info", "--query=property", "--name=/dev/sda"],
                 capture_output=True, text=True, timeout=5,
             )
             for line in result.stdout.split("\n"):
-                if "ID_SERIAL_SHORT" in line or "ID_SERIAL" in line:
-                    components.append(line.split("=")[1])
+                if "ID_SERIAL_SHORT" in line:
+                    comp["disk_serial"] = line.split("=", 1)[1]
+                    break
+        elif system == "Windows":
+            result = subprocess.run(
+                ["wmic", "diskdrive", "get", "SerialNumber"],
+                capture_output=True, text=True, timeout=5,
+            )
+            for line in result.stdout.split("\n"):
+                line = line.strip()
+                if line and line != "SerialNumber":
+                    comp["disk_serial"] = line
                     break
     except Exception:
         pass
+    if "disk_serial" not in comp:
+        comp["disk_serial"] = "no-disk-serial"
 
-    raw = ":".join(components)
+    # 5. Hostname
+    try:
+        comp["hostname"] = platform.node()
+    except Exception:
+        comp["hostname"] = "no-hostname"
+
+    # 6. OS version
+    try:
+        comp["os_version"] = platform.platform()
+    except Exception:
+        comp["os_version"] = "no-os-version"
+
+    # 7. DMI UUID (BIOS)
+    try:
+        if system == "Linux":
+            paths = [
+                "/sys/class/dmi/id/product_uuid",
+                "/sys/class/dmi/id/board_serial",
+            ]
+            for p in paths:
+                if os.path.exists(p):
+                    with open(p) as f:
+                        val = f.read().strip()
+                        if val and val != "0" * len(val):
+                            comp["dmi_uuid"] = val
+                            break
+        elif system == "Windows":
+            result = subprocess.run(
+                ["wmic", "csproduct", "get", "UUID"],
+                capture_output=True, text=True, timeout=5,
+            )
+            for line in result.stdout.split("\n"):
+                line = line.strip()
+                if line and line != "UUID":
+                    comp["dmi_uuid"] = line
+                    break
+    except Exception:
+        pass
+    if "dmi_uuid" not in comp:
+        comp["dmi_uuid"] = "no-dmi-uuid"
+
+    # 8. Boot ID
+    try:
+        if system == "Linux" and os.path.exists("/proc/sys/kernel/random/boot_id"):
+            with open("/proc/sys/kernel/random/boot_id") as f:
+                comp["boot_id"] = f.read().strip()
+        elif system == "Windows":
+            result = subprocess.run(
+                ["wmic", "os", "get", "LastBootUpTime"],
+                capture_output=True, text=True, timeout=5,
+            )
+            for line in result.stdout.split("\n"):
+                line = line.strip()
+                if line and line != "LastBootUpTime":
+                    comp["boot_id"] = hashlib.sha256(line.encode()).hexdigest()[:16]
+                    break
+    except Exception:
+        pass
+    if "boot_id" not in comp:
+        comp["boot_id"] = "no-boot-id"
+
+    return comp
+
+
+def get_machine_fingerprint() -> str:
+    """SHA-256 hash of all 8 fingerprint components."""
+    comp = _collect_fingerprint_components()
+    raw = ":".join(str(comp.get(k, "")) for k in FINGERPRINT_COMPONENT_NAMES)
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def get_fingerprint_components() -> dict:
+    """Return raw components (for debugging / display)."""
+    return _collect_fingerprint_components()
 
 
 def get_short_fingerprint() -> str:
     return get_machine_fingerprint()[:8]
 
 
+def match_hostname(pattern: str) -> bool:
+    """Check if current hostname matches a pattern in the license.
+    
+    Supports:
+      - Exact match: 'server-01'
+      - Suffix wildcard: '*.mycompany.com'
+      - Prefix wildcard: 'DESKTOP-*'
+      - '*': matches any hostname (first activation fallback)
+    """
+    current = platform.node()
+    if pattern == "*":
+        return True
+    if pattern.startswith("*."):
+        return current.endswith(pattern[1:]) or current == pattern[2:]
+    if pattern.endswith("*"):
+        return current.startswith(pattern[:-1])
+    return current == pattern
+
+
+def match_fingerprint(stored_hash: str, threshold: float = 0.75) -> bool:
+    """Compare stored fingerprint hash with current hardware.
+    
+    Uses 75% tolerance: at least 6 of 8 components must match.
+    If stored_hash is a full SHA-256 hash (legacy mode), falls back to exact match.
+    """
+    # Legacy mode: if stored is standard SHA-256 length, do exact match
+    if len(stored_hash) == 64:
+        current = get_machine_fingerprint()
+        return stored_hash == current
+
+    # Component-level matching
+    stored_components = stored_hash.split(":")
+    current_components = _collect_fingerprint_components()
+    current_list = [str(current_components.get(k, "")) for k in FINGERPRINT_COMPONENT_NAMES]
+
+    if len(stored_components) != len(current_list):
+        return False
+
+    matches = sum(1 for a, b in zip(stored_components, current_list) if a == b)
+    ratio = matches / len(stored_components) if stored_components else 0
+    return ratio >= threshold
+
+
 # ─── RSA Key Management ───────────────────────────────────
 
-def generate_key_pair() -> tuple[bytes, bytes]:
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        backend=default_backend(),
-    )
-    private_pem = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
-    public_key = private_key.public_key()
-    public_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    )
-    return private_pem, public_pem
+from app.licensing.public_key import get_license_public_key
+
+LIC_FILE_PATHS = {
+    "Linux": "/etc/zenova/license.lic",
+    "Windows": "C:\\ProgramData\\Zenova\\license.lic",
+    "Darwin": "/Library/Application Support/Zenova/license.lic",
+}
+
+
+def get_lic_file_path() -> str:
+    return LIC_FILE_PATHS.get(platform.system(), LIC_FILE_PATHS["Linux"])
 
 
 def create_license_file(
@@ -112,11 +261,12 @@ def create_license_file(
     private_key_pem: bytes,
 ) -> str:
     payload = {
+        "version": 2,
         "school_id": school_id,
         "school_name": school_name,
         "machine_fingerprint": machine_fingerprint,
         "valid_until": valid_until,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
     payload_json = json.dumps(payload, separators=(",", ":"))
 
@@ -138,16 +288,43 @@ def create_license_file(
     ).decode()
 
 
-def verify_license_file(license_b64: str, public_key_pem: bytes) -> Optional[dict]:
+def write_lic_file(license_b64: str, path: Optional[str] = None) -> str:
+    """Write .lic file to the standard OS path (or custom path)."""
+    dest = path or get_lic_file_path()
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    with open(dest, "w") as f:
+        f.write(license_b64)
+    return dest
+
+
+def read_lic_file(path: Optional[str] = None) -> Optional[str]:
+    """Read .lic file from the standard OS path (or custom path)."""
+    lic_path = path or get_lic_file_path()
+    if not os.path.exists(lic_path):
+        return None
+    with open(lic_path) as f:
+        return f.read().strip()
+
+
+def verify_license_file(
+    license_b64: Optional[str] = None,
+    public_key_pem: Optional[bytes] = None,
+) -> Optional[dict]:
+    if license_b64 is None:
+        license_b64 = read_lic_file()
+        if license_b64 is None:
+            return None
+    if public_key_pem is None:
+        public_key = get_license_public_key()
+    else:
+        public_key = serialization.load_pem_public_key(
+            public_key_pem, backend=default_backend(),
+        )
     try:
         license_data = json.loads(base64.b64decode(license_b64))
         payload = license_data["payload"]
         signature = base64.b64decode(license_data["signature"])
         payload_json = json.dumps(payload, separators=(",", ":"))
-
-        public_key = serialization.load_pem_public_key(
-            public_key_pem, backend=default_backend(),
-        )
         public_key.verify(
             signature,
             payload_json.encode(),
@@ -193,7 +370,7 @@ def validate_license_at_startup(db: Session) -> dict:
         }
 
     # Check expiry
-    if license_record.valid_until and license_record.valid_until < datetime.utcnow():
+    if license_record.valid_until and license_record.valid_until < datetime.now(timezone.utc):
         license_record.status = LicenseStatus.EXPIRED
         db.commit()
         return {
@@ -220,7 +397,7 @@ def validate_license_at_startup(db: Session) -> dict:
 
     # Check offline grace period
     if not _can_reach_license_server():
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if license_record.offline_grace_start is None:
             license_record.offline_grace_start = now
             db.commit()

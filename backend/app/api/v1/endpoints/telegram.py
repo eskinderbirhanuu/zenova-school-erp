@@ -8,7 +8,7 @@ from app.services import telegram_bot_service
 from app.models.user import User
 
 router = APIRouter(tags=["telegram"])
-ADMIN = [require_role("SUPER_ADMIN"), require_role("ADMIN"), require_role("DIRECTOR")]
+ADMIN = [require_role("SUPER_ADMIN", "ADMIN", "DIRECTOR")]
 
 
 @router.post("/telegram/bot/connect", response_model=TelegramBotResponse)

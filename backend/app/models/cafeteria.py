@@ -14,6 +14,7 @@ class CafeteriaProduct(Base):
     stock = Column(Integer, default=0)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class CafeteriaOrder(Base):
@@ -28,6 +29,7 @@ class CafeteriaOrder(Base):
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class CafeteriaOrderItem(Base):
@@ -35,6 +37,8 @@ class CafeteriaOrderItem(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     order_id = Column(String(36), ForeignKey("cafeteria_orders.id"), nullable=False)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     product_id = Column(String(36), ForeignKey("cafeteria_products.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
     unit_price = Column(DECIMAL(10, 2), nullable=False)
+    deleted_at = Column(DateTime, nullable=True)

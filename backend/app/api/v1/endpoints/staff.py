@@ -6,7 +6,7 @@ from app.schemas.staff import (
 )
 from app.services import staff_service, id_service
 from app.api.v1.deps import get_current_user
-from app.core.permissions import PermissionChecker, RolePermission
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 
 router = APIRouter(tags=["staff"])
@@ -16,10 +16,12 @@ router = APIRouter(tags=["staff"])
 def create_staff(
     data: StaffCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.STAFF_CREATE)),
+    current_user: User = require_permission(Permission.STAFF_CREATE),
 ):
     """Create a staff account (DIRECTOR only)"""
-    school_id = data.school_id or current_user.school_id
+    # Tenant scoping: body school_id honored only for SUPER_ADMIN.
+    school_id = (data.school_id if current_user.is_superuser else None) or current_user.school_id
+    branch_id = (data.branch_id if current_user.is_superuser else None) or current_user.branch_id
     staff_id = id_service.generate_id(db, "staff", school_id)
     password = data.password or "changeme123"
 
@@ -36,8 +38,9 @@ def create_staff(
             employment_date=data.employment_date,
             photo_url=data.photo_url,
             school_id=school_id,
-            branch_id=data.branch_id or current_user.branch_id,
+            branch_id=branch_id,
             created_by=current_user.id,
+            include_deleted=True,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -64,7 +67,8 @@ def list_staff(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    staff = staff_service.list_staff(db, current_user.school_id, role_name)
+    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    staff = staff_service.list_staff(db, current_user.school_id, role_name, include_deleted=include_deleted)
     return [StaffListResult(**s) for s in staff]
 
 
@@ -74,7 +78,8 @@ def get_staff(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = staff_service.get_staff_by_id(db, id, current_user.school_id)
+    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    result = staff_service.get_staff_by_id(db, id, current_user.school_id, include_deleted=include_deleted)
     if not result:
         raise HTTPException(404, "Staff not found")
     return StaffResponse(**result)
@@ -85,9 +90,9 @@ def update_staff(
     id: str,
     data: StaffUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.STAFF_CREATE)),
+    current_user: User = require_permission(Permission.STAFF_CREATE),
 ):
-    result = staff_service.update_staff(db, id, current_user.school_id, data, current_user.id)
+    result = staff_service.update_staff(db, id, current_user.school_id, data, current_user.id, include_deleted=True)
     return StaffResponse(**result)
 
 
@@ -95,6 +100,6 @@ def update_staff(
 def deactivate_staff(
     id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.STAFF_CREATE)),
+    current_user: User = require_permission(Permission.STAFF_CREATE),
 ):
-    return staff_service.deactivate_staff(db, id, current_user.school_id, current_user.id)
+    return staff_service.deactivate_staff(db, id, current_user.school_id, current_user.id, include_deleted=True)

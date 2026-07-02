@@ -19,3 +19,4 @@ class Assignment(Base):
     status = Column(String(20), default="pending")
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

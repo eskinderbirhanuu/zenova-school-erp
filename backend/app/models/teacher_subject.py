@@ -1,5 +1,6 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, UniqueConstraint
+from datetime import datetime, timezone
+from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint
 from app.database import Base
 
 
@@ -10,6 +11,8 @@ class TeacherSubject(Base):
     teacher_profile_id = Column(String(36), ForeignKey("teacher_profiles.id"), nullable=False, index=True)
     subject_id = Column(String(36), ForeignKey("subjects.id"), nullable=False)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("teacher_profile_id", "subject_id", name="uq_teacher_subject"),

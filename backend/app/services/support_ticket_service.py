@@ -4,8 +4,11 @@ from app.models.user import User
 from app.models.school import School
 
 
-def generate_ticket_number(db: Session) -> str:
-    last = db.query(SupportTicket).order_by(SupportTicket.created_at.desc()).first()
+def generate_ticket_number(db: Session, include_deleted: bool = False) -> str:
+    q = db.query(SupportTicket).order_by(SupportTicket.created_at.desc())
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    last = q.first()
     num = 1
     if last and last.ticket_number.startswith("TKT-"):
         try:
@@ -15,10 +18,10 @@ def generate_ticket_number(db: Session) -> str:
     return f"TKT-{num:03d}"
 
 
-def create_ticket(db: Session, data, user_id: str):
+def create_ticket(db: Session, data, user_id: str, school_id: str = None):
     ticket = SupportTicket(
         ticket_number=generate_ticket_number(db),
-        school_id=data.school_id,
+        school_id=school_id or data.school_id,
         school_name=data.school_name,
         subject=data.subject,
         description=data.description,
@@ -32,8 +35,10 @@ def create_ticket(db: Session, data, user_id: str):
     return ticket
 
 
-def list_tickets(db: Session, skip: int = 0, limit: int = 50, status: str = None, priority: str = None):
+def list_tickets(db: Session, skip: int = 0, limit: int = 50, status: str = None, priority: str = None, include_deleted: bool = False):
     q = db.query(SupportTicket).order_by(SupportTicket.created_at.desc())
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
     if status:
         q = q.filter(SupportTicket.status == status)
     if priority:
@@ -43,7 +48,7 @@ def list_tickets(db: Session, skip: int = 0, limit: int = 50, status: str = None
     for t in tickets:
         assigned_name = None
         if t.assigned_to:
-            u = db.query(User).filter(User.id == t.assigned_to).first()
+            u = db.query(User).filter(User.id == t.assigned_to).execution_options(include_deleted=True).first()
             if u:
                 assigned_name = u.full_name
         result.append({
@@ -64,13 +69,16 @@ def list_tickets(db: Session, skip: int = 0, limit: int = 50, status: str = None
     return result
 
 
-def get_ticket(db: Session, ticket_id: str):
-    t = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
+def get_ticket(db: Session, ticket_id: str, include_deleted: bool = False):
+    q = db.query(SupportTicket).filter(SupportTicket.id == ticket_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    t = q.first()
     if not t:
         return None
     assigned_name = None
     if t.assigned_to:
-        u = db.query(User).filter(User.id == t.assigned_to).first()
+        u = db.query(User).filter(User.id == t.assigned_to).execution_options(include_deleted=True).first()
         if u:
             assigned_name = u.full_name
     return {
@@ -90,8 +98,11 @@ def get_ticket(db: Session, ticket_id: str):
     }
 
 
-def update_ticket(db: Session, ticket_id: str, data):
-    t = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
+def update_ticket(db: Session, ticket_id: str, data, include_deleted: bool = False):
+    q = db.query(SupportTicket).filter(SupportTicket.id == ticket_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    t = q.first()
     if not t:
         return None
     if data.status is not None:
@@ -102,12 +113,15 @@ def update_ticket(db: Session, ticket_id: str, data):
         t.assigned_to = data.assigned_to
     db.commit()
     db.refresh(t)
-    return get_ticket(db, ticket_id)
+    return get_ticket(db, ticket_id, include_deleted=include_deleted)
 
 
-def get_ticket_counts(db: Session):
-    total = db.query(SupportTicket).count()
-    open_ = db.query(SupportTicket).filter(SupportTicket.status == "Open").count()
-    in_progress = db.query(SupportTicket).filter(SupportTicket.status == "In Progress").count()
-    resolved = db.query(SupportTicket).filter(SupportTicket.status == "Resolved").count()
+def get_ticket_counts(db: Session, include_deleted: bool = False):
+    q = db.query(SupportTicket)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    total = q.count()
+    open_ = q.filter(SupportTicket.status == "Open").count()
+    in_progress = q.filter(SupportTicket.status == "In Progress").count()
+    resolved = q.filter(SupportTicket.status == "Resolved").count()
     return {"total": total, "open": open_, "in_progress": in_progress, "resolved": resolved}

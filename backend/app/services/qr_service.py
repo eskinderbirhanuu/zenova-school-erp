@@ -2,7 +2,7 @@ import uuid
 import secrets
 import json
 from base64 import b64encode, b64decode
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.qr_code import QRCode
 from app.core.audit import log_audit
@@ -14,7 +14,7 @@ def _generate_encrypted_token(reference_type: str, reference_id: str) -> str:
         "type": reference_type,
         "id": reference_id,
         "nonce": secrets.token_hex(8),
-        "ts": datetime.utcnow().isoformat(),
+        "ts": datetime.now(timezone.utc).isoformat(),
     })
     return b64encode(payload.encode()).decode()
 
@@ -34,6 +34,7 @@ def generate_qr(
     reference_id: str,
     school_id: str | None = None,
     branch_id: str | None = None,
+    user_id: str = None,
 ) -> QRCode:
     """Generate a QR code for a person"""
     qr_uuid = str(uuid.uuid4())
@@ -48,16 +49,16 @@ def generate_qr(
         branch_id=branch_id,
     )
     db.add(qr)
-    db.commit()
-    db.refresh(qr)
-
     log_audit(
         db=db,
+        user_id=user_id or "system",
         table_name="qr_codes",
         record_id=qr.id,
         action="QR_GENERATED",
         new_data={"reference_type": reference_type, "reference_id": reference_id, "uuid": qr_uuid},
     )
+    db.commit()
+    db.refresh(qr)
 
     return qr
 
@@ -71,7 +72,7 @@ def validate_qr(db: Session, qr_uuid: str) -> dict:
     if not qr.is_active:
         return {"valid": False, "message": "QR code is deactivated"}
 
-    if qr.expires_at and qr.expires_at < datetime.utcnow():
+    if qr.expires_at and qr.expires_at < datetime.now(timezone.utc):
         return {"valid": False, "message": "QR code has expired"}
 
     return {
@@ -82,13 +83,16 @@ def validate_qr(db: Session, qr_uuid: str) -> dict:
     }
 
 
-def get_qr_by_reference(db: Session, reference_type: str, reference_id: str) -> QRCode | None:
+def get_qr_by_reference(db: Session, reference_type: str, reference_id: str, school_id: str = None) -> QRCode | None:
     """Get QR code for a specific entity"""
-    return db.query(QRCode).filter(
+    q = db.query(QRCode).filter(
         QRCode.reference_type == reference_type,
         QRCode.reference_id == reference_id,
         QRCode.is_active == True,
-    ).first()
+    )
+    if school_id:
+        q = q.filter(QRCode.school_id == school_id)
+    return q.first()
 
 
 def get_qr_history(db: Session, school_id: str | None = None) -> list[QRCode]:

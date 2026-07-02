@@ -3,13 +3,8 @@
 import React, { useEffect, useRef, useState } from "react"
 import * as THREE from "three"
 import { useRouter } from "next/navigation"
-import {
-  Sparkles, ArrowRight, Loader2, CheckCircle2, AlertCircle,
-  Key, Building2, Users, Mail, Copy, Eye, EyeOff, HeadphonesIcon, Lock,
-} from "lucide-react"
+import { Sparkles, ArrowRight } from "lucide-react"
 import { setupService } from "@/services/api"
-
-const SPRING = "cubic-bezier(0.16, 1, 0.3, 1)"
 
 function EcosystemScene() {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -175,64 +170,29 @@ function EcosystemScene() {
 
 export default function ZenovaLanding() {
   const router = useRouter()
-  const [tab, setTab] = useState<"main" | "branch">("main")
+  const [checking, setChecking] = useState(true)
 
-  const [mainSchoolId, setMainSchoolId] = useState("")
-  const [mainKey, setMainKey] = useState("")
-  const [mainLoading, setMainLoading] = useState(false)
-  const [mainResult, setMainResult] = useState<{ valid: boolean; message: string } | null>(null)
-  const [mainError, setMainError] = useState("")
-
-  const [branchKey, setBranchKey] = useState("")
-  const [schoolId, setSchoolId] = useState("")
-  const [branchLoading, setBranchLoading] = useState(false)
-  const [branchError, setBranchError] = useState("")
-  const [branchResult, setBranchResult] = useState<{
-    branch_id?: string; branch_code?: string
-    director_employee_id?: string; director_password?: string
-  } | null>(null)
-  const [showPassword, setShowPassword] = useState(false)
-  const [copied, setCopied] = useState("")
-
-  const handleMainActivate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setMainLoading(true)
-    setMainError("")
-    setMainResult(null)
-    try {
-      const res = await setupService.validateLicenseType(mainKey)
-      if (res.data.valid && res.data.is_main) {
-        setMainResult({ valid: true, message: "License validated! Redirecting to setup..." })
-        setTimeout(() => router.push(`/activate/main?schoolId=${encodeURIComponent(mainSchoolId)}&key=${encodeURIComponent(mainKey)}`), 1200)
-      } else {
-        setMainError(res.data.message || "Invalid or non-MAIN license key")
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await setupService.installerStatus()
+        if (!res.data.server_identity_exists && !res.data.setup_complete) {
+          router.replace("/installer")
+          return
+        }
+        if (res.data.setup_complete || res.data.server_identity_exists) {
+          router.replace("/login")
+          return
+        }
+      } catch {
       }
-    } catch {
-      setMainError("Validation failed. Check the license key and try again.")
-    } finally { setMainLoading(false) }
-  }
+      setChecking(false)
+    }
+    check()
+  }, [router])
 
-  const handleBranchActivate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setBranchLoading(true)
-    setBranchError("")
-    setBranchResult(null)
-    try {
-      const res = await setupService.initializeBranch({ license_key: branchKey, school_id: schoolId })
-      if (res.data.success) {
-        setBranchResult(res.data)
-      } else {
-        setBranchError(res.data.message || "Branch activation failed")
-      }
-    } catch {
-      setBranchError("Branch activation failed. Check license key and school ID.")
-    } finally { setBranchLoading(false) }
-  }
-
-  const handleCopy = (text: string, label: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(label)
-    setTimeout(() => setCopied(""), 2000)
+  if (checking) {
+    return <div style={{ height: "100vh", background: "#05080F" }} />
   }
 
   return (
@@ -251,41 +211,10 @@ export default function ZenovaLanding() {
           color:#F3F6FB;margin-bottom:10px;letter-spacing:-0.02em}
         .grad-text{background:linear-gradient(135deg,#3B82F6,#06B6D4,#10B981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .hero-sub{font-size:15px;line-height:1.5;color:#A9B8CC;max-width:440px;margin:0 auto 20px}
-        .tabs{display:flex;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:4px;margin-bottom:20px;gap:4px}
-        .tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 0;border-radius:9px;font-size:13px;font-weight:500;
-          color:#5E7390;cursor:pointer;transition:all 0.25s;border:none;background:transparent;font-family:'Inter',sans-serif}
-        .tab.active{background:rgba(59,130,246,0.15);color:#F3F6FB}
-        .tab:hover:not(.active){color:#A9B8CC}
-        .card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;text-align:left}
-        .card-title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;color:#F3F6FB;margin-bottom:4px}
-        .card-desc{font-size:13px;color:#5E7390;margin-bottom:16px}
-        .input-group{display:flex;flex-direction:column;gap:10px}
-        .input-group input{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:11px 14px;
-          color:#F3F6FB;font-size:14px;font-family:'Inter',sans-serif;outline:none;transition:border-color 0.25s}
-        .input-group input::placeholder{color:#4A5F7A}
-        .input-group input:focus{border-color:rgba(59,130,246,0.5)}
-        .input-group input.font-mono{font-family:'JetBrains Mono',monospace;letter-spacing:0.03em}
         .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px 0;
           background:linear-gradient(135deg,#3B82F6,#2563EB);border:none;border-radius:10px;color:#fff;
-          font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.2s,transform 0.15s;font-family:'Inter',sans-serif;margin-top:6px}
+          font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.2s,transform 0.15s;font-family:'Inter',sans-serif}
         .btn:active{transform:scale(0.98)}
-        .btn:disabled{opacity:0.5;cursor:not-allowed}
-        .msg{display:flex;align-items:center;gap:8px;font-size:13px;padding:10px 14px;border-radius:10px;margin-top:10px}
-        .msg-err{border:1px solid rgba(239,68,68,0.2);background:rgba(239,68,68,0.08);color:#FCA5A5}
-        .msg-ok{border:1px solid rgba(16,185,129,0.2);background:rgba(16,185,129,0.08);color:#6EE7B7}
-        .result-box{border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-top:10px}
-        .result-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
-        .result-row:last-child{border-bottom:none}
-        .result-label{font-size:12px;color:#5E7390}
-        .result-value{font-size:13px;color:#F3F6FB;font-family:'JetBrains Mono',monospace}
-        .result-copy{background:transparent;border:none;color:#5E7390;cursor:pointer;padding:3px;border-radius:4px;display:inline-flex}
-        .result-copy:hover{color:#F3F6FB;background:rgba(255,255,255,0.06)}
-        .support{position:relative;z-index:2;max-width:520px;width:100%;margin:12px auto 28px;padding:0 20px;text-align:center}
-        .support-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px}
-        .support-title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:#A9B8CC;margin-bottom:8px}
-        .support-grid{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;font-size:13px;color:#5E7390}
-        .support-grid a{color:#A9B8CC;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:color 0.2s}
-        .support-grid a:hover{color:#F3F6FB}
         .foot{position:absolute;bottom:16px;left:0;right:0;z-index:2;text-align:center;font-size:12px;color:#4A5F7A}
         .foot a{color:#5E7390;text-decoration:none;margin:0 8px;transition:color 0.2s}
         .foot a:hover{color:#A9B8CC}
@@ -306,151 +235,12 @@ export default function ZenovaLanding() {
           </h1>
 
           <p className="hero-sub">
-            Enterprise School Management Platform — activate your license below.
+            Your school management platform is ready.
           </p>
 
-          <div className="tabs">
-            <button className={`tab ${tab === "main" ? "active" : ""}`} onClick={() => setTab("main")}>
-              <Key size={14} /> Main License
-            </button>
-            <button className={`tab ${tab === "branch" ? "active" : ""}`} onClick={() => setTab("branch")}>
-              <Building2 size={14} /> Branch License
-            </button>
-          </div>
-
-          {tab === "main" ? (
-            <div className="card">
-              <div className="card-title">Activate Main System</div>
-              <div className="card-desc">Enter your main license key provided by ZENOVA</div>
-              <form onSubmit={handleMainActivate}>
-                <div className="input-group">
-                  <input
-                    type="text"
-                    placeholder="School ID"
-                    value={mainSchoolId}
-                    onChange={(e) => setMainSchoolId(e.target.value)}
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="ZNV-XXXX-XXXX-XXXX-XXXX"
-                    value={mainKey}
-                    onChange={(e) => setMainKey(e.target.value.toUpperCase())}
-                    required
-                    className="font-mono"
-                  />
-                  <button type="submit" className="btn" disabled={mainLoading}>
-                    {mainLoading ? (
-                      <><Loader2 size={15} style={{ animation: "spin 0.8s linear infinite" }} /> Verifying</>
-                    ) : (
-                      <><span>Activate</span><ArrowRight size={14} /></>
-                    )}
-                  </button>
-                </div>
-                {mainError && (
-                  <div className="msg msg-err"><AlertCircle size={14} /> {mainError}</div>
-                )}
-                {mainResult?.valid && (
-                  <div className="msg msg-ok"><CheckCircle2 size={14} /> {mainResult.message}</div>
-                )}
-              </form>
-            </div>
-          ) : (
-            <div className="card">
-              <div className="card-title">Activate Branch</div>
-              <div className="card-desc">Enter branch license key and branch ID</div>
-              {!branchResult ? (
-                <form onSubmit={handleBranchActivate}>
-                  <div className="input-group">
-                    <input
-                      type="text"
-                      placeholder="Branch license key"
-                      value={branchKey}
-                      onChange={(e) => setBranchKey(e.target.value.toUpperCase())}
-                      required
-                      className="font-mono"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Branch ID"
-                      value={schoolId}
-                      onChange={(e) => setSchoolId(e.target.value)}
-                      required
-                    />
-                    <button type="submit" className="btn" disabled={branchLoading}>
-                      {branchLoading ? (
-                        <><Loader2 size={15} style={{ animation: "spin 0.8s linear infinite" }} /> Activating</>
-                      ) : (
-                        <><span>Activate Branch</span><ArrowRight size={14} /></>
-                      )}
-                    </button>
-                  </div>
-                  {branchError && (
-                    <div className="msg msg-err"><AlertCircle size={14} /> {branchError}</div>
-                  )}
-                </form>
-              ) : (
-                <div>
-                  <div className="msg msg-ok"><CheckCircle2 size={14} /> Branch Activated Successfully!</div>
-                  <div className="result-box">
-                    {branchResult.branch_code && (
-                      <div className="result-row">
-                        <span className="result-label">Branch Code</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span className="result-value">{branchResult.branch_code}</span>
-                          <button className="result-copy" onClick={() => handleCopy(branchResult.branch_code!, "Branch")}>
-                            {copied === "Branch" ? <CheckCircle2 size={13} /> : <Copy size={13} />}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {branchResult.director_employee_id && (
-                      <div className="result-row">
-                        <span className="result-label">Director Employee ID</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span className="result-value">{branchResult.director_employee_id}</span>
-                          <button className="result-copy" onClick={() => handleCopy(branchResult.director_employee_id!, "Employee ID")}>
-                            {copied === "Employee ID" ? <CheckCircle2 size={13} /> : <Copy size={13} />}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {branchResult.director_password && (
-                      <div className="result-row">
-                        <span className="result-label">Director Password</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span className="result-value">
-                            {showPassword ? branchResult.director_password : "•".repeat(branchResult.director_password.length)}
-                          </span>
-                          <button className="result-copy" onClick={() => setShowPassword(!showPassword)}>
-                            {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-                          </button>
-                          <button className="result-copy" onClick={() => handleCopy(branchResult.director_password!, "Password")}>
-                            {copied === "Password" ? <CheckCircle2 size={13} /> : <Copy size={13} />}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <button className="btn" onClick={() => router.push("/director/dashboard")} style={{ marginTop: 12 }}>
-                    Go to Director Dashboard <ArrowRight size={14} />
-                  </button>
-                </div>
-              )}
-            </div>
-            )}
-          <div className="support-card">
-            <div className="support-title"><HeadphonesIcon size={12} style={{ marginRight: 4, verticalAlign: -1 }} /> Demo &amp; Support Teams</div>
-            <div className="support-grid">
-              <a href="mailto:support@zenova.app"><Mail size={12} /> support@zenova.app</a>
-              <a href="mailto:demo@zenova.app"><Users size={12} /> Request Demo</a>
-            </div>
-            <div style={{ marginTop: 10, textAlign: "center" }}>
-              <a href="/activate/reset-password" style={{ color: "#5E7390", fontSize: 13, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <Lock size={11} /> Forgot Password?
-              </a>
-            </div>
-          </div>
+          <button className="btn" onClick={() => router.push("/login")}>
+            <span>Go to Login</span><ArrowRight size={14} />
+          </button>
         </div>
 
         <div className="foot">

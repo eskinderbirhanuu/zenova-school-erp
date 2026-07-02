@@ -1,9 +1,10 @@
 from fastapi import Depends, HTTPException, status
 from app.api.v1.deps import get_current_user
 from app.models.user import User
+from app.core.server_identity import get_server_identity
 
 
-class RolePermission:
+class Permission:
     STUDENT_CREATE = "students.create"
     STUDENT_EDIT = "students.edit"
     STUDENT_DELETE = "students.delete"
@@ -24,35 +25,44 @@ class RolePermission:
     SCHOOL_MANAGE = "schools.manage"
 
 
+# Backward-compat alias
+RolePermission = Permission
+
+
+_ROLE_PERMISSION_VALUES = [
+    v for v in vars(Permission).values()
+    if isinstance(v, str) and "." in v
+]
+
 ROLE_PERMISSIONS = {
-    "SUPER_ADMIN": [f for f in dir(RolePermission) if not f.startswith("_")],
+    "SUPER_ADMIN": _ROLE_PERMISSION_VALUES,
     "ADMIN": [
-        RolePermission.STUDENT_CREATE, RolePermission.STUDENT_EDIT, RolePermission.STUDENT_VIEW,
-        RolePermission.PARENT_CREATE, RolePermission.PARENT_EDIT,
-        RolePermission.TEACHER_CREATE, RolePermission.STAFF_CREATE,
-        RolePermission.FINANCE_ENTRY, RolePermission.FINANCE_REPORTS,
-        RolePermission.HR_MANAGE, RolePermission.INVENTORY_MANAGE,
-        RolePermission.LIBRARY_MANAGE, RolePermission.CAFETERIA_POS,
-        RolePermission.AUDIT_VIEW, RolePermission.SETTINGS_MANAGE,
+        Permission.STUDENT_CREATE, Permission.STUDENT_EDIT, Permission.STUDENT_VIEW,
+        Permission.PARENT_CREATE, Permission.PARENT_EDIT,
+        Permission.TEACHER_CREATE, Permission.STAFF_CREATE,
+        Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS,
+        Permission.HR_MANAGE, Permission.INVENTORY_MANAGE,
+        Permission.LIBRARY_MANAGE, Permission.CAFETERIA_POS,
+        Permission.AUDIT_VIEW, Permission.SETTINGS_MANAGE,
     ],
     "DIRECTOR": [
-        RolePermission.STUDENT_VIEW, RolePermission.STUDENT_CREATE,
-        RolePermission.PARENT_CREATE, RolePermission.PARENT_EDIT,
-        RolePermission.TEACHER_CREATE, RolePermission.STAFF_CREATE,
-        RolePermission.FINANCE_REPORTS, RolePermission.AUDIT_VIEW,
+        Permission.STUDENT_VIEW, Permission.STUDENT_CREATE,
+        Permission.PARENT_CREATE, Permission.PARENT_EDIT,
+        Permission.TEACHER_CREATE, Permission.STAFF_CREATE,
+        Permission.FINANCE_REPORTS, Permission.AUDIT_VIEW,
     ],
     "REGISTRAR": [
-        RolePermission.STUDENT_CREATE, RolePermission.STUDENT_EDIT, RolePermission.STUDENT_VIEW,
-        RolePermission.PARENT_CREATE, RolePermission.PARENT_EDIT,
-        RolePermission.AUDIT_VIEW,
+        Permission.STUDENT_CREATE, Permission.STUDENT_EDIT, Permission.STUDENT_VIEW,
+        Permission.PARENT_CREATE, Permission.PARENT_EDIT,
+        Permission.AUDIT_VIEW,
     ],
-    "TEACHER": [RolePermission.STUDENT_VIEW],
-    "FINANCE": [RolePermission.FINANCE_ENTRY, RolePermission.FINANCE_REPORTS],
-    "HR": [RolePermission.HR_MANAGE],
-    "INVENTORY": [RolePermission.INVENTORY_MANAGE],
-    "LIBRARY": [RolePermission.LIBRARY_MANAGE],
-    "CAFETERIA": [RolePermission.CAFETERIA_POS],
-    "AUDITOR": [RolePermission.AUDIT_VIEW],
+    "TEACHER": [Permission.STUDENT_VIEW],
+    "FINANCE": [Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS],
+    "HR": [Permission.HR_MANAGE],
+    "INVENTORY": [Permission.INVENTORY_MANAGE],
+    "LIBRARY": [Permission.LIBRARY_MANAGE],
+    "CAFETERIA": [Permission.CAFETERIA_POS],
+    "AUDITOR": [Permission.AUDIT_VIEW],
 }
 
 
@@ -63,11 +73,54 @@ def has_permission(user: User, permission: str) -> bool:
         return False
     if not user.role:
         return False
-    role_perms = ROLE_PERMISSIONS.get(user.role.name, [])
-    return permission in role_perms
+    return permission in ROLE_PERMISSIONS.get(user.role.name, [])
+
+
+def require_permission(*permissions: str):
+    """Require the current user to have at least one of the given permissions.
+
+    Can be used as a parameter injection (``current_user: User = Depends(...)``)
+    or as a router dependency (``dependencies=[...]``).
+    """
+    def _check(current_user: User = Depends(get_current_user)):
+        if not permissions:
+            return current_user
+        for perm in permissions:
+            if has_permission(current_user, perm):
+                return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Missing one of: {', '.join(permissions)}",
+        )
+    return Depends(_check)
+
+
+def require_role(*role_names: str):
+    """Require the current user to have at least one of the given role names.
+
+    Prefer ``require_permission()`` for new code; this function exists for
+    coarse-grained checks where role-name comparison is sufficient.
+    """
+    def _check(current_user: User = Depends(get_current_user)):
+        if current_user.is_superuser:
+            return current_user
+        if current_user.is_view_only:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="View-only mode: mutations are disabled outside the school network",
+            )
+        if not current_user.role or current_user.role.name not in role_names:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Requires one of roles: {', '.join(role_names)}",
+            )
+        return current_user
+    return Depends(_check)
 
 
 class PermissionChecker:
+    """Deprecated: Use ``require_permission()`` instead."""
+
     def __init__(self, permission: str):
         self.permission = permission
 
@@ -80,14 +133,21 @@ class PermissionChecker:
         return current_user
 
 
-def require_role(role_name: str):
-    def _check_role(current_user: User = Depends(get_current_user)):
-        if current_user.is_superuser:
-            return current_user
-        if not current_user.role or current_user.role.name != role_name:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Requires role: {role_name}",
-            )
-        return current_user
-    return Depends(_check_role)
+def require_server_role(*allowed_roles: str):
+    """Require this deployment to be one of the given server roles.
+
+    Checks the on-disk ``server_id.json`` to determine the current
+    deployment's role.  Raises 503 if the server hasn't been initialized
+    yet, 403 if the role doesn't match.
+    """
+    identity = get_server_identity()
+    if identity is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Server not initialized — run the installer first",
+        )
+    if identity["server_role"] not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Server role '{identity['server_role']}' not allowed (requires {', '.join(allowed_roles)})",
+        )

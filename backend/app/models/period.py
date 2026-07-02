@@ -16,3 +16,4 @@ class AccountingPeriod(Base):
     locked_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     locked_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

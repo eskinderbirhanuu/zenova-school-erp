@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.number_sequence import NumberSequence
 
@@ -17,7 +17,7 @@ def generate_id(db: Session, entity_type: str, school_id: str) -> str:
     if not prefix:
         raise ValueError(f"Unknown entity type: {entity_type}")
 
-    year = datetime.utcnow().year
+    year = datetime.now(timezone.utc).year
 
     seq = db.query(NumberSequence).filter(
         NumberSequence.prefix == prefix,

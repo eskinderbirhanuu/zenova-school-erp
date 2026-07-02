@@ -1,0 +1,6 @@
+# License signing keys — NEVER commit
+keys/
+
+# Environment
+.env
+*.env.local

@@ -2,6 +2,7 @@ node_modules/
 __pycache__/
 *.py[cod]
 .env
+.env.local
 *.egg-info/
 dist/
 build/
@@ -15,3 +16,16 @@ Thumbs.db
 graphify-out/
 .next/
 *.log
+*.lic
+backend/keys/
+backend/app/data/
+backend/debug_routes*.py
+backend/fix_enum*.py
+.pytest_cache/
+*.pyc
+.mypy_cache/
+.stestr/
+*.swp
+*.swo
+*~
+.DS_Store?

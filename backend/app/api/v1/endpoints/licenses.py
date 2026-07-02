@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -14,16 +14,18 @@ from app.schemas.license import (
     LicenseStatusResponse,
 )
 from app.services import license_service
-from app.api.v1.deps import get_current_user
-from app.core.permissions import PermissionChecker, RolePermission
+from app.api.v1.deps import get_current_user, rate_limit
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.license import License
 
 router = APIRouter(tags=["licenses"])
 
+LICENSE_VERIFY_LIMIT = rate_limit("license_verify", 20, 300)
+
 
 @router.post("/licenses/verify", response_model=LicenseVerifyResponse)
-def verify_license(data: LicenseVerifyRequest, db: Session = Depends(get_db)):
+def verify_license(data: LicenseVerifyRequest, db: Session = Depends(get_db), _=Depends(LICENSE_VERIFY_LIMIT)):
     """Verify a license key (no auth required - used before login)"""
     result = license_service.verify_license(db, data.key)
     return LicenseVerifyResponse(
@@ -37,10 +39,10 @@ def verify_license(data: LicenseVerifyRequest, db: Session = Depends(get_db)):
 def activate_license(
     data: LicenseActivateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.LICENSE_MANAGE)),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     """Activate a license for a school (SUPER_ADMIN only)"""
-    result = license_service.activate_license(db, data.key, data.school_id)
+    result = license_service.activate_license(db, data.key, data.school_id, user_id=current_user.id)
     return LicenseActivateResponse(
         activated=result["activated"],
         message=result["message"],
@@ -50,10 +52,10 @@ def activate_license(
 @router.get("/licenses", response_model=LicenseListResponse)
 def list_licenses(
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.LICENSE_MANAGE)),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     """List all licenses (SUPER_ADMIN only)"""
-    licenses = db.query(License).order_by(License.created_at.desc()).all()
+    licenses = db.query(License).execution_options(include_deleted=True).order_by(License.created_at.desc()).all()
     return LicenseListResponse(
         licenses=[LicenseResponse.model_validate(l) for l in licenses],
         total=len(licenses),
@@ -64,10 +66,10 @@ def list_licenses(
 def get_license(
     license_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.LICENSE_MANAGE)),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     """Get license details"""
-    license_record = db.query(License).filter(License.id == license_id).first()
+    license_record = db.query(License).filter(License.id == license_id).execution_options(include_deleted=True).first()
     if not license_record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="License not found")
     return LicenseResponse.model_validate(license_record)
@@ -77,7 +79,7 @@ def get_license(
 def create_license(
     data: LicenseCreateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.LICENSE_MANAGE)),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     """Create a new license (SUPER_ADMIN only)"""
     try:
@@ -99,10 +101,10 @@ def update_license_status(
     license_id: str,
     data: LicenseStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.LICENSE_MANAGE)),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     """Update license status (SUPER_ADMIN only)"""
-    license_record = license_service.update_license_status(db, license_id, data.status)
+    license_record = license_service.update_license_status(db, license_id, data.status, user_id=current_user.id)
     if not license_record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="License not found")
     return LicenseResponse.model_validate(license_record)
@@ -122,7 +124,7 @@ def get_license_status(
     days_remaining = None
     is_expired = False
     if license_record.valid_until:
-        remaining = (license_record.valid_until - datetime.utcnow()).days
+        remaining = (license_record.valid_until - datetime.now(timezone.utc)).days
         days_remaining = max(0, remaining)
         is_expired = remaining <= 0
 

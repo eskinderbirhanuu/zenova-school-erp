@@ -19,6 +19,7 @@ class Invoice(Base):
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class InvoiceLine(Base):
@@ -26,6 +27,8 @@ class InvoiceLine(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     invoice_id = Column(String(36), ForeignKey("invoices.id"), nullable=False)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     fee_assignment_id = Column(String(36), ForeignKey("fee_assignments.id"), nullable=True)
     description = Column(String(500), nullable=False)
     amount = Column(DECIMAL(15, 2), nullable=False)
+    deleted_at = Column(DateTime, nullable=True)

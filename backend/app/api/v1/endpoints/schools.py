@@ -19,7 +19,7 @@ def list_schools(
 ):
     if not current_user.is_superuser:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin only")
-    q = db.query(School).filter(School.deleted_at.is_(None))
+    q = db.query(School).execution_options(include_deleted=True)
     if search:
         s = f"%{search}%"
         q = q.filter(School.name.ilike(s) | School.code.ilike(s))
@@ -27,7 +27,7 @@ def list_schools(
     schools = q.order_by(School.created_at.desc()).offset(skip).limit(limit).all()
     result = []
     for school in schools:
-        branch_count = db.query(Branch).filter(Branch.school_id == school.id, Branch.deleted_at.is_(None)).count()
+        branch_count = db.query(Branch).filter(Branch.school_id == school.id).execution_options(include_deleted=True).count()
         result.append({
             "id": school.id,
             "name": school.name,
@@ -51,10 +51,10 @@ def get_school(
 ):
     if not current_user.is_superuser:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin only")
-    school = db.query(School).filter(School.id == school_id, School.deleted_at.is_(None)).first()
+    school = db.query(School).filter(School.id == school_id).execution_options(include_deleted=True).first()
     if not school:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School not found")
-    branch_count = db.query(Branch).filter(Branch.school_id == school.id, Branch.deleted_at.is_(None)).count()
+    branch_count = db.query(Branch).filter(Branch.school_id == school.id).execution_options(include_deleted=True).count()
     return {
         "id": school.id,
         "name": school.name,

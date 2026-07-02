@@ -1,9 +1,15 @@
 import { cn } from "@/lib/utils"
+import {
+  CheckCircle2, XCircle, AlertTriangle, Info, MinusCircle,
+  Clock, PauseCircle, ShieldCheck, Sparkles, type LucideIcon
+} from "lucide-react"
 
 interface StatusBadgeProps {
   status: string
   variant?: "default" | "success" | "warning" | "destructive" | "info" | "purple"
   className?: string
+  showIcon?: boolean
+  size?: "sm" | "md"
 }
 
 const variantStyles: Record<string, string> = {
@@ -24,11 +30,43 @@ const autoMap: Record<string, "success" | "destructive" | "warning" | "info" | "
   new: "purple",
 }
 
-export function StatusBadge({ status, variant, className }: StatusBadgeProps) {
+const iconMap: Record<string, LucideIcon> = {
+  success: CheckCircle2,
+  destructive: XCircle,
+  warning: AlertTriangle,
+  info: Info,
+  default: MinusCircle,
+  purple: Sparkles,
+}
+
+const statusIconOverride: Record<string, LucideIcon> = {
+  active: ShieldCheck,
+  suspended: PauseCircle,
+  pending: Clock,
+  overdue: AlertTriangle,
+  expired: XCircle,
+  paid: CheckCircle2,
+}
+
+export function StatusBadge({ status, variant, className, showIcon = true, size = "sm" }: StatusBadgeProps) {
   const resolvedVariant = variant || autoMap[status?.toLowerCase()] || "default"
+  const Icon = statusIconOverride[status?.toLowerCase()] || iconMap[resolvedVariant]
+  const statusLabel = status || "Unknown"
+
   return (
-    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", variantStyles[resolvedVariant], className)}>
-      {status}
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border font-medium gap-1",
+        size === "sm" ? "px-2 py-0.5 text-xs" : "px-2.5 py-1 text-xs",
+        variantStyles[resolvedVariant],
+        className
+      )}
+      role="status"
+      aria-label={`${statusLabel}: ${resolvedVariant}`}
+    >
+      {showIcon && <Icon className={cn("shrink-0", size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5")} aria-hidden />}
+      {statusLabel}
+      <span className="sr-only">({resolvedVariant})</span>
     </span>
   )
 }

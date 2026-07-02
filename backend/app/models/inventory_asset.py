@@ -15,3 +15,4 @@ class InventoryAsset(Base):
     location = Column(String(255), nullable=True)
     status = Column(String(20), default="active")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

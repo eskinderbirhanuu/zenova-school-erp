@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zenova-db
+  namespace: zenova
+spec:
+  selector:
+    app: zenova-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zenova-db
+  namespace: zenova
+spec:
+  serviceName: zenova-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zenova-db
+  template:
+    metadata:
+      labels:
+        app: zenova-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "zenova_user"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zenova-secrets
+                  key: DATABASE_URL
+            - name: POSTGRES_DB
+              value: "zenova_db"
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "zenova_user", "-d", "zenova_db"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

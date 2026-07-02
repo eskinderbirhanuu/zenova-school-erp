@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import api from "@/services/api"
+import { dashboardService, setupWizardService } from "@/services/api"
 import {
   Users, GraduationCap, DollarSign, TrendingUp, UserCog,
   GitBranch, Calendar, ArrowRight, Plus, Zap, Loader2,
@@ -21,6 +21,16 @@ import {
 
 import { AnimatedBackground } from "@/components/3d/animated-background"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
+
+function timeAgo(dateStr: string): string {
+  const ms = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(ms / 60000)
+  if (mins < 1) return "just now"
+  if (mins < 60) return `${mins} min ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs} hour ago`
+  return `${Math.floor(hrs / 24)} days ago`
+}
 
 const enrollmentData = [
   { month: "Sep", students: 120 }, { month: "Oct", students: 145 },
@@ -43,20 +53,12 @@ const revenueData = [
   { month: "Jun", revenue: 82000, expenses: 45000 },
 ]
 
-const activities = [
-  { action: "New student enrolled", user: "Registrar", time: "10 min ago", badge: "info" as const },
-  { action: "Fee payment received", user: "Finance", time: "25 min ago", badge: "success" as const },
-  { action: "Staff contract updated", user: "HR", time: "1 hour ago", badge: "warning" as const },
-  { action: "Library book borrowed", user: "Library", time: "2 hours ago", badge: "purple" as const },
-  { action: "Cafeteria order placed", user: "Cafeteria", time: "3 hours ago", badge: "default" as const },
-]
-
-const activityIcons: Record<string, typeof TrendingUp> = {
-  enrollment: TrendingUp,
-  payment: CreditCard,
-  hr: UserPlus,
-  library: BookOpen,
-  cafeteria: ShoppingCart,
+function activityBadge(table: string): "info" | "success" | "warning" | "purple" | "default" {
+  if (table.includes("student")) return "info"
+  if (table.includes("payment") || table.includes("invoice")) return "success"
+  if (table.includes("contract") || table.includes("hr")) return "warning"
+  if (table.includes("library") || table.includes("book")) return "purple"
+  return "default"
 }
 
 export default function AdminDashboard() {
@@ -64,21 +66,46 @@ export default function AdminDashboard() {
     students: "—", staff: "—", directors: "—",
     revenue: "—", branches: "—", academicYear: "—",
   })
+  const [activities, setActivities] = useState<{ action: string; time: string; badge: "info" | "success" | "warning" | "purple" | "default" }[]>([])
+  const [enrollmentTrend, setEnrollmentTrend] = useState<any[]>([])
+  const [trendRevenue, setTrendRevenue] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [setupSteps, setSetupSteps] = useState<Record<string, boolean> | null>(null)
 
   useEffect(() => {
+    setupWizardService.status().then((res) => {
+      if (!res.data.all_done) setSetupSteps(res.data.steps)
+    }).catch(() => {})
     Promise.all([
-      api.get("/users", { params: { role: "DIRECTOR" } }).then(r => r.data?.length || 0).catch(() => 0),
-      api.get("/students").then(r => r.data?.length || r.data?.total || 0).catch(() => 0),
-      api.get("/staff").then(r => r.data?.length || 0).catch(() => 0),
-      api.get("/academic-years").then(r => {
-        const current = Array.isArray(r.data) ? r.data.find((y: any) => y.is_current) : null
-        return current?.name || "2025/2026"
-      }).catch(() => "2025/2026"),
-    ]).then(([directors, students, staff, academicYear]) => {
+      dashboardService.overview(),
+      dashboardService.trends(),
+    ]).then(([overview, trends]) => {
+      const d = overview.data
+      const t = d.totals
       setStats({
-        students: String(students), staff: String(staff), directors: String(directors),
-        revenue: "$82,000", branches: "3", academicYear,
+        students: String(t.students),
+        staff: String(t.staff),
+        directors: String(t.teachers),
+        revenue: `$${(d.finance.revenue || 0).toLocaleString()}`,
+        branches: String(t.branches),
+        academicYear: d.academic_year?.name || "—",
+      })
+      setActivities(
+        (d.recent_activity || []).map((a: any) => ({
+          action: `${a.action} on ${a.table_name}`,
+          time: timeAgo(a.created_at),
+          badge: activityBadge(a.table_name),
+        }))
+      )
+      if (trends.data) {
+        setEnrollmentTrend(trends.data.enrollment_trend || [])
+        setTrendRevenue(trends.data.revenue_trend || [])
+      }
+      setLoading(false)
+    }).catch(() => {
+      setStats({
+        students: "—", staff: "—", directors: "—",
+        revenue: "—", branches: "—", academicYear: "—",
       })
       setLoading(false)
     })
@@ -93,9 +120,27 @@ export default function AdminDashboard() {
     )
   }
 
+  const missingSteps = setupSteps ? Object.entries(setupSteps).filter(([, v]) => !v).map(([k]) => k.replace(/_/g, " ")) : []
+
   return (
     <div className="space-y-8 animate-fade-in">
       <AnimatedBackground />
+
+      {setupSteps && (
+        <FadeInUp>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between">
+            <div>
+              <p className="font-medium text-amber-800">Setup incomplete</p>
+              <p className="text-sm text-amber-700 mt-1">
+                Missing: {missingSteps.join(", ")}.
+              </p>
+            </div>
+            <Link href="/admin/setup">
+              <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white">Complete Setup</Button>
+            </Link>
+          </div>
+        </FadeInUp>
+      )}
 
       <FadeInUp>
         <PageHeader
@@ -144,7 +189,7 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={enrollmentData}>
+                <BarChart data={enrollmentTrend.length > 0 ? enrollmentTrend : enrollmentData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                   <XAxis dataKey="month" className="text-xs" tick={{ fontSize: 12 }} />
                   <YAxis className="text-xs" tick={{ fontSize: 12 }} />
@@ -168,7 +213,7 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueData}>
+                <AreaChart data={trendRevenue.length > 0 ? trendRevenue : revenueData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                   <XAxis dataKey="month" className="text-xs" tick={{ fontSize: 12 }} />
                   <YAxis className="text-xs" tick={{ fontSize: 12 }} />
@@ -202,7 +247,9 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {activities.map((a, i) => (
+                {activities.length === 0 ? (
+                  <tr><td className="p-4 text-muted-foreground text-center" colSpan={3}>No recent activity</td></tr>
+                ) : activities.map((a, i) => (
                   <tr key={i} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="p-4 font-medium">{a.action}</td>
                     <td className="p-4 text-muted-foreground">{a.time}</td>

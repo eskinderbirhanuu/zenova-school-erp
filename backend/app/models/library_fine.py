@@ -16,3 +16,4 @@ class LibraryFine(Base):
     amount = Column(Float, default=0)
     status = Column(String(20), default="unpaid")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

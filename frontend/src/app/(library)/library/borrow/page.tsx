@@ -33,6 +33,11 @@ export default function LibraryBorrowPage() {
     b.author?.toLowerCase().includes(bookSearch.toLowerCase())
   )
 
+  const [dueDate, setDueDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 14)
+    return d.toISOString().split("T")[0]
+  })
+
   const handleBorrow = async () => {
     if (!selectedStudent || !selectedBook) {
       toast({ title: "Please select a student and a book", variant: "destructive" })
@@ -41,8 +46,10 @@ export default function LibraryBorrowPage() {
     setBorrowing(true)
     try {
       await libraryService.borrowings.borrow({
-        student_id: selectedStudent.id,
         book_id: selectedBook.id,
+        borrower_type: "student",
+        borrower_id: selectedStudent.id,
+        due_date: dueDate,
       })
       toast({ title: "Book borrowed successfully" })
       setSelectedStudent(null)
@@ -126,7 +133,12 @@ export default function LibraryBorrowPage() {
         </Card>
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">Due Date:</label>
+          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+            className="px-3 py-2 border rounded-lg text-sm" />
+        </div>
         <Button size="lg" onClick={handleBorrow} disabled={!selectedStudent || !selectedBook || borrowing}>
           <BookUp className="mr-2 h-5 w-5" />{borrowing ? "Borrowing..." : "Borrow Book"}
         </Button>

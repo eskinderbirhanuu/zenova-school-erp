@@ -1,11 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { academicService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
 
 export default function TeacherGradesPage() {
+  const router = useRouter()
   const [grades, setGrades] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -31,18 +35,25 @@ export default function TeacherGradesPage() {
   const filtered = normalized.filter(g => !search || g.student?.toLowerCase().includes(search.toLowerCase()))
 
   return (
-    <GenericListPage
-      title="Gradebook" description="Enter and manage student grades"
-      columns={[
-        { key: "student", header: "Student", render: (g) => <span className="font-medium">{g.student}</span> },
-        { key: "assignment", header: "Assignment", render: (g) => <span className="text-muted-foreground">{g.assignment}</span> },
-        { key: "score", header: "Score", render: (g) => <span>{g.score}</span> },
-        { key: "grade", header: "Grade", render: (g) => <span className="font-mono font-bold">{g.grade}</span> },
-        { key: "date", header: "Date", render: (g) => <span className="text-muted-foreground">{g.date}</span> },
-      ]}
-      data={filtered} keyExtractor={(g) => g.id}
-      loading={loading} searchPlaceholder="Search student..." onSearch={setSearch}
-      emptyTitle="No grades entered"
-    />
+    <div className="space-y-4">
+      <GenericListPage
+        title="Gradebook" description="Enter and manage student grades"
+        columns={[
+          { key: "student", header: "Student", render: (g) => <span className="font-medium">{g.student}</span> },
+          { key: "assignment", header: "Assignment", render: (g) => <span className="text-muted-foreground">{g.assignment}</span> },
+          { key: "score", header: "Score", render: (g) => <span>{g.score}</span> },
+          { key: "grade", header: "Grade", render: (g) => <span className="font-mono font-bold">{g.grade}</span> },
+          { key: "date", header: "Date", render: (g) => <span className="text-muted-foreground">{g.date}</span> },
+        ]}
+        data={filtered} keyExtractor={(g) => g.id}
+        loading={loading} searchPlaceholder="Search student..." onSearch={setSearch}
+        emptyTitle="No grades entered"
+        actions={
+          <Button onClick={() => router.push("/teacher/grades/enter")}>
+            <Plus className="mr-2 h-4 w-4" /> Enter Grades
+          </Button>
+        }
+      />
+    </div>
   )
 }

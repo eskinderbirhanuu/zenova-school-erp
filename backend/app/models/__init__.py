@@ -2,6 +2,7 @@ from app.database import Base
 
 from app.models.user import User
 from app.models.role import Role
+from app.models.server import ServerIdentity, ServerRole
 from app.models.school import School
 from app.models.branch import Branch
 from app.models.license import License, LicenseType, LicenseStatus
@@ -54,3 +55,9 @@ from app.models.event import Event
 from app.models.support_ticket import SupportTicket
 from app.models.report import Report
 from app.models.school_settings import SchoolSettings
+from app.models.sync_queue import SyncQueue, SyncOperation, SyncStatus
+from app.models.sync_inbound import SyncInbound
+from app.models.conflict_log import ConflictLog
+from app.models.student_document import StudentDocument
+from app.models.announcement import Announcement
+from app.models.archive import ArchiveJob, ArchivedRecord

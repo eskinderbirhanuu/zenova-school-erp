@@ -7,8 +7,8 @@ from app.models.user import User
 from app.models.role import Role
 
 router = APIRouter()
-ADMIN = [require_role("ADMIN"), require_role("SUPER_ADMIN")]
-VIEW_USERS = [require_role("ADMIN"), require_role("SUPER_ADMIN"), require_role("DIRECTOR")]
+ADMIN = [require_role("ADMIN", "SUPER_ADMIN")]
+VIEW_USERS = [require_role("ADMIN", "SUPER_ADMIN", "DIRECTOR")]
 
 
 @router.get("/users", response_model=list[UserResponse], dependencies=VIEW_USERS)
@@ -20,7 +20,7 @@ def list_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(User).filter(User.deleted_at.is_(None))
+    q = db.query(User).execution_options(include_deleted=True)
     if not current_user.is_superuser:
         q = q.filter(User.school_id == current_user.school_id)
     if role:
@@ -50,7 +50,7 @@ def update_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    u = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    u = db.query(User).filter(User.id == user_id).execution_options(include_deleted=True).first()
     if not u:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if not current_user.is_superuser and u.school_id != current_user.school_id:

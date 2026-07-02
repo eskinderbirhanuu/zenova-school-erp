@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
 from app.core.permissions import require_role
@@ -21,9 +21,9 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 
 router = APIRouter()
-ALL_ROLES = [require_role("SUPER_ADMIN"), require_role("ADMIN"), require_role("DIRECTOR"),
-             require_role("HR"), require_role("FINANCE"), require_role("INVENTORY"),
-             require_role("LIBRARY"), require_role("AUDITOR"), require_role("CAFETERIA")]
+ALL_ROLES = [require_role("SUPER_ADMIN", "ADMIN", "DIRECTOR",
+                          "HR", "FINANCE", "INVENTORY",
+                          "LIBRARY", "AUDITOR", "CAFETERIA")]
 
 REPORT_DEFINITIONS = {
     "system": [
@@ -93,8 +93,8 @@ def generate_report_data(db: Session, module: str, name: str, school_id: str | N
         active = db.query(Student).filter(Student.school_id == school_id, Student.status == "active").count()
         data = {"total_students": total, "active_students": active}
     elif module == "admin" and name == "Staff Overview":
-        staff_count = db.query(StaffProfile).count()
-        teacher_count = db.query(TeacherProfile).count()
+        staff_count = db.query(StaffProfile).filter(StaffProfile.school_id == school_id).count()
+        teacher_count = db.query(TeacherProfile).filter(TeacherProfile.school_id == school_id).count()
         data = {"staff": staff_count, "teachers": teacher_count}
     elif module == "admin" and name == "Financial Summary":
         total_invoiced = db.query(func.sum(Invoice.total_amount)).filter(Invoice.school_id == school_id).scalar() or 0
@@ -121,8 +121,8 @@ def generate_report_data(db: Session, module: str, name: str, school_id: str | N
     elif module == "hr" and name == "Payroll Summary":
         data = {"note": "See payroll module for detailed payroll reports"}
     elif module == "hr" and name == "Leave Balance Report":
-        total = db.query(func.sum(LeaveBalance.total_days)).scalar() or 0
-        used = db.query(func.sum(LeaveBalance.used_days)).scalar() or 0
+        total = db.query(func.sum(LeaveBalance.total_days)).filter(LeaveBalance.school_id == school_id).scalar() or 0
+        used = db.query(func.sum(LeaveBalance.used_days)).filter(LeaveBalance.school_id == school_id).scalar() or 0
         data = {"total_leave_days": int(total), "used_days": int(used)}
     elif module == "library" and name == "Borrowing Statistics":
         total = db.query(BookBorrowing).filter(BookBorrowing.school_id == school_id).count()
@@ -163,10 +163,14 @@ def generate_report_data(db: Session, module: str, name: str, school_id: str | N
         count = db.query(Supplier).filter(Supplier.school_id == school_id).count()
         data = {"total_suppliers": count}
     elif module == "auditor" and name == "Audit Trail Summary":
-        total = db.query(AuditLog).count()
+        total = db.query(AuditLog).filter(AuditLog.school_id == school_id).count()
         data = {"total_audit_entries": total}
     elif module == "auditor" and name == "Security Events":
-        total = db.query(AuditLog).count()
+        # SECURITY_* events for this tenant only; superuser sees all via the system module.
+        total = db.query(AuditLog).filter(
+            AuditLog.school_id == school_id,
+            AuditLog.action.like("SECURITY_%"),
+        ).count()
         data = {"total_events": total}
     elif module == "auditor" and name == "Compliance Report":
         data = {"status": "All systems operational"}
@@ -176,6 +180,10 @@ def generate_report_data(db: Session, module: str, name: str, school_id: str | N
 @router.get("/reports/{module}", dependencies=ALL_ROLES)
 def list_reports(module: str, skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
                  db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    # The "system" module surfaces global totals (users/schools/licenses) and is
+    # therefore restricted to SUPER_ADMIN. Other roles get a 403 for this module.
+    if module == "system" and not current_user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System reports require SUPER_ADMIN")
     school_id = current_user.school_id
     now = datetime.now(timezone.utc)
     definitions = REPORT_DEFINITIONS.get(module, [])

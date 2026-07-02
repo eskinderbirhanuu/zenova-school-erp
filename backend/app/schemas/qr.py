@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class QRGenerateRequest(BaseModel):
@@ -21,8 +21,7 @@ class QRResponse(BaseModel):
     created_at: datetime
     expires_at: datetime | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class QRValidateResponse(BaseModel):

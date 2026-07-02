@@ -50,7 +50,7 @@ export default function InvoicesPage() {
       actions={
         <div className="flex gap-2">
           <Button variant="outline" onClick={exportExcel}><Download className="mr-2 h-4 w-4" />Export</Button>
-          <Link href="/finance/create-invoice"><Button variant="outline"><FileText className="mr-2 h-4 w-4" />New Invoice</Button></Link>
+          <Link href="/finance/invoices/new"><Button variant="outline"><FileText className="mr-2 h-4 w-4" />New Invoice</Button></Link>
         </div>
       }
       emptyTitle="No invoices"

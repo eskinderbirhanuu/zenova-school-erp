@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
-import { motion } from "framer-motion"
+import { motion, useReducedMotion } from "framer-motion"
 
 interface KPICardProps {
   title: string
@@ -13,11 +13,47 @@ interface KPICardProps {
   description?: string
   trend?: { value: string; positive: boolean }
   accentColor?: string
+  sparklineData?: number[]
+  previousValue?: string | number
 }
 
-export function KPICard({ title, value, icon: Icon, iconColor = "text-primary", description, trend, accentColor }: KPICardProps) {
+function MiniSparkline({ data, positive }: { data: number[]; positive: boolean }) {
+  if (data.length < 2) return null
+  const min = Math.min(...data)
+  const max = Math.max(...data)
+  const range = max - min || 1
+  const h = 32
+  const w = 80
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w
+    const y = h - ((v - min) / range) * h
+    return `${x},${y}`
+  }).join(" ")
+
   return (
-    <motion.div whileHover={{ y: -2, scale: 1.01 }} transition={{ duration: 0.2 }}>
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-8 w-20" fill="none" aria-hidden>
+      <polyline
+        points={points}
+        fill="none"
+        stroke={positive ? "currentColor" : "currentColor"}
+        className={positive ? "text-emerald-500" : "text-red-500"}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  )
+}
+
+export function KPICard({ title, value, icon: Icon, iconColor = "text-primary", description, trend, accentColor, sparklineData, previousValue }: KPICardProps) {
+  const prefersReducedMotion = useReducedMotion()
+
+  return (
+    <motion.div
+      whileHover={prefersReducedMotion ? undefined : { y: -2, scale: 1.01 }}
+      transition={{ duration: 0.2 }}
+    >
       <Card className="relative overflow-hidden rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm shadow-sm hover:shadow-lg transition-all duration-300 group">
         {accentColor && <div className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-l-xl", accentColor)} />}
 
@@ -53,8 +89,16 @@ export function KPICard({ title, value, icon: Icon, iconColor = "text-primary", 
                 {trend.value}
               </span>
             )}
+            {previousValue && (
+              <span className="text-xs text-muted-foreground line-through">{previousValue}</span>
+            )}
             {description && <p className="text-xs text-muted-foreground truncate">{description}</p>}
           </div>
+          {sparklineData && sparklineData.length > 1 && (
+            <div className="mt-2">
+              <MiniSparkline data={sparklineData} positive={trend?.positive ?? true} />
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>

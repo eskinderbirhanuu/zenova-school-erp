@@ -11,7 +11,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     setLoading(true)
-    financeService.expenses.list({ limit: 100 }).then((r: any) => setExpenses(r.data)).catch(() => toast({ title: "Failed to load expenses", variant: "destructive" })).finally(() => setLoading(false))
+    financeService.journalEntries.list({ limit: 100 }).then((r: any) => setExpenses(r.data.filter((e: any) => e.type === "expense" || e.entry_type === "expense"))).catch(() => toast({ title: "Failed to load expenses", variant: "destructive" })).finally(() => setLoading(false))
   }, [])
 
   return (

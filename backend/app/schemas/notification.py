@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 
@@ -10,8 +10,7 @@ class NotificationPreferenceResponse(BaseModel):
     sms_on: bool
     telegram_chat_id: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NotificationPreferenceUpdate(BaseModel):
@@ -32,8 +31,7 @@ class TelegramBotResponse(BaseModel):
     logo_url: str | None = None
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TelegramWebhookMessage(BaseModel):

@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LicenseVerifyRequest(BaseModel):
@@ -47,8 +47,7 @@ class LicenseResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LicenseListResponse(BaseModel):
@@ -75,8 +74,7 @@ class SchoolResponse(BaseModel):
     is_setup_complete: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SchoolBrandingResponse(BaseModel):
@@ -105,8 +103,7 @@ class BranchResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SetupAdminRequest(BaseModel):
@@ -228,6 +225,7 @@ class BranchWithLicenseRequest(BaseModel):
     phone: str | None = None
     principal: str | None = None
     license_key: str = Field(..., min_length=10, max_length=255)
+    school_id: str | None = None
 
 
 # ─── Activation Flow v2 ──────────────────────────────────
@@ -310,10 +308,24 @@ class VerifyContactResponse(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     employee_id: str = Field(..., min_length=1, max_length=50)
-    license_key: str = Field(..., min_length=10, max_length=255)
+    # A recovery code minted by an authenticated admin (or the license server).
+    # The license key alone is NO LONGER sufficient to reset a password — that
+    # design allowed full account takeover since license keys are widely shared.
+    recovery_code: str = Field(..., min_length=10, max_length=512)
     new_password: str = Field(..., min_length=8, max_length=128)
 
 
 class ResetPasswordResponse(BaseModel):
     success: bool
+    message: str
+
+
+class IssueRecoveryCodeRequest(BaseModel):
+    employee_id: str = Field(..., min_length=1, max_length=50)
+
+
+class IssueRecoveryCodeResponse(BaseModel):
+    success: bool
+    recovery_code: str | None = None
+    expires_in_seconds: int = 600
     message: str

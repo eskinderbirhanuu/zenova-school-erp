@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime, ForeignKey
 from app.database import Base
 
@@ -11,4 +11,5 @@ class ClassGrade(Base):
     name = Column(String(100), nullable=False)
     code = Column(String(50), nullable=False)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

@@ -11,7 +11,7 @@ export default function CafeteriaSalesPage() {
 
   useEffect(() => {
     setLoading(true)
-    cafeteriaService.sales.list({ limit: 100 }).then((r: any) => setSales(r.data)).catch(() => toast({ title: "Failed to load sales", variant: "destructive" })).finally(() => setLoading(false))
+    cafeteriaService.orders.list({ limit: 100 }).then((r: any) => setSales(r.data)).catch(() => toast({ title: "Failed to load sales", variant: "destructive" })).finally(() => setLoading(false))
   }, [])
 
   return (

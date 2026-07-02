@@ -15,3 +15,4 @@ class JobPosting(Base):
     status = Column(String(20), default="Open")
     posted_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

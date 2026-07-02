@@ -8,20 +8,6 @@ const api = axios.create({
   withCredentials: true,
 })
 
-function getCsrfToken(): string | null {
-  if (typeof document === "undefined") return null
-  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)
-  return match ? decodeURIComponent(match[1]) : null
-}
-
-api.interceptors.request.use((config) => {
-  const csrfToken = getCsrfToken()
-  if (csrfToken) {
-    config.headers["X-CSRF-Token"] = csrfToken
-  }
-  return config
-})
-
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -78,7 +64,8 @@ export const parentService = {
   get: (id: string) => api.get(`/parents/${id}`),
   update: (id: string, data: any) => api.patch(`/parents/${id}`, data),
   link: (id: string, data: any) => api.post(`/parents/${id}/link`, data),
-  unlink: (id: string, data: any) => api.delete(`/parents/${id}/unlink`, { data }),
+  unlink: (id: string, data: any) => api.delete(`/parents/${id}/unlink`, { params: data }),
+  dashboard: () => api.get("/parent-portal/dashboard"),
 }
 
 export const teacherService = {
@@ -88,6 +75,8 @@ export const teacherService = {
   assignSection: (id: string, data: any) => api.post(`/teachers/${id}/assign-section`, data),
   assignSubjects: (id: string, subjectIds: string[]) => api.post(`/teachers/${id}/assign-subjects`, subjectIds),
   getSubjects: (id: string) => api.get(`/teachers/${id}/subjects`),
+  getMySubjects: () => api.get("/teachers/me/subjects"),
+  getMyProfile: () => api.get("/teachers/me/profile"),
 }
 
 export const staffService = {
@@ -99,19 +88,29 @@ export const academicService = {
   classes: {
     list: (params?: any) => api.get("/classes", { params }),
     create: (data: any) => api.post("/classes", data),
+    update: (id: string, data: any) => api.patch(`/classes/${id}`, data),
+    delete: (id: string) => api.delete(`/classes/${id}`),
   },
   sections: {
     list: (params?: any) => api.get("/sections", { params }),
     create: (data: any) => api.post("/sections", data),
+    update: (id: string, data: any) => api.patch(`/sections/${id}`, data),
+    delete: (id: string) => api.delete(`/sections/${id}`),
   },
   subjects: {
     list: (params?: any) => api.get("/subjects", { params }),
     create: (data: any) => api.post("/subjects", data),
+    update: (id: string, data: any) => api.patch(`/subjects/${id}`, data),
+    delete: (id: string) => api.delete(`/subjects/${id}`),
   },
   academicYears: {
     list: () => api.get("/academic-years"),
     create: (data: any) => api.post("/academic-years", data),
     setCurrent: (id: string) => api.patch(`/academic-years/${id}/set-current`),
+  },
+  semesters: {
+    list: (params?: any) => api.get("/semesters", { params }),
+    create: (data: any) => api.post("/semesters", data),
   },
   exams: {
     list: (params?: any) => api.get("/exams", { params }),
@@ -120,10 +119,17 @@ export const academicService = {
   examResults: {
     list: (params?: any) => api.get("/exam-results", { params }),
     create: (data: any) => api.post("/exam-results", data),
+    bulkCreate: (data: any) => api.post("/exam-results/bulk", data),
+    marksheet: (subjectId: string, sectionId: string) =>
+      api.get("/exam-results/marksheet", { params: { subject_id: subjectId, section_id: sectionId } }),
   },
   timetable: {
     list: (params?: any) => api.get("/timetable", { params }),
     create: (data: any) => api.post("/timetable", data),
+    update: (id: string, data: any) => api.patch(`/timetable/${id}`, data),
+    delete: (id: string) => api.delete(`/timetable/${id}`),
+    byTeacher: () => api.get("/timetable/by-teacher"),
+    checkConflicts: (data: any) => api.post("/timetable/check-conflicts", data),
   },
 }
 
@@ -158,16 +164,12 @@ export const financeService = {
     create: (data: any) => api.post("/fee-assignments", data),
   },
   budgets: {
-    list: (params?: any) => api.get("/finance/budgets", { params }),
-    create: (data: any) => api.post("/finance/budgets", data),
-  },
-  expenses: {
-    list: (params?: any) => api.get("/finance/expenses", { params }),
-    create: (data: any) => api.post("/finance/expenses", data),
+    list: (params?: any) => api.get("/budgets", { params }),
+    create: (data: any) => api.post("/budgets", data),
   },
   journal: {
-    list: (params?: any) => api.get("/finance/journal", { params }),
-    create: (data: any) => api.post("/finance/journal", data),
+    list: (params?: any) => api.get("/journal-entries", { params }),
+    create: (data: any) => api.post("/journal-entries", data),
   },
   trialBalance: () => api.get("/reports/trial-balance"),
 }
@@ -188,6 +190,7 @@ export const hrService = {
     mark: (data: any) => api.post("/attendance", data),
     bulk: (data: any[]) => api.post("/attendance/bulk", data),
   },
+  scanAttendance: (data: { qr_uuid: string; date: string }) => api.post("/scanner/attendance", data),
 }
 
 export const inventoryService = {
@@ -240,7 +243,7 @@ export const libraryService = {
   },
   borrowings: {
     list: (params?: any) => api.get("/library/borrowings", { params }),
-    borrow: (data: any) => api.post("/library/borrow", data),
+    borrow: (data: any) => api.post("/library/borrowings", data),
     return: (id: string) => api.post(`/library/borrowings/${id}/return`),
   },
 }
@@ -254,14 +257,15 @@ export const cafeteriaService = {
     list: (params?: any) => api.get("/cafeteria/orders", { params }),
     create: (data: any) => api.post("/cafeteria/orders", data),
   },
-  sales: {
-    list: (params?: any) => api.get("/cafeteria/sales", { params }),
-    create: (data: any) => api.post("/cafeteria/sales", data),
-  },
+
 }
 
 export const auditService = {
   list: (params?: any) => api.get("/audit-logs", { params }),
+}
+
+export const setupWizardService = {
+  status: () => api.get("/setup/wizard-status"),
 }
 
 export const setupService = {
@@ -280,6 +284,12 @@ export const setupService = {
     api.post("/auth/verify-super-admin-contact", { phone, email }),
   resetPassword: (data: { employee_id: string; license_key: string; new_password: string }) =>
     api.post("/activate/reset-password", data),
+
+  installerStatus: () => api.get("/installer/status"),
+  installerWhoami: () => api.get("/installer/whoami"),
+  installerInitSuperAdmin: (data: any) => api.post("/installer/initialize-super-admin", data),
+  installerInitMain: (data: any) => api.post("/installer/initialize-main", data),
+  installerInitBranch: (data: any) => api.post("/installer/initialize-branch", data),
 }
 
 export const branchService = {
@@ -304,4 +314,19 @@ export const telegramService = {
 export const notificationService = {
   getPreferences: () => api.get("/notifications/preferences"),
   updatePreferences: (data: any) => api.put("/notifications/preferences", data),
+}
+
+export const dashboardService = {
+  overview: () => api.get("/dashboard/overview"),
+  trends: (months?: number) => api.get("/dashboard/trends", { params: { months } }),
+}
+
+export const studentPortalService = {
+  dashboard: () => api.get("/student-portal/dashboard"),
+}
+
+export const announcementService = {
+  list: (params?: any) => api.get("/announcements", { params }),
+  create: (data: any) => api.post("/announcements", data),
+  delete: (id: string) => api.delete(`/announcements/${id}`),
 }

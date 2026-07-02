@@ -1,11 +1,13 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import secrets
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from app.config import settings
-from app.core.security import verify_password, get_password_hash
+from app.core.security import verify_password, get_password_hash, validate_password_strength
 from app.models.user import User
 from app.models.role import Role
 from app.models.audit_log import AuditLog
+from app.services.sync_service import enqueue_sync
 
 
 def authenticate_user(db: Session, email: str | None = None, employee_id: str | None = None, password: str = "") -> User | None:
@@ -47,20 +49,32 @@ def create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+    enqueue_sync(db, "users", user.id, "CREATE",
+                 {"email": email, "full_name": full_name, "employee_id": employee_id},
+                 school_id, branch_id)
     return user
 
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
-    to_encode.update({"exp": expire, "type": "access"})
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    to_encode.update({"exp": expire, "type": "access", "jti": secrets.token_hex(16)})
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+
+
+def create_mfa_token(data: dict) -> str:
+    """Short-lived JWT (5 min) used for MFA step-up during login."""
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=5)
+    to_encode.update({"exp": expire, "type": "mfa_step_up", "jti": secrets.token_hex(16)})
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
 def create_refresh_token(data: dict) -> str:
+    # IMPORTANT: jti is required so /refresh can revoke (blacklist) the previous token.
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=7)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+    to_encode.update({"exp": expire, "type": "refresh", "jti": secrets.token_hex(16)})
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
@@ -120,7 +134,7 @@ def log_security_event(
         user_id=identifier,
         ip_address=ip_address,
         user_agent=None,
-        new_data={"action": action, "timestamp": datetime.utcnow().isoformat()},
+        new_data={"action": action, "timestamp": datetime.now(timezone.utc).isoformat()},
     )
     db.add(audit)
     db.commit()
@@ -129,13 +143,19 @@ def log_security_event(
 def update_last_login(db: Session, user_id: str):
     user = db.query(User).filter(User.id == user_id).first()
     if user:
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = datetime.now(timezone.utc)
         db.commit()
 
 
 def reset_password(db: Session, user_id: str, new_password: str):
+    valid, msg = validate_password_strength(new_password)
+    if not valid:
+        raise ValueError(msg)
     user = db.query(User).filter(User.id == user_id).first()
     if user:
+        # Prevent password reuse to block reset-token replay.
+        if verify_password(new_password, user.hashed_password):
+            raise ValueError("New password must be different from the current password")
         user.hashed_password = get_password_hash(new_password)
         user.must_change_password = False
         db.commit()

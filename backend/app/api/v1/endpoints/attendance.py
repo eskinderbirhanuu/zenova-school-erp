@@ -4,10 +4,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.deps import get_current_user
 from app.models.attendance import Attendance
+from app.models.student import Student
 from app.models.school import School
 from app.schemas.hr import AttendanceBulkItem, AttendanceBulkResponse, AttendanceResponse
 from app.services.hr_service import get_attendance as hr_get_attendance
 from app.services.notification_service import notify_parents_of_absence
+from app.utils.excel import excel_response
 
 router = APIRouter(tags=["attendance"])
 
@@ -27,10 +29,29 @@ def mark_attendance_bulk(
     created = 0
     errors = []
 
+    # Pre-load the set of student_ids owned by this tenant so each record can be
+    # validated without a per-row query, and so a caller cannot stamp attendance
+    # onto another tenant's student (cross-tenant data pollution / existence leak).
+    student_ids_in_batch = {r.student_id for r in records if r.student_id}
+    valid_student_ids = set()
+    if student_ids_in_batch:
+        valid_student_ids = {
+            s.id for s in db.query(Student.id).filter(
+                Student.id.in_(student_ids_in_batch),
+                Student.school_id == school_id,
+            ).all()
+        }
+
     for i, item in enumerate(records):
+        # Tenant validation: reject records whose student_id doesn't belong to us.
+        if item.student_id and item.student_id not in valid_student_ids:
+            errors.append({"index": i, "reason": "Student not found in your school"})
+            continue
+
         existing = db.query(Attendance).filter(
             Attendance.student_id == item.student_id,
             Attendance.date == item.date,
+            Attendance.school_id == school_id,
         ).first()
         if existing:
             errors.append({"index": i, "reason": "Attendance already marked for this date"})
@@ -142,3 +163,32 @@ def patch_attendance(
         status=att.status, reason=att.reason, school_id=att.school_id,
         marked_by=att.marked_by, created_at=att.created_at,
     )
+
+
+@router.get("/attendance/export")
+def export_attendance(
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    status_filter: str | None = Query(None, alias="status"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    school_id = current_user.school_id
+    q = db.query(Attendance).filter(Attendance.school_id == school_id)
+    if date_from:
+        q = q.filter(Attendance.date >= date.fromisoformat(date_from))
+    if date_to:
+        q = q.filter(Attendance.date <= date.fromisoformat(date_to))
+    if status_filter:
+        q = q.filter(Attendance.status == status_filter)
+    records = q.order_by(Attendance.date.desc()).all()
+    headers = ["Date", "Student ID", "Student Name", "Status", "Reason", "Check In", "Check Out"]
+    rows = []
+    for r in records:
+        name = ""
+        if r.student_id:
+            s = db.query(Student).filter(Student.id == r.student_id).first()
+            if s:
+                name = f"{s.first_name} {s.last_name}"
+        rows.append([str(r.date), r.student_id or "", name, r.status, r.reason or "", str(r.check_in or ""), str(r.check_out or "")])
+    return excel_response(headers, rows, "attendance.xlsx")

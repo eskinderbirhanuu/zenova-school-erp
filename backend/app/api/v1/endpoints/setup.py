@@ -17,7 +17,7 @@ from app.schemas.license import (
 )
 from app.services import license_service
 from app.api.v1.deps import get_current_user
-from app.core.permissions import PermissionChecker, RolePermission
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.school import School
 from app.models.branch import Branch
@@ -121,7 +121,7 @@ def public_initialize_system(data: SetupInitializeRequest, db: Session = Depends
 def setup_create_school(
     data: SchoolCreateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.SCHOOL_MANAGE)),
+    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
 ):
     """Create an additional school (requires auth)"""
     try:
@@ -139,7 +139,7 @@ def setup_create_branch(
     school_id: str,
     data: BranchCreateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.SCHOOL_MANAGE)),
+    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
 ):
     """Create an additional branch (requires auth)"""
     try:
@@ -158,7 +158,7 @@ def setup_create_admin(
     branch_id: str,
     data: SetupAdminRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(PermissionChecker(RolePermission.SCHOOL_MANAGE)),
+    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
 ):
     """Create an admin user for an existing school (requires auth)"""
     try:

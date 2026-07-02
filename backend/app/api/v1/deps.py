@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.auth_service import decode_token, get_user_by_id
 from app.models.user import User
+from app.config import settings
+import ipaddress
 
 
 def get_client_ip(request: Request) -> str:
@@ -115,5 +117,46 @@ def require_licensed_feature(feature: str = "default"):
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"View only mode. Cannot use {feature} without a valid license.",
                 )
+        return current_user
+    return _check
+
+
+def _ip_in_networks(ip_str: str, networks_csv: str) -> bool:
+    if not networks_csv:
+        return False
+    try:
+        addr = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return False
+    for cidr in networks_csv.split(","):
+        cidr = cidr.strip()
+        if not cidr:
+            continue
+        try:
+            net = ipaddress.ip_network(cidr, strict=False)
+            if addr in net:
+                return True
+        except ValueError:
+            pass
+    return False
+
+
+def require_inside_network():
+    """Mark the current user as view-only if their IP is outside trusted networks.
+
+    Apply as a dependency on mutation endpoints.  If the server has
+    ``trusted_networks`` configured and the client IP does not match,
+    sets ``is_view_only = True`` on the user for this request (does
+    not persist to DB).
+    """
+    def _check(request: Request, current_user: User = Depends(get_current_user)):
+        if not settings.trusted_networks:
+            return current_user
+        ip = get_client_ip(request)
+        if ip == "unknown":
+            return current_user
+        if _ip_in_networks(ip, settings.trusted_networks):
+            return current_user
+        current_user.is_view_only = True
         return current_user
     return _check

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -18,13 +18,16 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     is_view_only = Column(Boolean, default=False)
+    mfa_enabled = Column(Boolean, default=False)
+    mfa_secret = Column(String(255), nullable=True)
+    mfa_backup_codes = Column(Text, nullable=True)
     must_change_password = Column(Boolean, default=False)
     last_login_at = Column(DateTime, nullable=True)
     role_id = Column(String(36), ForeignKey("roles.id"), nullable=True)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=True)
     branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime, nullable=True)
 
     role = relationship("Role", back_populates="users")

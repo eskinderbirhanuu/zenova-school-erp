@@ -1,3 +1,7 @@
+## docs
+
+Consolidated documentation is in `docs/` (14 files). See `docs/README.md` for the index. Originals archived at `docs/archive/`.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

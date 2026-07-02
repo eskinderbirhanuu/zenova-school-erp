@@ -8,6 +8,7 @@ class EmployeeContract(Base):
     __tablename__ = "employee_contracts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False, index=True)
     staff_profile_id = Column(String(36), ForeignKey("staff_profiles.id"), nullable=False)
     contract_type = Column(String(50), nullable=False)
     start_date = Column(Date, nullable=False)
@@ -19,3 +20,4 @@ class EmployeeContract(Base):
     notes = Column(Text, nullable=True)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

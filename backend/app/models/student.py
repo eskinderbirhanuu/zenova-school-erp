@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, DateTime, Date, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -31,8 +31,8 @@ class Student(Base):
     branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
     registered_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime, nullable=True)
 
     parents = relationship("ParentStudentLink", back_populates="student")

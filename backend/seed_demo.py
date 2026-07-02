@@ -86,7 +86,7 @@ for cn, c in class_map.items():
     for sn in ["A","B"]:
         sec = db.query(Section).filter(Section.name == sn, Section.class_id == c.id).first()
         if not sec:
-            sec = Section(id=str(uuid.uuid4()), name=sn, class_id=c.id)
+            sec = Section(id=str(uuid.uuid4()), name=sn, class_id=c.id, school_id=school.id)
             db.add(sec); db.commit(); db.refresh(sec)
         section_map[f"{cn}-{sn}"] = sec
 
@@ -94,12 +94,12 @@ for cn, c in class_map.items():
 for sn in ["Mathematics","English","Science","History"]:
     for grade in class_map.values():
         if not db.query(Subject).filter(Subject.name == sn, Subject.class_id == grade.id).first():
-            db.add(Subject(id=str(uuid.uuid4()), name=sn, code=sn[:3].upper(), class_id=grade.id))
+            db.add(Subject(id=str(uuid.uuid4()), name=sn, code=sn[:3].upper(), class_id=grade.id, school_id=school.id))
 db.commit()
 
 # Teacher Profile
 if teacher_user and not db.query(TeacherProfile).filter(TeacherProfile.user_id == teacher_user.id).first():
-    db.add(TeacherProfile(id=str(uuid.uuid4()), user_id=teacher_user.id, teacher_id="TCH001"))
+    db.add(TeacherProfile(id=str(uuid.uuid4()), user_id=teacher_user.id, teacher_id="TCH001", school_id=school.id))
     db.commit()
 
 # Students
@@ -181,7 +181,7 @@ db.commit()
 # Staff profile for HR
 staff_user = db.query(User).filter(User.email == "hr@zenova.app").first()
 if staff_user and not db.query(StaffProfile).filter(StaffProfile.user_id == staff_user.id).first():
-    db.add(StaffProfile(id=str(uuid.uuid4()), user_id=staff_user.id, staff_id="STF001", department="Human Resources"))
+    db.add(StaffProfile(id=str(uuid.uuid4()), user_id=staff_user.id, staff_id="STF001", department="Human Resources", school_id=school.id))
     db.commit()
 
 print("=" * 50)

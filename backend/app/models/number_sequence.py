@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, UniqueConstraint
 from app.database import Base
 
@@ -12,6 +12,8 @@ class NumberSequence(Base):
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     year = Column(Integer, nullable=False)
     last_number = Column(Integer, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("prefix", "school_id", "year", name="uq_prefix_school_year"),

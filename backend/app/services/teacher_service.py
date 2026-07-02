@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.role import Role
@@ -57,10 +57,6 @@ def create_teacher(
         employment_date=employment_date,
     )
     db.add(profile)
-    db.commit()
-    db.refresh(user)
-    db.refresh(profile)
-
     log_audit(
         db=db,
         table_name="users",
@@ -69,33 +65,42 @@ def create_teacher(
         new_data={"email": email, "full_name": full_name, "teacher_id": teacher_id},
         user_id=created_by,
     )
+    db.commit()
+    db.refresh(user)
+    db.refresh(profile)
 
     return {"user": user, "profile": profile}
 
 
-def assign_grade(db: Session, teacher_id: str, grade_id: str) -> TeacherGradeAssignment:
-    existing = db.query(TeacherGradeAssignment).filter(
+def assign_grade(db: Session, teacher_id: str, grade_id: str, school_id: str = None) -> TeacherGradeAssignment:
+    q = db.query(TeacherGradeAssignment).filter(
         TeacherGradeAssignment.teacher_id == teacher_id,
         TeacherGradeAssignment.grade_id == grade_id,
-    ).first()
+    )
+    if school_id:
+        q = q.filter(TeacherGradeAssignment.school_id == school_id)
+    existing = q.first()
     if existing:
         return existing
 
-    assignment = TeacherGradeAssignment(teacher_id=teacher_id, grade_id=grade_id)
+    assignment = TeacherGradeAssignment(teacher_id=teacher_id, grade_id=grade_id, school_id=school_id)
     db.add(assignment)
     db.commit()
     return assignment
 
 
-def assign_section(db: Session, teacher_id: str, section_id: str) -> TeacherSectionAssignment:
-    existing = db.query(TeacherSectionAssignment).filter(
+def assign_section(db: Session, teacher_id: str, section_id: str, school_id: str = None) -> TeacherSectionAssignment:
+    q = db.query(TeacherSectionAssignment).filter(
         TeacherSectionAssignment.teacher_id == teacher_id,
         TeacherSectionAssignment.section_id == section_id,
-    ).first()
+    )
+    if school_id:
+        q = q.filter(TeacherSectionAssignment.school_id == school_id)
+    existing = q.first()
     if existing:
         return existing
 
-    assignment = TeacherSectionAssignment(teacher_id=teacher_id, section_id=section_id)
+    assignment = TeacherSectionAssignment(teacher_id=teacher_id, section_id=section_id, school_id=school_id)
     db.add(assignment)
     db.commit()
     return assignment
@@ -108,7 +113,7 @@ def remove_grade_assignment(db: Session, teacher_id: str, grade_id: str) -> bool
     ).first()
     if not assignment:
         return False
-    db.delete(assignment)
+    assignment.deleted_at = datetime.now(timezone.utc)
     db.commit()
     return True
 
@@ -120,7 +125,7 @@ def remove_section_assignment(db: Session, teacher_id: str, section_id: str) -> 
     ).first()
     if not assignment:
         return False
-    db.delete(assignment)
+    assignment.deleted_at = datetime.now(timezone.utc)
     db.commit()
     return True
 

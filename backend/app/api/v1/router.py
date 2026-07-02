@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, licenses, setup
-from app.api.v1.endpoints import students, parents, teachers, staff, qr, nfc
+from app.api.v1.endpoints import health, auth, licenses, setup, dashboard, installer, iga, backup, parent_portal, sync
+from app.api.v1.endpoints import students, parents, teachers, staff, qr, nfc, archive, conflicts, sequences, metrics
 from app.api.v1.endpoints import academic
 from app.api.v1.endpoints import finance
 from app.api.v1.endpoints import hr
@@ -10,7 +10,7 @@ from app.api.v1.endpoints import cafeteria
 from app.api.v1.endpoints import communication
 from app.api.v1.endpoints import events
 from app.api.v1.endpoints import telegram
-from app.api.v1.endpoints import users, activate, branches, attendance, ws, schools, audit_logs, support_tickets, reports, settings
+from app.api.v1.endpoints import users, activate, branches, attendance, ws, schools, audit_logs, support_tickets, reports, settings, report_cards, student_portal, setup_wizard, scanner, announcements
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(health.router, prefix="/health", tags=["health"])
@@ -41,4 +41,19 @@ router.include_router(support_tickets.router, prefix="", tags=["support"])
 router.include_router(reports.router, prefix="", tags=["reports"])
 router.include_router(telegram.router, prefix="", tags=["telegram"])
 router.include_router(settings.router, prefix="", tags=["settings"])
+router.include_router(dashboard.router, prefix="", tags=["dashboard"])
+router.include_router(installer.router, prefix="", tags=["installer"])
+router.include_router(iga.router, prefix="", tags=["iga"])
+router.include_router(backup.router, prefix="", tags=["backup"])
+router.include_router(parent_portal.router, prefix="", tags=["parent-portal"])
+router.include_router(sync.router, prefix="", tags=["sync"])
+router.include_router(report_cards.router, prefix="", tags=["report-cards"])
+router.include_router(student_portal.router, prefix="", tags=["student-portal"])
+router.include_router(setup_wizard.router, prefix="", tags=["setup-wizard"])
+router.include_router(scanner.router, prefix="", tags=["scanner"])
+router.include_router(announcements.router, prefix="", tags=["announcements"])
+router.include_router(archive.router, prefix="", tags=["archive"])
+router.include_router(conflicts.router, prefix="", tags=["conflicts"])
+router.include_router(sequences.router, prefix="", tags=["sequences"])
+router.include_router(metrics.router, prefix="", tags=["metrics"])
 

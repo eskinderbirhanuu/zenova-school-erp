@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zenova-redis
+  namespace: zenova
+spec:
+  selector:
+    app: zenova-redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zenova-redis
+  namespace: zenova
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zenova-redis
+  template:
+    metadata:
+      labels:
+        app: zenova-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5

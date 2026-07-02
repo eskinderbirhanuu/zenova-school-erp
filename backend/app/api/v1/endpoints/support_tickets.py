@@ -12,7 +12,7 @@ SUPER_ADMIN = [require_role("SUPER_ADMIN")]
 
 @router.post("/support/tickets", response_model=SupportTicketResponse, status_code=status.HTTP_201_CREATED)
 def create_ticket(data: SupportTicketCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    ticket = support_ticket_service.create_ticket(db, data, current_user.id)
+    ticket = support_ticket_service.create_ticket(db, data, current_user.id, current_user.school_id)
     assigned_name = None
     if ticket.assigned_to:
         u = db.query(User).filter(User.id == ticket.assigned_to).first()
@@ -37,17 +37,17 @@ def list_tickets(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return support_ticket_service.list_tickets(db, skip, limit, status, priority)
+    return support_ticket_service.list_tickets(db, skip, limit, status, priority, include_deleted=True)
+
 
 
 @router.get("/support/tickets/counts", dependencies=SUPER_ADMIN)
 def ticket_counts(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return support_ticket_service.get_ticket_counts(db)
-
+    return support_ticket_service.get_ticket_counts(db, include_deleted=True)
 
 @router.get("/support/tickets/{ticket_id}", response_model=SupportTicketResponse, dependencies=SUPER_ADMIN)
 def get_ticket(ticket_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    ticket = support_ticket_service.get_ticket(db, ticket_id)
+    ticket = support_ticket_service.get_ticket(db, ticket_id, include_deleted=True)
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
     return ticket
@@ -55,7 +55,7 @@ def get_ticket(ticket_id: str, db: Session = Depends(get_db), current_user=Depen
 
 @router.patch("/support/tickets/{ticket_id}", response_model=SupportTicketResponse, dependencies=SUPER_ADMIN)
 def update_ticket(ticket_id: str, data: SupportTicketUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    ticket = support_ticket_service.update_ticket(db, ticket_id, data)
+    ticket = support_ticket_service.update_ticket(db, ticket_id, data, include_deleted=True)
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
     return ticket

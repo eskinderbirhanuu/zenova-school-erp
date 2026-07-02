@@ -12,7 +12,7 @@ export default function TeacherResultsPage() {
 
   useEffect(() => {
     setLoading(true)
-    academicService.examResults.list({ limit: 200 })
+    academicService.examResults.list({})
       .then(res => setResults(res.data || []))
       .catch(err => toast({ title: "Failed to load results", variant: "destructive" }))
       .finally(() => setLoading(false))

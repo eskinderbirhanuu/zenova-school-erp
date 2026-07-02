@@ -11,7 +11,7 @@ export default function LedgerPage() {
 
   useEffect(() => {
     setLoading(true)
-    financeService.journal.list({ limit: 100 }).then((r: any) => setEntries(r.data)).catch(() => toast({ title: "Failed to load ledger", variant: "destructive" })).finally(() => setLoading(false))
+    financeService.journalEntries.list({ limit: 100 }).then((r: any) => setEntries(r.data)).catch(() => toast({ title: "Failed to load ledger", variant: "destructive" })).finally(() => setLoading(false))
   }, [])
 
   return (

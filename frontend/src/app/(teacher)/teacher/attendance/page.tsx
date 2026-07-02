@@ -1,12 +1,16 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
+import { Button } from "@/components/ui/button"
+import { Plus, QrCode } from "lucide-react"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 
 export default function TeacherAttendancePage() {
+  const router = useRouter()
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -37,6 +41,10 @@ export default function TeacherAttendancePage() {
       ]}
       data={normalized} keyExtractor={(r) => r.id}
       loading={loading} emptyTitle="No attendance records"
+      actions={<>
+        <Button variant="outline" onClick={() => router.push("/teacher/attendance/scanner")}><QrCode className="mr-2 h-4 w-4" /> Scan QR</Button>
+        <Button onClick={() => router.push("/teacher/attendance/mark")}><Plus className="mr-2 h-4 w-4" /> Mark Attendance</Button>
+      </>}
     />
   )
 }

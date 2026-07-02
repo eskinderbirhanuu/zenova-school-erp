@@ -71,26 +71,29 @@ def watermark_seed_data(db_session, school_id: str):
     from app.database import SessionLocal
     from app.models.student import Student
     import uuid
+    from datetime import date
 
     wm = get_watermark()
     register_school_honeytokens(school_id, wm)
     tokens = get_honeytokens_for_school(school_id)
 
     # Honeytoken student (not visible in normal UI)
+    honeytoken_first = tokens["honeytoken_student"]
     existing = db_session.query(Student).filter(
-        Student.full_name == tokens["honeytoken_student"]
+        Student.first_name == honeytoken_first
     ).first()
     if not existing:
         student = Student(
             id=str(uuid.uuid4()),
-            full_name=tokens["honeytoken_student"],
-            mother_name=tokens["honeytoken_mother"],
+            first_name=honeytoken_first,
+            middle_name="",
+            last_name="Honeytoken",
+            student_id=f"HT-{school_id[:8]}-{uuid.uuid4().hex[:6].upper()}",
+            gender="Other",
+            date_of_birth=date(2000, 1, 1),
+            admission_date=date(2025, 1, 1),
             school_id=school_id,
-            grade="HT",
-            section="Z",
-            stream=None,
-            blood_type="O+",
-            is_active=True,
+            status="active",
         )
         db_session.add(student)
 

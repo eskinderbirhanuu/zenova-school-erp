@@ -18,3 +18,4 @@ class Attendance(Base):
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     marked_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

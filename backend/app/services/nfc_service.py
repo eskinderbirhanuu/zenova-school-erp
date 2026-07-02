@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.nfc_card import NFCCard
 from app.core.audit import log_audit
@@ -25,16 +25,16 @@ def assign_nfc(
         assigned_by=assigned_by,
     )
     db.add(nfc)
-    db.commit()
-    db.refresh(nfc)
-
     log_audit(
         db=db,
+        user_id=assigned_by or "system",
         table_name="nfc_cards",
         record_id=nfc.id,
         action="NFC_ASSIGNED",
         new_data={"card_uid": card_uid, "reference_type": reference_type, "reference_id": reference_id},
     )
+    db.commit()
+    db.refresh(nfc)
 
     return nfc
 
@@ -48,7 +48,7 @@ def validate_nfc(db: Session, card_uid: str) -> dict:
     if nfc.status != "active":
         return {"valid": False, "message": f"NFC card is {nfc.status}"}
 
-    if nfc.expiry_date and nfc.expiry_date < datetime.utcnow():
+    if nfc.expiry_date and nfc.expiry_date < datetime.now(timezone.utc):
         return {"valid": False, "message": "NFC card has expired"}
 
     return {
@@ -60,24 +60,27 @@ def validate_nfc(db: Session, card_uid: str) -> dict:
     }
 
 
-def update_nfc_status(db: Session, nfc_id: str, status: str) -> NFCCard | None:
+def update_nfc_status(db: Session, nfc_id: str, status: str, school_id: str = None, user_id: str = None) -> NFCCard | None:
     """Update NFC card status"""
-    nfc = db.query(NFCCard).filter(NFCCard.id == nfc_id).first()
+    q = db.query(NFCCard).filter(NFCCard.id == nfc_id)
+    if school_id:
+        q = q.filter(NFCCard.school_id == school_id)
+    nfc = q.first()
     if not nfc:
         return None
 
     old_status = nfc.status
     nfc.status = status
-    db.commit()
-
     log_audit(
         db=db,
+        user_id=user_id or "system",
         table_name="nfc_cards",
         record_id=nfc.id,
         action="NFC_STATUS_CHANGED",
         old_data={"status": old_status},
         new_data={"status": status},
     )
+    db.commit()
 
     return nfc
 

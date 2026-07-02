@@ -1,39 +1,64 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.cafeteria import CafeteriaProduct, CafeteriaOrder, CafeteriaOrderItem
 from app.core.audit import log_audit
+from app.services.sync_service import enqueue_sync
 
 
 def create_product(db: Session, school_id: str, data, user_id: str):
     p = CafeteriaProduct(name=data.name, price=Decimal(str(data.price)), category=data.category,
                          stock=data.stock, school_id=school_id)
-    db.add(p); db.commit(); db.refresh(p)
+    db.add(p)
     log_audit(db, user_id, "CAFETERIA_PRODUCT_CREATED", "cafeteria_product", p.id, f"Product '{data.name}'")
+    db.commit()
+    db.refresh(p)
+    enqueue_sync(db, "cafeteria_products", p.id, "CREATE",
+                 {"name": data.name, "price": str(p.price), "school_id": school_id},
+                 school_id)
     return p
 
 
-def get_products(db: Session, school_id: str):
-    return db.query(CafeteriaProduct).filter(CafeteriaProduct.school_id == school_id).all()
+def get_products(db: Session, school_id: str, include_deleted: bool = False):
+    q = db.query(CafeteriaProduct).filter(CafeteriaProduct.school_id == school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    return q.all()
 
 
 def create_order(db: Session, school_id: str, data, user_id: str):
     total = Decimal("0.00")
     items = []
     for item in data.items:
-        product = db.query(CafeteriaProduct).filter(CafeteriaProduct.id == item.product_id).first()
+        product = db.query(CafeteriaProduct).filter(
+            CafeteriaProduct.id == item.product_id,
+            CafeteriaProduct.school_id == school_id,
+        ).with_for_update().first()
         if not product: raise HTTPException(404, f"Product {item.product_id} not found")
         if product.stock < item.quantity: raise HTTPException(400, f"Insufficient stock for {product.name}")
         line_total = product.price * item.quantity
         total += line_total
         items.append(CafeteriaOrderItem(product_id=item.product_id, quantity=item.quantity, unit_price=product.price))
         product.stock -= item.quantity
+    if data.payment_method == "wallet" and data.customer_id:
+        from app.models.wallet import Wallet
+        wallet = db.query(Wallet).filter(
+            Wallet.school_id == school_id,
+            Wallet.student_id == data.customer_id,
+        ).with_for_update().first()
+        if wallet and wallet.balance < total:
+            raise HTTPException(400, f"Insufficient wallet balance ({wallet.balance}) for order total ({total})")
     order = CafeteriaOrder(customer_type=data.customer_type, customer_id=data.customer_id,
                            total=total, payment_method=data.payment_method, school_id=school_id, created_by=user_id)
     db.add(order); db.flush()
     for it in items: it.order_id = order.id; db.add(it)
-    db.commit(); db.refresh(order)
     log_audit(db, user_id, "CAFETERIA_ORDER_CREATED", "cafeteria_order", order.id, f"Order total: {total}")
+    db.commit()
+    db.refresh(order)
+    enqueue_sync(db, "cafeteria_orders", order.id, "CREATE",
+                 {"total": str(total), "payment_method": data.payment_method, "school_id": school_id},
+                 school_id)
     return order
 
 
@@ -41,8 +66,11 @@ def get_orders(db: Session, school_id: str):
     return db.query(CafeteriaOrder).filter(CafeteriaOrder.school_id == school_id).order_by(CafeteriaOrder.created_at.desc()).all()
 
 
-def update_product(db: Session, product_id: str, school_id: str, data, user_id: str):
-    p = db.query(CafeteriaProduct).filter(CafeteriaProduct.id == product_id, CafeteriaProduct.school_id == school_id).first()
+def update_product(db: Session, product_id: str, school_id: str, data, user_id: str, include_deleted: bool = False):
+    q = db.query(CafeteriaProduct).filter(CafeteriaProduct.id == product_id, CafeteriaProduct.school_id == school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    p = q.first()
     if not p:
         raise HTTPException(404, "Product not found")
     if data.name is not None:
@@ -53,19 +81,22 @@ def update_product(db: Session, product_id: str, school_id: str, data, user_id: 
         p.category = data.category
     if data.stock is not None:
         p.stock = data.stock
+    log_audit(db, user_id, "CAFETERIA_PRODUCT_UPDATED", "cafeteria_product", p.id, f"Product '{p.name}'")
     db.commit()
     db.refresh(p)
-    log_audit(db, user_id, "CAFETERIA_PRODUCT_UPDATED", "cafeteria_product", p.id, f"Product '{p.name}'")
     return p
 
 
-def delete_product(db: Session, product_id: str, school_id: str, user_id: str):
-    p = db.query(CafeteriaProduct).filter(CafeteriaProduct.id == product_id, CafeteriaProduct.school_id == school_id).first()
+def delete_product(db: Session, product_id: str, school_id: str, user_id: str, include_deleted: bool = False):
+    q = db.query(CafeteriaProduct).filter(CafeteriaProduct.id == product_id, CafeteriaProduct.school_id == school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    p = q.first()
     if not p:
         raise HTTPException(404, "Product not found")
-    db.delete(p)
-    db.commit()
+    p.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "CAFETERIA_PRODUCT_DELETED", "cafeteria_product", product_id, f"Product '{p.name}'")
+    db.commit()
     return {"ok": True}
 
 
@@ -79,7 +110,7 @@ def update_order_status(db: Session, order_id: str, school_id: str, status: str,
     if order.status == "cancelled":
         raise HTTPException(400, "Cannot update a cancelled order")
     order.status = status
+    log_audit(db, user_id, "CAFETERIA_ORDER_STATUS_CHANGED", "cafeteria_order", order.id, f"Status: {status}")
     db.commit()
     db.refresh(order)
-    log_audit(db, user_id, "CAFETERIA_ORDER_STATUS_CHANGED", "cafeteria_order", order.id, f"Status: {status}")
     return order
