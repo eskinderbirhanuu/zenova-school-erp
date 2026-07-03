@@ -157,7 +157,11 @@ def parent_make_payment(
         raise HTTPException(status_code=400, detail="Invoice is already paid")
 
     if not data.idempotency_key:
-        data.idempotency_key = f"parent:{current_user.id}:{invoice.id}:{int(datetime.now(timezone.utc).timestamp())}"
+        # Deterministic idempotency key per (parent, invoice) rounded to the
+        # minute: two accidental double-clicks within ~60s collapse to ONE
+        # payment instead of creating a duplicate. Genuine repeat payments must
+        # supply an explicit idempotency_key.
+        data.idempotency_key = f"parent:{current_user.id}:{invoice.id}:{int(datetime.now(timezone.utc).timestamp() // 60)}"
     payment = finance_service.record_payment(db, current_user.school_id, data, current_user.id)
     return {
         "id": payment.id,

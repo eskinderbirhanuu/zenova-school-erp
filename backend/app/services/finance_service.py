@@ -104,12 +104,7 @@ def _check_period(db: Session, entry_date, school_id: str):
 
 
 def _next_entry_number(db: Session, school_id: str) -> str:
-    year = datetime.now(timezone.utc).year
-    count = db.query(JournalEntry).filter(
-        JournalEntry.school_id == school_id,
-        JournalEntry.entry_number.like(f"JE-{year}-%")
-    ).count()
-    return f"JE-{year}-{count + 1:05d}"
+    return _next_sequence_number(db, "JE", school_id)
 
 
 def create_journal_entry(db: Session, school_id: str, data, user_id: str):
@@ -282,12 +277,7 @@ def get_fee_assignments(db: Session, school_id: str, student_id: str = None, aca
 
 
 def _next_invoice_number(db: Session, school_id: str) -> str:
-    year = datetime.now(timezone.utc).year
-    count = db.query(Invoice).filter(
-        Invoice.school_id == school_id,
-        Invoice.invoice_number.like(f"INV-{year}-%")
-    ).count()
-    return f"INV-{year}-{count + 1:05d}"
+    return _next_sequence_number(db, "INV", school_id)
 
 
 def create_invoice(db: Session, school_id: str, data, user_id: str):
@@ -343,12 +333,7 @@ def get_invoices(db: Session, school_id: str, student_id: str = None, status: st
 
 
 def _next_payment_number(db: Session, school_id: str) -> str:
-    year = datetime.now(timezone.utc).year
-    count = db.query(Payment).filter(
-        Payment.school_id == school_id,
-        Payment.payment_number.like(f"PAY-{year}-%")
-    ).count()
-    return f"PAY-{year}-{count + 1:05d}"
+    return _next_sequence_number(db, "PAY", school_id)
 
 
 def record_payment(db: Session, school_id: str, data, user_id: str):
