@@ -27,6 +27,10 @@ docker save "zenova/frontend:${VERSION}" | gzip > "${RELEASE_DIR}/zenova-fronten
 
 # 5. Copy deployment files (NO SOURCE CODE)
 cp release/docker-compose.production.yml "${RELEASE_DIR}/docker-compose.yml"
+cp deploy/nginx/zenova.conf "${RELEASE_DIR}/nginx.conf"
+cp deploy/systemd/zenova.service "${RELEASE_DIR}/"
+cp deploy/setup-ubuntu.sh "${RELEASE_DIR}/"
+cp deploy/client-setup.md "${RELEASE_DIR}/"
 cp release/install.sh "${RELEASE_DIR}/"
 cp release/README.txt "${RELEASE_DIR}/"
 
