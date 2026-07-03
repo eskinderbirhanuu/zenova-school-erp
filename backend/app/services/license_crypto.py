@@ -344,14 +344,32 @@ OFFLINE_GRACE_DAYS = 45
 def _can_reach_license_server() -> bool:
     """Check if Super Admin license server is reachable."""
     import httpx
+    from app.config import settings
     try:
         resp = httpx.get(
-            "https://license.zenovaerp.com/api/v1/license/ping",
+            f"{settings.license_server_url}/api/v1/license/ping",
             timeout=5,
         )
         return resp.status_code == 200
     except Exception:
         return False
+
+
+def _verify_cloud_license(key: str, fingerprint: str) -> dict:
+    """Verify license against cloud license server."""
+    import httpx
+    from app.config import settings
+    try:
+        resp = httpx.post(
+            f"{settings.license_server_url}/api/v1/license/verify",
+            json={"key": key, "machine_fingerprint": fingerprint},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        return {"valid": False, "message": f"Cloud server returned {resp.status_code}"}
+    except Exception as e:
+        return {"valid": False, "message": str(e)}
 
 
 def validate_license_at_startup(db: Session) -> dict:
@@ -395,31 +413,73 @@ def validate_license_at_startup(db: Session) -> dict:
                 "message": "Hardware fingerprint mismatch",
             }
 
-    # Check offline grace period
-    if not _can_reach_license_server():
-        now = datetime.now(timezone.utc)
-        if license_record.offline_grace_start is None:
-            license_record.offline_grace_start = now
+    # Check online — verify against cloud license server
+    cloud_ok = _can_reach_license_server()
+    if cloud_ok:
+        current_fingerprint = get_machine_fingerprint()
+        cloud_result = _verify_cloud_license(license_record.key, current_fingerprint)
+        if cloud_result.get("valid"):
+            # Reset offline grace period on successful cloud check
+            license_record.offline_grace_start = None
+            license_record.last_online_validation = datetime.now(timezone.utc)
             db.commit()
-
-        grace_days = (now - license_record.offline_grace_start).days
-        if grace_days > OFFLINE_GRACE_DAYS:
             return {
-                "valid": False,
-                "restrict_nfc": True,
-                "restrict_qr": True,
-                "restrict_import": True,
-                "restrict_id_card": True,
-                "message": f"Offline grace period expired ({grace_days} days)",
+                "valid": True,
+                "restrict_nfc": False,
+                "restrict_qr": False,
+                "restrict_import": False,
+                "restrict_id_card": False,
+                "message": "License is valid (cloud verified)",
             }
+        # Cloud says invalid — check if we're in offline grace
+        if license_record.last_online_validation:
+            now = datetime.now(timezone.utc)
+            if license_record.offline_grace_start is None:
+                license_record.offline_grace_start = now
+                db.commit()
+            grace_days = (now - license_record.offline_grace_start).days
+            if grace_days <= OFFLINE_GRACE_DAYS:
+                return {
+                    "valid": True,
+                    "restrict_nfc": False,
+                    "restrict_qr": False,
+                    "restrict_import": False,
+                    "restrict_id_card": False,
+                    "message": f"License in offline grace ({OFFLINE_GRACE_DAYS - grace_days} days remaining)",
+                }
+        return {
+            "valid": False,
+            "restrict_nfc": True,
+            "restrict_qr": True,
+            "restrict_import": True,
+            "restrict_id_card": True,
+            "message": f"Cloud verification failed: {cloud_result.get('message', 'unknown error')}",
+        }
+
+    # Offline mode — check grace period
+    now = datetime.now(timezone.utc)
+    if license_record.offline_grace_start is None:
+        license_record.offline_grace_start = now
+        db.commit()
+
+    grace_days = (now - license_record.offline_grace_start).days
+    if grace_days > OFFLINE_GRACE_DAYS:
+        return {
+            "valid": False,
+            "restrict_nfc": True,
+            "restrict_qr": True,
+            "restrict_import": True,
+            "restrict_id_card": True,
+            "message": f"Offline grace period expired ({grace_days} days)",
+        }
 
     return {
         "valid": True,
-        "restrict_nfc": False,
-        "restrict_qr": False,
-        "restrict_import": False,
-        "restrict_id_card": False,
-        "message": "License is valid",
+        "restrict_nfc": True,
+        "restrict_qr": True,
+        "restrict_import": True,
+        "restrict_id_card": True,
+        "message": f"License valid offline ({OFFLINE_GRACE_DAYS - grace_days} days remaining)",
     }
 
 

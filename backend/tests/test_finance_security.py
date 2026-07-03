@@ -33,7 +33,8 @@ class TestFix1_AuditParams:
 
 
 class TestFix2_AutoPostGL:
-    def test_creates_journal_entry_with_two_lines(self):
+    @patch("app.services.finance_service._next_entry_number", return_value="JE-2026-00001")
+    def test_creates_journal_entry_with_two_lines(self, mock_nen):
         db = _make_db()
         payment = MagicMock()
         payment.payment_date = date(2026, 6, 25)
@@ -46,7 +47,8 @@ class TestFix2_AutoPostGL:
         assert entry is not None
         assert len(journal_lines) >= 2
 
-    def test_creates_accounts_if_missing(self):
+    @patch("app.services.finance_service._next_entry_number", return_value="JE-2026-00001")
+    def test_creates_accounts_if_missing(self, mock_nen):
         db = _make_db()
         db.query.return_value.filter.return_value.first.return_value = None
         payment = MagicMock()
@@ -78,7 +80,8 @@ class TestFix3_IdempotencyKey:
         result = record_payment(db, "school-1", data, "user-1")
         assert result.id == "pay-dup-1"
 
-    def test_proceeds_for_new_key(self):
+    @patch("app.services.finance_service._next_payment_number", return_value="PAY-2026-00001")
+    def test_proceeds_for_new_key(self, mock_npn):
         db = _make_db()
         db.query.return_value.filter.return_value.first.side_effect = [None, None]
         with patch("app.services.finance_service._create_payment_journal_entry") as mock_je:
@@ -97,7 +100,8 @@ class TestFix3_IdempotencyKey:
 
 
 class TestFix4_ConcurrencyLock:
-    def test_with_for_update_called_on_invoice(self):
+    @patch("app.services.finance_service._next_payment_number", return_value="PAY-2026-00001")
+    def test_with_for_update_called_on_invoice(self, mock_npn):
         db = _make_db()
         db.query.return_value.filter.return_value.first.return_value = None
         mock_fu = MagicMock()
@@ -120,7 +124,8 @@ class TestFix4_ConcurrencyLock:
 
 
 class TestFix6_OverPayment:
-    def test_rejects_payment_exceeding_invoice(self):
+    @patch("app.services.finance_service._next_payment_number", return_value="PAY-2026-00001")
+    def test_rejects_payment_exceeding_invoice(self, mock_npn):
         db = _make_db()
         inv = _make_invoice(paid=Decimal("90"), total=Decimal("100"))
         db.query.return_value.filter.return_value.first.side_effect = [None, inv]
@@ -158,7 +163,8 @@ class TestFix7_PeriodLocking:
             record_payment(db, "school-1", data, "user-1")
         assert "locked" in str(exc.value.detail).lower()
 
-    def test_allows_payment_in_unlocked_period(self):
+    @patch("app.services.finance_service._next_payment_number", return_value="PAY-2026-00001")
+    def test_allows_payment_in_unlocked_period(self, mock_npn):
         db = _make_db()
         db.query.return_value.filter.return_value.first.return_value = None
         db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = None
@@ -178,7 +184,8 @@ class TestFix7_PeriodLocking:
 
 
 class TestFix5_WalletGL:
-    def test_wallet_topup_creates_journal_entry(self):
+    @patch("app.services.finance_service._next_entry_number", return_value="JE-2026-00001")
+    def test_wallet_topup_creates_journal_entry(self, mock_nen):
         db = _make_db()
         from app.services.finance_service import _create_wallet_journal_entry
         wallet = MagicMock()
@@ -194,7 +201,8 @@ class TestFix5_WalletGL:
         lines = [c for c in db.add.call_args_list if "JournalLine" in str(c)]
         assert len(lines) == 2
 
-    def test_wallet_withdrawal_reverses_entry(self):
+    @patch("app.services.finance_service._next_entry_number", return_value="JE-2026-00001")
+    def test_wallet_withdrawal_reverses_entry(self, mock_nen):
         db = _make_db()
         wallet = MagicMock()
         wallet.student_id = "stu-1"

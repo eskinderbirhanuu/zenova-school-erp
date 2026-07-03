@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     db_pool_size: int = 10
     db_max_overflow: int = 20
 
+    backup_encrypt_enabled: bool = False
+    backup_encryption_key: str = ""
+    backup_cloud_url: str = ""
+    backup_cloud_access_key: str = ""
+    backup_cloud_secret_key: str = ""
+
+    license_server_url: str = "https://superadmin.free.nf"
+    license_offline_grace_days: int = 45
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"

@@ -55,6 +55,23 @@ class LicenseValidationResult:
         }
 
 
+def _check_cloud_license(key: str, fingerprint: str) -> dict:
+    """Verify license against cloud license server (superadmin.free.nf)."""
+    import httpx
+    from app.config import settings
+    try:
+        resp = httpx.post(
+            f"{settings.license_server_url}/api/v1/license/verify",
+            json={"key": key, "machine_fingerprint": fingerprint},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        return {"valid": False, "message": "Cloud license server error"}
+    except Exception as e:
+        return {"valid": False, "message": f"Cannot reach license server: {e}"}
+
+
 def validate_lic_file() -> LicenseValidationResult:
     """Validate the .lic file on disk. Returns result with restrictions."""
     lic_path = get_lic_file_path()
