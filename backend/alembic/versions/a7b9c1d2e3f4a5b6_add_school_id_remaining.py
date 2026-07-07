@@ -52,3 +52,4 @@ def upgrade() -> None:
 def downgrade() -> None:
     for table, column in reversed(list(TABLES.items())):
         op.drop_column(table, column)
+

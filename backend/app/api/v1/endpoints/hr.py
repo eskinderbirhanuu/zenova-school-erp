@@ -1,24 +1,23 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.models.recruitment import JobPosting
 from app.schemas.hr import (
     ContractCreate, ContractResponse,
     LeaveTypeCreate, LeaveTypeResponse,
     LeaveRequestCreate, LeaveRequestResponse,
     LeaveBalanceResponse,
-    AttendanceCreate, AttendanceUpdate, AttendanceResponse,
     PerformanceReviewCreate, PerformanceReviewResponse,
 )
 from app.schemas.recruitment import JobPostingResponse
 from app.services import hr_service
 
-router = APIRouter()
+router = APIRouter(tags=["hr"])
 
-HR = [require_role("HR")]
-HR_ADMIN = [require_role("HR", "ADMIN")]
-VIEW_HR = [require_role("HR", "ADMIN", "DIRECTOR")]
+HR = [require_permission(Permission.HR_MANAGE)]
+HR_ADMIN = [require_permission(Permission.HR_MANAGE)]
+VIEW_HR = [require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)]
 
 
 @router.post("/contracts", response_model=ContractResponse, dependencies=HR_ADMIN)
@@ -83,33 +82,6 @@ def get_leave_balances(
 ):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
     return hr_service.get_leave_balances(db, current_user.school_id, staff_profile_id, year, include_deleted=include_deleted)
-
-
-@router.post("/attendance", response_model=AttendanceResponse, dependencies=HR)
-def mark_attendance(data: AttendanceCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return hr_service.mark_attendance(db, current_user.school_id, data, current_user.id, include_deleted=True)
-
-
-@router.post("/attendance/bulk", dependencies=HR)
-def bulk_attendance(data: list[AttendanceCreate], db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    result = hr_service.bulk_mark_attendance(db, current_user.school_id, [d.model_dump() for d in data], current_user.id, include_deleted=True)
-    return result
-
-
-@router.patch("/attendance/{attendance_id}", response_model=AttendanceResponse, dependencies=HR)
-def update_attendance(attendance_id: str, data: AttendanceUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return hr_service.update_attendance(db, attendance_id, data, current_user.id, current_user.school_id, include_deleted=True)
-
-
-@router.get("/attendance", response_model=list[AttendanceResponse], dependencies=VIEW_HR)
-def list_attendance(
-    date_filter: str = Query(None, alias="date"), staff_profile_id: str = Query(None),
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
-):
-    from datetime import date
-    d = date.fromisoformat(date_filter) if date_filter else None
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return hr_service.get_attendance(db, current_user.school_id, d, staff_profile_id, include_deleted=include_deleted)
 
 
 @router.post("/performance-reviews", response_model=PerformanceReviewResponse, dependencies=HR_ADMIN)

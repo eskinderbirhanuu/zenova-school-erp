@@ -5,6 +5,7 @@ from app.api.v1.deps import get_current_user
 from app.models.user import User
 from app.services.iga_service import get_iga_summary
 from app.models.server import ServerIdentity
+from app.core.permissions import require_permission, Permission
 from sqlalchemy import text
 from datetime import datetime, timezone
 
@@ -14,7 +15,7 @@ router = APIRouter(tags=["iga"])
 @router.get("/iga/metrics")
 def iga_metrics(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.AUDIT_VIEW),
 ):
     summary = get_iga_summary(db)
     return summary
@@ -23,7 +24,7 @@ def iga_metrics(
 @router.get("/iga/health-summary")
 def iga_health_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.AUDIT_VIEW),
 ):
     from app.core import server_identity
 

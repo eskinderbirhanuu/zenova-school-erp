@@ -1,8 +1,15 @@
 #!/bin/sh
 set -e
 
-echo "Running database migrations..."
+echo "[ZENOVA] Starting entrypoint (env=${ENVIRONMENT:-development})..."
+
+echo "[ZENOVA] Running database migrations..."
 alembic upgrade head
 
-echo "Starting server..."
-exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"
+echo "[ZENOVA] Starting uvicorn server..."
+exec uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port "${PORT:-8000}" \
+    --workers "${UVICORN_WORKERS:-1}" \
+    --proxy-headers \
+    --forwarded-allow-ips='*'

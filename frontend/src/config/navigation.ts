@@ -6,8 +6,9 @@ import {
   Calendar, ClipboardCheck, FileSpreadsheet, Award,
   MessageSquare, User, Receipt, Wallet, Notebook,
   TrendingDown, Briefcase, PiggyBank, BarChart3, HardDrive,
-  Truck, ShoppingCart, ArrowDown, TrendingUp, type LucideIcon,
-  Plus, Activity, Bell, Megaphone, Download,
+  Truck, ShoppingCart, ArrowDown, TrendingUp, Monitor,
+  Plus, Activity, Bell, Megaphone, Download, Printer, Palette, Radio,
+  Building, Globe, type LucideIcon,
 } from "lucide-react"
 
 export const ROLE_DASHBOARD: Record<string, string> = {
@@ -24,6 +25,9 @@ export const ROLE_DASHBOARD: Record<string, string> = {
   AUDITOR: "/audit/dashboard",
   PARENT: "/parent/dashboard",
   STUDENT: "/student/dashboard",
+  ZENOVA_CORPORATE_ADMIN: "/corporate/dashboard",
+  ZENOVA_CARD_OFFICER: "/corporate/card-printing",
+  ZENOVA_SUPPORT: "/corporate/dashboard",
 }
 
 export const ROLE_PREFIXES: Record<string, string[]> = {
@@ -40,6 +44,9 @@ export const ROLE_PREFIXES: Record<string, string[]> = {
   AUDITOR: ["/audit"],
   PARENT: ["/parent"],
   STUDENT: ["/student"],
+  ZENOVA_CORPORATE_ADMIN: ["/corporate"],
+  ZENOVA_CARD_OFFICER: ["/corporate"],
+  ZENOVA_SUPPORT: ["/corporate"],
 }
 
 export interface NavItem {
@@ -62,6 +69,7 @@ export const SUPER_ADMIN_NAV: NavSection[] = [
   { section: "Licensing", items: [
     { href: "/super-admin/licenses", label: "License Keys", icon: Key },
     { href: "/super-admin/licenses/new", label: "Generate License", icon: Plus },
+    { href: "/super-admin/device-changes", label: "Device Changes", icon: Monitor },
   ]},
   { section: "Users", items: [
     { href: "/super-admin/admins", label: "School Admins", icon: Shield },
@@ -107,6 +115,7 @@ export const ADMIN_NAV: NavSection[] = [
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/admin/exports", label: "Data Export", icon: Download },
     { href: "/admin/audit", label: "Audit Logs", icon: ClipboardList },
+    { href: "/admin/device-changes", label: "Device Changes", icon: Monitor },
     { href: "/admin/settings", label: "Settings", icon: Settings },
   ]},
 ]
@@ -274,6 +283,35 @@ export const PARENT_NAV: NavSection[] = [
   ]},
 ]
 
+export const CORPORATE_NAV: NavSection[] = [
+  { section: "Main", items: [
+    { href: "/corporate/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/corporate/setup", label: "Setup Wizard", icon: Activity },
+  ]},
+  { section: "People", items: [
+    { href: "/corporate/employees", label: "Employees", icon: Users },
+    { href: "/corporate/employees/new", label: "New Employee", icon: Plus },
+  ]},
+  { section: "Organization", items: [
+    { href: "/corporate/departments", label: "Departments", icon: Building },
+    { href: "/corporate/departments/new", label: "New Department", icon: Plus },
+  ]},
+  { section: "Cards & Access", items: [
+    { href: "/corporate/nfc-scan", label: "NFC Scan", icon: CreditCard },
+    { href: "/corporate/qr-scan", label: "QR Scan", icon: QrCode },
+    { href: "/corporate/bulk-assign", label: "Bulk Assign", icon: Upload },
+    { href: "/corporate/card-design", label: "Card Designer", icon: Palette },
+    { href: "/corporate/card-printing", label: "Card Printing", icon: Printer },
+    { href: "/corporate/scan-logs", label: "Scan Logs", icon: ClipboardList },
+    { href: "/corporate/scan-monitor", label: "Scan Monitor", icon: Radio },
+  ]},
+  { section: "Oversight", items: [
+    { href: "/corporate/reports", label: "Reports", icon: FileText },
+    { href: "/corporate/audit", label: "Audit Logs", icon: ClipboardList },
+    { href: "/corporate/settings", label: "Settings", icon: Settings },
+  ]},
+]
+
 export const STUDENT_NAV: NavSection[] = [
   { section: "Main", items: [{ href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard }] },
   { section: "Academic", items: [
@@ -305,6 +343,9 @@ export const ROLE_ACCENT: Record<string, RoleAccent> = {
   AUDITOR: { hue: 250, label: "Indigo" },
   PARENT: { hue: 190, label: "Teal" },
   STUDENT: { hue: 100, label: "Lime" },
+  ZENOVA_CORPORATE_ADMIN: { hue: 145, label: "Corporate Green" },
+  ZENOVA_CARD_OFFICER: { hue: 280, label: "Card Purple" },
+  ZENOVA_SUPPORT: { hue: 40, label: "Support Amber" },
   DEFAULT: { hue: 220, label: "Blue" },
 }
 
@@ -322,4 +363,7 @@ export const ROLE_NAV_MAP: Record<string, NavSection[]> = {
   AUDITOR: AUDITOR_NAV,
   PARENT: PARENT_NAV,
   STUDENT: STUDENT_NAV,
+  ZENOVA_CORPORATE_ADMIN: CORPORATE_NAV,
+  ZENOVA_CARD_OFFICER: CORPORATE_NAV,
+  ZENOVA_SUPPORT: CORPORATE_NAV,
 }

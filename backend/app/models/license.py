@@ -21,6 +21,8 @@ class LicenseStatus(str, enum.Enum):
     EXPIRED = "expired"
     SUSPENDED = "suspended"
     REVOKED = "revoked"
+    REVIEW_MODE = "review_mode"
+    DEVICE_LOCKED = "device_locked"
 
 
 class License(Base):
@@ -39,6 +41,10 @@ class License(Base):
     hardware_id = Column(String(255), nullable=True, comment="Base64 encoded hardware identifiers")
     offline_grace_start = Column(DateTime, nullable=True, comment="When offline period started (45-day grace)")
     last_online_validation = Column(DateTime, nullable=True, comment="Last successful online license check")
+    device_change_reason = Column(String(255), nullable=True, comment="Why review mode was triggered (3-5 or 6-8 component change)")
+    device_change_requested_at = Column(DateTime, nullable=True, comment="When review mode was entered")
+    tpm_sealed_data = Column(String(512), nullable=True, comment="TPM-sealed machine fingerprint for enhanced binding")
+    runtime_environment = Column(String(20), nullable=True, comment="Detected runtime: bare_metal, vm, docker, unknown")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime, nullable=True)

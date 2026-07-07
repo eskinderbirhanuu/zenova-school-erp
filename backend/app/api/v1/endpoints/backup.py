@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.deps import get_current_user, get_client_ip
 from app.core.audit import log_audit
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.services import backup_service
 
@@ -50,7 +50,7 @@ def download_backup(
     filename: str,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = require_role("SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     filepath = _safe_path(filename)
     if not os.path.exists(filepath):
@@ -66,7 +66,7 @@ def delete_backup(
     filename: str,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = require_role("SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     _safe_path(filename)
     backup_service.delete_backup(filename)

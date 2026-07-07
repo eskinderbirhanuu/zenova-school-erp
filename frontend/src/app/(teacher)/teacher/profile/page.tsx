@@ -38,42 +38,55 @@ export default function TeacherProfile() {
     address: "",
   })
 
-  useEffect(() => {
-    setLoading(true)
-    Promise.all([
-      authService.me(),
-      teacherService.list(),
-    ])
-      .then(([meRes, teacherRes]: any[]) => {
-        const me = meRes.data
-        const teachers = teacherRes.data || []
-        const teacher = teachers.find((t: any) => t.email === me.email) || {
-          ...me,
-          employee_id: me.employee_id || me.id,
-        }
-        setProfile(teacher)
+  const loadProfile = () => {
+    authService.me().then((meRes: any) => {
+      const me = meRes.data
+      teacherService.getMyProfile().then((tpRes: any) => {
+        const tp = tpRes.data || tpRes
+        setProfile({
+          id: tp.id || me.id,
+          first_name: me.full_name?.split(" ")[0] || "",
+          last_name: me.full_name?.split(" ").slice(1).join(" ") || "",
+          email: me.email,
+          phone: me.phone || "",
+          employee_id: tp.teacher_id || me.employee_id || me.id,
+          department: me.department || "",
+          specialization: me.specialization || "",
+          qualifications: me.qualifications || "",
+          join_date: me.created_at,
+          address: me.address || "",
+        })
         setForm({
-          first_name: teacher.first_name || "",
-          last_name: teacher.last_name || "",
-          email: teacher.email || "",
-          phone: teacher.phone || "",
-          department: teacher.department || "",
-          specialization: teacher.specialization || "",
-          qualifications: teacher.qualifications || "",
-          address: teacher.address || "",
+          first_name: me.full_name?.split(" ")[0] || "",
+          last_name: me.full_name?.split(" ").slice(1).join(" ") || "",
+          email: me.email,
+          phone: me.phone || "",
+          department: me.department || "",
+          specialization: me.specialization || "",
+          qualifications: me.qualifications || "",
+          address: me.address || "",
         })
       })
-      .catch(() => toast({ title: "Failed to load profile", variant: "destructive" }))
+    }).catch(() => toast({ title: "Failed to load profile", variant: "destructive" }))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { setLoading(true); loadProfile() }, [])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      await teacherService.create(form)
+      await teacherService.updateMe({
+        full_name: `${form.first_name} ${form.last_name}`,
+        email: form.email,
+        phone: form.phone,
+        department: form.department,
+        qualification: form.qualifications,
+      })
       toast({ title: "Profile updated" })
       setEditing(false)
+      loadProfile()
     } catch {
       toast({ title: "Failed to update profile", variant: "destructive" })
     }

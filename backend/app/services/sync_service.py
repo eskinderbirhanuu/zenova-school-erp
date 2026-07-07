@@ -174,11 +174,8 @@ def apply_sync_payload(
     payload: dict,
     payload_hash: str,
     school_id: str = None,
+    source_server_id: str = "unknown",
 ) -> int:
-    from app.core.server_identity import get_server_identity
-    identity = get_server_identity() or {}
-    source_server_id = payload.get("server_id", "unknown")
-
     existing = db.query(SyncInbound).filter(
         SyncInbound.payload_hash == payload_hash,
         SyncInbound.source_server_id == source_server_id,

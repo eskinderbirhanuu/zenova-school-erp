@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.2] — 2026-07-07
+
+### Critical Security Fixes (Deep Audit 2026-07-06)
+- **Settings PUT privilege overflow**: Added `require_permission(Permission.SETTINGS_MANAGE)` — previously any authenticated user (ousse) could overwrite SchoolSettings
+- **Card design IDOR**: `/card-design/{school_id}` now validates ownership — non-superusers can only access their own school's design
+- **Branches PATCH/DELETE**: Added `require_permission(Permission.SCHOOL_MANAGE)` and `log_audit` on PATCH for compliance
+- **偿失 Cross-tenant corporate PII leak**: `/corporate/departments` and `/corporate/employees` endpoints gated by `CORPORATE_EMPLOYEE_VIEW` permission (models lack school_id; role-based gate is minimal safe fix)
+- **NFC by-card cross-tenant lookup**: `get_*_by_card()` service functions now accept optional `school_id` and filter accordingly
+- **Parent payments refund endpoints**: `request_refund` now validates payment ownership via `ParentStudentLink`; `approve_refund` and `process_refund` now filter by `school_id`
+- **Platform admin dashboard exposure**: `/platform/admin/dashboard` restricted to `AUDIT_VIEW` (was `get_current_user`)
+- **IGA endpoints global exposure**: `/iga/metrics` and `/iga/health-summary` restricted to `AUDIT_VIEW` (was `get_current_user`)
+- **Rate limits on /setup/* and /installer/***: Added `SETUP_STATUS_LIMIT` (60/min), `SETUP_VALIDATE_LIMIT` (20/5min), `SETUP_INIT_LIMIT` (3/hr), `INSTALLER_INIT_LIMIT` (3/hr), `CONNECT_VPS_LIMIT` (10/5min)
+- **Global exception handler**: Added `@app.exception_handler(Exception)` that redacts stack traces in non-dev environments
+- **Sync HMAC body signing**: `/sync/receive` now verifies `{server_id}.{ts}.{body_hash}` (backward-compatible with old `{server_id}.{ts}` format)
+- **Telegram webhook signature**: Added HMAC-SHA256 verification using bot token
+
+### Documentation
+- Created `docs/IMPLEMENTATION_NOTES.md` with rationale and trade-offs for each fix
+- Created `docs/ARCHITECTURE_DECISIONS.md` documenting RBAC enforcement strategy, super admin overrides, corporate model global status
+- Created `docs/KNOWN_LIMITATIONS.md` tracking deferred schema changes (corporate school_id, settings schema validation, IGA permission granularity, NFC public lookup enumeration, float money schemas)
+
 ## [0.9.1] — 2026-07-01
 
 ### Security

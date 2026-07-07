@@ -1,8 +1,9 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, licenses, setup, dashboard, installer, iga, backup, parent_portal, sync
-from app.api.v1.endpoints import students, parents, teachers, staff, qr, nfc, archive, conflicts, sequences, metrics
+from app.api.v1.endpoints import health, auth, licenses, setup, dashboard, installer, iga, backup, parent_portal, sync, card_design
+from app.api.v1.endpoints import students, parents, teachers, staff, qr, nfc, nfc_v2, corporate, archive, conflicts, sequences, metrics
 from app.api.v1.endpoints import academic
 from app.api.v1.endpoints import finance
+from app.api.v1.endpoints import platform_commission
 from app.api.v1.endpoints import hr
 from app.api.v1.endpoints import inventory
 from app.api.v1.endpoints import library
@@ -24,6 +25,8 @@ router.include_router(teachers.router, prefix="", tags=["teachers"])
 router.include_router(staff.router, prefix="", tags=["staff"])
 router.include_router(qr.router, prefix="", tags=["qr"])
 router.include_router(nfc.router, prefix="", tags=["nfc"])
+router.include_router(nfc_v2.router, prefix="", tags=["nfc"])
+router.include_router(corporate.router, prefix="", tags=["corporate"])
 router.include_router(academic.router, prefix="", tags=["academic"])
 router.include_router(finance.router, prefix="", tags=["finance"])
 router.include_router(hr.router, prefix="", tags=["hr"])
@@ -55,5 +58,7 @@ router.include_router(announcements.router, prefix="", tags=["announcements"])
 router.include_router(archive.router, prefix="", tags=["archive"])
 router.include_router(conflicts.router, prefix="", tags=["conflicts"])
 router.include_router(sequences.router, prefix="", tags=["sequences"])
+router.include_router(platform_commission.router, prefix="", tags=["platform-commission"])
 router.include_router(metrics.router, prefix="", tags=["metrics"])
+router.include_router(card_design.router, prefix="", tags=["card-design"])
 

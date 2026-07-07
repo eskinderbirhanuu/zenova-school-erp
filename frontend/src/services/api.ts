@@ -71,12 +71,15 @@ export const parentService = {
 export const teacherService = {
   create: (data: any) => api.post("/teachers", data),
   list: (params?: any) => api.get("/teachers", { params }),
+  update: (id: string, data: any) => api.patch(`/teachers/${id}`, data),
   assignGrade: (id: string, data: any) => api.post(`/teachers/${id}/assign-grade`, data),
   assignSection: (id: string, data: any) => api.post(`/teachers/${id}/assign-section`, data),
   assignSubjects: (id: string, subjectIds: string[]) => api.post(`/teachers/${id}/assign-subjects`, subjectIds),
   getSubjects: (id: string) => api.get(`/teachers/${id}/subjects`),
   getMySubjects: () => api.get("/teachers/me/subjects"),
   getMyProfile: () => api.get("/teachers/me/profile"),
+  updateMe: (data: any) => api.patch("/teachers/me", data),
+  getMyStudents: () => api.get("/teachers/me/students"),
 }
 
 export const staffService = {
@@ -223,6 +226,52 @@ export const nfcService = {
   validate: (data: any) => api.post("/nfc/validate", data),
 }
 
+export const nfcV2Service = {
+  assignStudent: (data: any) => api.post("/nfc/student/assign", data),
+  assignStaff: (data: any) => api.post("/nfc/staff/assign", data),
+  assignParent: (data: any) => api.post("/nfc/parent/assign", data),
+  assignEmployee: (data: any) => api.post("/nfc/employee/assign", data),
+  scan: (data: any) => api.post("/nfc/scan", data),
+  bulkAssign: (items: any[]) => api.post("/nfc/bulk-assign", items),
+  publicLookup: (cardUid: string) => api.get(`/nfc/public/lookup`, { params: { card_uid: cardUid } }),
+  downloadCardPdf: (cardType: string, referenceId: string) =>
+    api.get(`/nfc/print-card/${cardType}/${referenceId}`, { responseType: "blob" }),
+  getStudentByCard: (cardUid: string) => api.get(`/nfc/student/by-card/${cardUid}`),
+  getStaffByCard: (cardUid: string) => api.get(`/nfc/staff/by-card/${cardUid}`),
+  getParentByCard: (cardUid: string) => api.get(`/nfc/parent/by-card/${cardUid}`),
+  getEmployeeByCard: (cardUid: string) => api.get(`/nfc/employee/by-card/${cardUid}`),
+  updateCardStatus: (cardType: string, cardId: string, status: string) =>
+    api.patch(`/nfc/card/${cardType}/${cardId}/status`, null, { params: { status } }),
+  createPrintRequest: (data: any) => api.post("/nfc/print-request", data),
+  listPrintRequests: (statusFilter?: string) =>
+    api.get("/nfc/print-requests", { params: statusFilter ? { status_filter: statusFilter } : {} }),
+  processPrintRequest: (requestId: string, action: string = "approve") =>
+    api.patch(`/nfc/print-request/${requestId}/process`, null, { params: { action } }),
+  listScanLogs: () => api.get("/nfc/scan-logs"),
+}
+
+export const cardDesignService = {
+  get: (schoolId: string) => api.get(`/card-design/${schoolId}`),
+  save: (schoolId: string, data: any) => api.put(`/card-design/${schoolId}`, data),
+}
+
+export const corporateService = {
+  departments: {
+    list: (includeInactive?: boolean) =>
+      api.get("/corporate/departments", { params: includeInactive ? { include_inactive: true } : {} }),
+    create: (data: any) => api.post("/corporate/departments", data),
+    update: (id: string, data: any) => api.patch(`/corporate/departments/${id}`, data),
+  },
+  employees: {
+    list: (params?: any) => api.get("/corporate/employees", { params }),
+    get: (id: string) => api.get(`/corporate/employees/${id}`),
+    create: (data: any) => api.post("/corporate/employees", data),
+    update: (id: string, data: any) => api.patch(`/corporate/employees/${id}`, data),
+    delete: (id: string) => api.delete(`/corporate/employees/${id}`),
+  },
+  dashboard: () => api.get("/corporate/dashboard"),
+}
+
 export const licenseService = {
   verify: (key: string) => api.post("/licenses/verify", { key }),
   activate: (key: string) => api.post("/licenses/activate", { key }),
@@ -258,6 +307,13 @@ export const cafeteriaService = {
     create: (data: any) => api.post("/cafeteria/orders", data),
   },
 
+}
+
+export const deviceReviewService = {
+  list: (status?: string) => api.get("/licenses/device-changes", { params: status ? { status_filter: status } : {} }),
+  approve: (id: string, note?: string) => api.post(`/licenses/device-changes/${id}/approve`, { note }),
+  reject: (id: string, note?: string) => api.post(`/licenses/device-changes/${id}/reject`, { note }),
+  autoApprove: () => api.post("/licenses/device-changes/auto-approve"),
 }
 
 export const auditService = {
@@ -323,6 +379,13 @@ export const dashboardService = {
 
 export const studentPortalService = {
   dashboard: () => api.get("/student-portal/dashboard"),
+}
+
+export const platformService = {
+  adminDashboard: () => api.get("/platform/admin/dashboard"),
+  dailyReport: (date?: string) => api.get("/platform/reports/daily", { params: { date_str: date } }),
+  monthlyReport: (month?: number, year?: number) => api.get("/platform/reports/monthly", { params: { month, year } }),
+  schoolReport: () => api.get("/platform/reports/schools"),
 }
 
 export const announcementService = {

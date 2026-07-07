@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.schemas.event import EventCreate, EventUpdate, EventResponse
 from app.services import event_service
 
 router = APIRouter()
-ADMIN = [require_role("ADMIN")]
-ALL = [require_role("ADMIN", "DIRECTOR", "TEACHER")]
+ADMIN = [require_permission(Permission.SETTINGS_MANAGE)]
+ALL = [require_permission(Permission.STUDENT_VIEW)]
 
 
 @router.post("", response_model=EventResponse, dependencies=ADMIN)

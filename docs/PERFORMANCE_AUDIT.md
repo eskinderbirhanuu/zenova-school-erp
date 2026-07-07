@@ -1,129 +1,256 @@
-# Performance Audit — ZENOVA School ERP
+# ZENOVA — Performance Audit
 
-**Date:** 2026-06-30 · **Analyst:** GLM-5.2 · **No code was modified.**
+**Date:** 2026-07-06
+**Auditor:** GLM-5.2 — Performance Engineer role
+**Method:** Static analysis for N+1, COUNT, unbounded queries, sync-in-async, missing indexes. No code modified.
 
-Each entry follows:
+---
 
+## Executive Summary
+
+ZENOVA's list endpoints are largely unbounded, the parent and student portal dashboards are N+1 heavy (4-6 queries × child count), some `dashboard.py` COUNT queries run on every dashboard hit, and FK columns on heavy N+1 paths lack indexes. The monolithic sync worker is thread-based and shares one DB. Asyncio sync/async boundary has a silent broadcast-loss bug. At the target scale (1,000 schools, 1M users), the biggest single concern is the **unpartitioned `attendances` table growing unbounded** — at ~500M rows/yr a single school's 5-picture count will dominate disk.
+
+| Score | Dimension | Notes |
+|---|---|---|
+| 60/100 | Query patterns | N+1 in 3 dashboards; COUNT cascades |
+| 55/100 | Pagination | Inconsistent — academic endpoints unbounded |
+| 70/100 | Indexes | Composite indexes added; gaps on FK-id columns |
+| 50/100 | Architecture scale | Single writer; single scheduler; thread worker |
+| 65/100 | Async correctness | `asyncio.ensure_future` from sync ctx silently fails |
+| 60/100 | Caching | Redis for rate limit / sessions only; no app-data cache |
+
+---
+
+## §1 — N+1 Patterns
+
+### §1.1 — Parent Portal Dashboard (HIGH)
+
+`endpoints/parent_portal.py:41–83`
+
+For each `sid` in `student_ids`:
+- `db.query(Student).filter(...).first()`
+- 3× separate COUNT queries on `Attendance` (absent, late, present)
+- `db.query(ClassGrade)` for class info
+- joined `ExamResult/Exam/Subject` query
+- `db.query(Invoice)` for unpaid
+
+With N children → **~6N queries**. A parent with 5 children → 30+ queries.
+
+**Fix:** Bulk-fetch via `Student.id.in_(student_ids)`, aggregate attendance in one `GROUP BY` query, prefetch via `selectinload`.
+
+### §1.2 — Student Transcript (HIGH)
+
+`endpoints/students.py:264–268`
+
+```python
+for pr in promotion_history:
+    c = db.query(ClassGrade).filter(ClassGrade.id == pr.to_class_id).first()
 ```
-### Bottleneck
-### Root Cause
-### Recommended Optimization
-### Expected Improvement
+
+Per-promotion ClassGrade lookup. A student with 8 years of promotion history → 8 queries.
+
+**Fix:** `class_ids = [pr.to_class_id for pr in promotion_history]; db.query(ClassGrade).filter(ClassGrade.id.in_(class_ids)).all()` + dict lookup.
+
+### §1.3 — Student Portal Dashboard (HIGH)
+
+`endpoints/student_portal.py:93–101`
+
+Inside the timetable loop:
+- `db.query(Subject).filter(Subject.id == e.subject_id).first()`
+- `db.query(Classroom).filter(...)`
+
+N subjects → 2N queries.
+
+**Fix:** Bulk-fetch subjects and classrooms via `IN` query.
+
+### §1.4 — Marksheet / report_cards.py
+
+`report_cards.py:88–119`, `students.py:294–305`
+
+```python
+for r in results:
+    exam = next((e for e in exams if e.id == r.exam_id), None)
 ```
 
-Target scale: 500–20,000 students per school, single-server (Ubuntu/old PC). Findings are ordered by likely production impact.
+O(E×R), and the same loop duplicated across 3 files.
+
+**Fix:** build `{exam_id: exam}` dict once, then `exam = exams_by_id.get(r.exam_id)`.
+
+### §1.5 — NFC scan_nfc (Medium)
+
+`nfc_v2_service.py:114–119`
+
+4 sequential `db.query(XCard).filter(card_uid==...).first()` — one per card type.
+
+**Fix:** `UNION ALL` or a join table `cards` with `card_type` discriminator.
+
+### §1.6 — Device-change history (Medium)
+
+`licenses.py:238–258`
+
+Loops every School and queries DeviceChangeRequest per-school. ~S+1 queries.
+
+**Fix:** Single query with a JOIN to schools.
 
 ---
 
-### Bottleneck 1 — N+1 query explosion in student transcript
-- **Location:** `backend/app/api/v1/endpoints/students.py:226-330`
-- **Root Cause:** Per-semester loop issues one query for exams, one for results, one for subjects, plus `next(...)` in-Python joins. For a student with 6 semesters × 8 subjects that is ~20–30 round-trips per request; 100 concurrent transcript views = thousands of queries.
-- **Recommended Optimization:** Fetch all `Exam`/`ExamResult`/`Subject` rows for the student in two bulk queries with `exam_id IN (...)` and join in Python by dict; or use `selectinload(Exam.results)` / `joinedload`. Cache the computed transcript in Redis (TTL 5 min, invalidate on new result).
-- **Expected Improvement:** ~20× fewer queries; p95 from seconds to <100 ms.
+## §2 — COUNT / `.count()` Patterns
+
+| Location | Pattern | Severity |
+|---|---|---|
+| `dashboard.py:37–47, 52–82` | 7+ scalar COUNTs per dashboard hit, single-table each | Medium — add Redis cache TTL 60s |
+| `audit_logs.py:28` | `q.count()` + `q.offset().limit()` = 2 queries | Low — acceptable |
+| `communication.py:50` | `q.count()` + `q.all()` = 2 queries | Low |
+| `corporate_service.py:178–184` | 3 COUNTs for dashboard | Low |
+
+**Fix for dashboard:** Wrap in Redis cache keyed by `school_id:period`; refresh every 60s or on relevant-write event.
 
 ---
 
-### Bottleneck 2 — Parent dashboard issues ~7 queries per child
-- **Location:** `backend/app/api/v1/endpoints/parent_portal.py:41-97`
-- **Root Cause:** For each linked student: a `Student` fetch, two `count(Attendance)` queries, a `ClassGrade` fetch, an `ExamResult join Exam join Subject` query, and an `Invoice` query. A parent with 3 children = ~21 queries.
-- **Recommended Optimization:** Replace per-child `count()` with a single `GROUP BY student_id` attendance aggregate across all linked ids; batch invoice/results queries with `student_id IN (...)`. Cache dashboard JSON per parent (60s).
-- **Expected Improvement:** ~21 → 4 queries; payload identical.
+## §3 — Pagination (Inconsistency)
+
+### §3.1 — Unbounded list endpoints (return full filtered set)
+
+| Endpoint | File:Line |
+|---|---|
+| `/academic-years`, `/semesters`, `/classes`, `/sections`, `/subjects`, `/classrooms`, `/timetable*/`, `/exam-types`, `/exams`, `/exam-results`, `/promotions` | `academic.py:32,53,64,86,108,130,163,169,203,219,239,316` |
+| `/corporate/departments` | `corporate.py:17` |
+| `/report_cards` | `report_cards.py:20` |
+| `/teachers/*` (some) | `teachers.py:104,200,230` |
+| `/parents/search` | `parents.py:43` — no `.limit()` |
+| Excel exports: `/attendance/export`, `/payments/export-excel`, `/invoices/export-excel`, `/students/export-excel` | load entire unbounded set into memory → OOM risk on 1GB containers |
+
+### §3.2 — Bounded correctly
+
+- `/announcements` capped at `limit(50)` ✓
+- `/corporate/employees` capped at `le=500` ✓
+- `/nfc/print-requests`, `/nfc/scan-logs` default `limit=100` ✓
+- `/qr/history/all` default `limit=100` ✓
+
+### §3.3 — Recommendation
+
+Enforce `?skip=&limit=` (max 1000) on every list endpoint via a `PaginationDep` shared dependency. Excel exporters must use `StreamingResponse` with `openpyxl.write_only=True` and not materialize the full workbook in memory.
 
 ---
 
-### Bottleneck 3 — `trial_balance` runs one sub-query per account
-- **Location:** `backend/app/services/finance_service.py:631-649`
-- **Root Cause:** Loops over accounts and, for each, runs `db.query(JournalLine).join(JournalEntry).filter(account_id == acct.id)`. With 100 accounts this is 100 round-trips fetching all lines into Python to sum.
-- **Recommended Optimization:** Single aggregate: `SELECT account_id, SUM(debit), SUM(credit) FROM journal_lines JOIN journal_entries ... WHERE school_id = :sid GROUP BY account_id`.
-- **Expected Improvement:** 100 queries → 1; removes Python-side summing of large row sets.
+## §4 — Synchronous I/O in async Endpoints
+
+- 9 `async def` endpoint functions total in the codebase.
+- **No** `time.sleep`, `requests.get`, or `urllib` inside `async def` ✓
+- BUT: `nfc_v2_service.scan_nfc` (sync) calls `asyncio.ensure_future(...)` from sync ctx (`nfc_v2_service.py:182-193`) → **raises RuntimeError: no running event loop** → silently swallowed by `try/except: pass` → **realtime WebSocket broadcasts silently fail.** (Same bug confirmed in BACKEND_AUDIT §5.)
+- `sync_service.py:109` and `backup_service.py:72,86,95` use `urllib.request` (sync) — acceptable inside dedicated sync workers/threads ✓
 
 ---
 
-### Bottleneck 4 — COUNT()-based sequence numbers race and scan
-- **Location:** `backend/app/services/finance_service.py:74-80, 236-242, 296-302` (`_next_entry_number`, `_next_invoice_number`, `_next_payment_number`)
-- **Root Cause:** `count() + 1` on `LIKE 'JE-2026-%'`. (a) Race: two concurrent postings compute the same count → duplicate number or integrity error. (b) Performance: the `LIKE` prefix cannot use a unique index efficiently and scans grow with the year's volume.
-- **Recommended Optimization:** Reuse `id_service.generate_id` which uses a locked `number_sequences` row (after fixing its first-insert race, AI-7). Extend `PREFIX_MAP` to `entry/invoice/payment`.
-- **Expected Improvement:** O(1) locked increment; no duplicates; removes full scans.
+## §5 — Index Coverage
+
+### §5.1 — Indexes present (✓)
+
+- `audit_log`: `school_id`, `table_name`, `record_id`, `action`, `user_id`, `created_at` ✓ (but `school_id` value never set → dead index)
+- `archive`: `table_name`, `job_id`, `record_id`, `school_id`, `archived_at` ✓
+- `corporate_employee.employee_id` unique ✓
+- `*_Card.card_uid` unique ✓
+- `device_change_request.license_id`, `school_id` ✓
+- Composite indexes (migration `af43149492e0`): `ix_attendance_school_student`, `ix_payments_school_invoice`, `ix_invoices_school_status`, `ix_journal_entries_school_date`, `ix_audit_logs_table_record`, `ix_audit_logs_user_action`, `ix_sync_queue_status_created`, `ix_students_school_status` ✓
+
+### §5.2 — Missing indexes (HIGH)
+
+| Column / Table | Used by |
+|---|---|
+| `parent_student_link.student_id`, `parent_student_link.parent_id` | parent-portal dashboard join |
+| `attendance.student_id`, `attendance.staff_profile_id` | attendance queries |
+| `exam_result.student_id`, `exam_result.exam_id` | transcript / report card |
+| `wallet_transaction.wallet_id` | wallet history |
+| `inventory_movement.item_id` | stock card |
+| `message.sender_id`, `message.recipient_id` | inbox query per user |
+| `contract.staff_profile_id`, `leave_request.staff_profile_id` | HR dashboard |
+
+**Fix:** Alembic migration adding `index=True` to these FK columns. Expect 2–5× dash improvement on heavy paths.
 
 ---
 
-### Bottleneck 5 — Export endpoints load everything into memory
-- **Location:** `students.py:205-223` (`limit=5000`), `finance.py:262-318` (import/export)
-- **Root Cause:** `export_students_excel` calls `search_students(..., limit=5000)` and builds the whole workbook in RAM; import endpoints parse the whole file then commit en masse.
-- **Recommended Optimization:** Stream exports via `yield_per()` / server-side cursors and write the xlsx with a streaming writer (e.g. `openpyxl` write-only mode). For imports, process in chunks within a single transaction; cap row count.
-- **Expected Improvement:** Constant memory; supports >50k rows without OOM; avoids worker blocking.
+## §6 — Scalability Analysis
+
+### §6.1 — Capacity assumed
+
+| Metric | Capacity | Limit | Reason |
+|---|---|---|---|
+| Concurrent requests | ~500 req/s | Single uvicorn worker | Python sync handlers in threadpool |
+| Schools | 1,000 | OK | ~1M rows in tenant tables — composite indexes cover |
+| Schools | 5,000+ | Bottleneck | `attendances` ~500M rows/yr → must partition |
+| Students / school | 20,000 | ✓ | Composite `(school_id, student_id)` covers |
+| Total students | 1M | Degraded at peak | Dashboard COUNTs, parent-portal N+1 |
+| Background jobs | 9 scheduled + 1 worker | No burst capacity | All on one BackgroundScheduler in uvicorn |
+
+### §6.2 — At 100 schools
+
+- Single-writer DB ✓ at this scale
+- Current thread-based sync worker ✓
+- ~5,000 students/school × 100 = 500k students — manageable
+- Redis rate limit + sessions is fine
+
+### §6.3 — At 500 schools
+
+- ~250k students × 5 years = school-row count similar to "at 1000 schools today" scenario: marginal
+- Start needing a read replica specifically for dashboard COUNTs
+- Excel export endpoint can OOM on 10k-row schools
+
+### §6.4 — At 1,000 schools
+
+- DB at ~25M rows in `students`, ~500M in `attendances` annually — **must partition**
+- Sync queue of ~1M queued ops across tenants; row-level lock becomes critical
+- APScheduler single-process potentially drops jobs
+- Parent-portal N+1 → multiple seconds latency at peak
+
+### §6.5 — At 100k students
+
+- All of the above × 4
+- Piecemeal of academic list endpoints unbounded — risk
+
+### §6.6 — At 1M users
+
+- Stripe / Chapa webhook scalability not addressed
+- PARENT `is_view_only` outside-network flag determined per-request — fine but should be cached in Redis for the school's IP range TTL 5min
 
 ---
 
-### Bottleneck 6 — Single uvicorn worker, no async offload
-- **Location:** `backend/Dockerfile:14`, `docker-compose.yml`
-- **Root Cause:** `uvicorn app.main:app --host 0.0.0.0 --port 8000` (no `--workers`). On a 4-core box, 75% of CPU is idle under load. Blocking calls (Excel, SMTP email send in `forgot_password`, file uploads) occupy the single worker.
-- **Recommended Optimization:** `--workers $(nproc)` (or gunicorn `-k uvicorn.workers.UvicornWorker`). Offload SMTP, Excel, notifications, backups, sync to an Arq worker on Redis. Ensure sync DB code stays in threads (`run_in_threadpool`) so it doesn't block the event loop.
-- **Expected Improvement:** ~3–4× throughput on multi-core; responsive UI during heavy jobs.
+## §7 — WebHooks / Long-Running Operations
+
+- **No asyncio task queue** — webhook processing happens synchronously inside the request, blocking worker threads
+- `sync_service.process_queue` runs in the sync worker thread — locks rows with no `FOR UPDATE SKIP LOCKED` → double-processing risk under 2-worker deployment
+- `archive_service.run_archive` runs nightly in APScheduler — single replica in current deployer; safe for now but no lock to prevent accidental double-archival under multi-replica
 
 ---
 
-### Bottleneck 7 — Missing indexes on hot filter columns
-- **Root Cause:** Most queries filter by `school_id`, `student_id`, `invoice_id`, `status`, `created_at`. Without composite indexes on e.g. `(school_id, created_at desc)`, `(student_id, due_date)` on invoices, `(school_id, entry_number)`, Postgres does seq scans as tables grow.
-- **Recommended Optimization:** Audit `EXPLAIN ANALYZE` on the top-20 queries (dashboard, lists, portal) and add composite indexes. Add `idx_invoices_school_due`, `idx_journal_lines_account`, `idx_attendance_student_status`, `idx_payments_school_invoice`.
-- **Expected Improvement:** List endpoint p95 from hundreds of ms to tens of ms at 20k rows.
+## §8 — Findings Summary
+
+| # | Severity | Finding | File:Line |
+|---|---|---|---|
+| PF1 | **High** | Parent portal N+1 (6 queries × child) | `parent_portal.py:41-83` |
+| PF2 | **High** | Student transcript N+1 | `students.py:264-268` |
+| PF3 | **High** | Student portal N+1 (2 queries × subject) | `student_portal.py:93-101` |
+| PF4 | **High** | Missing FK indexes on 7 hot paths | models |
+| PF5 | **High** | asyncio.ensure_future silently fails — realtime broadcast lost | `nfc_v2_service.py:182` |
+| PF6 | **Medium** | Dashboard COUNT cascade (7+ counts per request) | `dashboard.py:37-82` |
+| PF7 | **Medium** | Unbounded list endpoints (academic + corporate departments + parents/search) | `academic.py:32-316`, `corporate.py:17`, `parents.py:43` |
+| PF8 | **Medium** | Excel exports load entire unbounded result set into memory | export routes |
+| PF9 | **Medium** | No app-data Redis cache (sessions/rate-limit only) | architecture-wide |
+| PF10 | **Medium** | Single-writer DB → dashboard latency at peak | architecture |
+| PF11 | **Low** | Per-replica scheduler runs every cron N × replicas | scheduler |
+| PF12 | **Low** | O(E×R) mapping duplicated in 3 files | `students.py:294`, `report_cards.py:88`, `academic.py` marksheet |
+| PF13 | **Low** | NFC scan 4 sequential queries | `nfc_v2_service.py:114` |
 
 ---
 
-### Bottleneck 8 — `record_payment` over-payment check holds invoice lock
-- **Location:** `backend/app/services/finance_service.py:323-333`
-- **Root Cause:** `with_for_update()` on the invoice is good for correctness but serializes all payments against the same invoice. Combined with the GL auto-posting (which itself creates accounts/entries), a single payment is a multi-statement transaction.
-- **Recommended Optimization:** Keep the lock (correctness first), but ensure the GL posting (`_create_payment_journal_entry`) does not auto-create missing accounts inside the hot path — seed default accounts (`Cash on Hand`, `Student Fees Receivable`) at school setup so the payment path only inserts known rows.
-- **Expected Improvement:** Shorter lock duration; fewer statement-cache misses.
+## §9 — Recommendation Priority
 
----
+1. **PF1-PF3 — N+1:** refactor dashboards to batch fetches (`selectinload`, `IN` queries). Expected 5–10× dash speed-up.
+2. **PF4 — Add FK indexes** via Alembic migration. Two-line migration, biggest single easy win.
+3. **PF5 — asyncio bug** — convert sync handler to async OR `run_coroutine_threadsafe`. Restores NFC realtime features.
+4. **PF7-PF8 — Pagination + streaming Excel** — prevent OOM at scale.
+5. **PF6 — Dashboard caching** in Redis; TTL 60s keyed by `school_id`.
+6. **PF10/PF11 — Eventually:** external worker queue + leader-only scheduler.
 
-### Bottleneck 9 — Auto-creation of accounts inside payment/wallet posting
-- **Location:** `finance_service.py:344-360, 422-440`
-- **Root Cause:** `_create_payment_journal_entry` and `_create_wallet_journal_entry` query for `Cash on Hand` / `Student Fees Receivable` / `Customer Deposits` and **create them on the fly if missing**, inside the payment transaction. First-ever payment per school does 2 extra SELECTs + possibly 2 INSERTs under lock.
-- **Recommended Optimization:** Seed these accounts in `license_service.initialize_system` / `activate_system` at setup. Remove the auto-create branch (or keep only as a logged fallback).
-- **Expected Improvement:** Removes 2–4 statements from the hot path; predictable GL.
+**Performance Score: 60/100** — deduct 25 for N+1 + missing indexes + asyncio bug; deduct 10 for unbounded list endpoints; deduct 5 for monolithic all-in-one-process at scale.
 
----
-
-### Bottleneck 10 — `log_audit` issues an extra COMMIT per mutation
-- **Location:** `backend/app/core/audit.py:29` (cross-ref AI-5)
-- **Root Cause:** Every audited mutation triggers a second `COMMIT`. For a bulk exam-result post of N students, that's N extra commits in a loop.
-- **Recommended Optimization:** Make `log_audit` add-only; let callers commit once.
-- **Expected Improvement:** Bulk operations become 1 commit instead of N+1; large latency win on `bulk_create_exam_results`, `bulk_promote_students`, Excel imports.
-
----
-
-### Bottleneck 11 — `get_client_ip`/`decode_token` overhead per request
-- **Location:** `deps.py`, `auth_service.decode_token`
-- **Root Cause:** Every protected request decodes the JWT and hits the DB to load the user (`get_user_by_id`). There is no user object cache.
-- **Recommended Optimization:** Cache a short-lived (30s) user snapshot in Redis keyed by `user_id` (invalidate on role/active/deleted change). Decode is cheap; the DB hit is the cost.
-- **Expected Improvement:** Removes one DB round-trip from every authenticated request.
-
----
-
-### Bottleneck 12 — License status re-validation may block startup/requests
-- **Location:** `license_crypto.get_cached_license_status` + `_can_reach_license_server` (5s HTTP timeout)
-- **Root Cause:** When the Redis cache expires (30 min), the next request synchronously validates, including a 5-second outbound HTTP ping to `license.zenovaerp.com`. On an air-gapped LAN this is a 5s stall on a user request.
-- **Recommended Optimization:** Validate asynchronously (background task) and serve the last-known-good cached status; only restrict features after the offline grace truly expires. Never block a request on the outbound ping.
-- **Expected Improvement:** Eliminates periodic 5s stalls; preserves offline-first guarantee.
-
----
-
-## Summary Table
-
-| # | Bottleneck | Effort | Impact |
-|---|-----------|--------|--------|
-| 1 | Transcript N+1 | M | High |
-| 2 | Parent dashboard N+1 | M | High |
-| 3 | trial_balance per-account | S | High (finance) |
-| 4 | COUNT-based numbers (race+scan) | M | High (correctness+perf) |
-| 5 | In-memory exports | M | Medium |
-| 6 | Single worker | S | High (throughput) |
-| 7 | Missing indexes | M | High at scale |
-| 8/9 | Payment path lock + auto-create accounts | M | Medium |
-| 10 | Audit self-commit | S–M | Medium (bulk) |
-| 11 | Per-request user DB hit | S | Medium |
-| 12 | License ping stalls requests | S | High (offline UX) |
-
-**Priority for DeepSeek:** 6, 12, 4, 10 are quick wins with outsized impact; 1, 2, 3, 7 are the scale enablers. Sequencing and step-by-step fixes are in `DEEPSEEK_TASKS.md` (Task-16 covers the N+1 batch; Task-20 covers numbering; Task-05 covers audit commit; Task-21 covers worker/indexes/license-cache).
+**End of PERFORMANCE_AUDIT.md**

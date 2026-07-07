@@ -131,3 +131,70 @@ class TestRateLimiter:
             with pytest.raises(HTTPException) as exc:
                 checker(request)
             assert exc.value.status_code == 429
+
+
+class TestTokenBlacklist:
+    """Tests for token blacklist — _blacklist_token, _is_token_blacklisted, logout blacklisting."""
+
+    def test_blacklist_token_sets_redis_key(self):
+        from app.api.v1.endpoints.auth import _blacklist_token, _is_token_blacklisted
+
+        redis = MagicMock()
+        exp = int(datetime.now(timezone.utc).timestamp()) + 3600
+        _blacklist_token(redis, "test-jti-123", exp)
+
+        redis.setex.assert_called_once_with("token:bl:test-jti-123", 3600, "1")
+
+    def test_blacklist_token_handles_redis_error_gracefully(self):
+        from app.api.v1.endpoints.auth import _blacklist_token
+
+        redis = MagicMock()
+        redis.setex.side_effect = Exception("Redis error")
+        exp = int(datetime.now(timezone.utc).timestamp()) + 3600
+        _blacklist_token(redis, "test-jti", exp)  # should not raise
+
+    def test_is_token_blacklisted_returns_true_when_exists(self):
+        from app.api.v1.endpoints.auth import _is_token_blacklisted
+
+        redis = MagicMock()
+        redis.exists.return_value = 1
+        assert _is_token_blacklisted(redis, "test-jti") is True
+
+    def test_is_token_blacklisted_returns_false_when_missing(self):
+        from app.api.v1.endpoints.auth import _is_token_blacklisted
+
+        redis = MagicMock()
+        redis.exists.return_value = 0
+        assert _is_token_blacklisted(redis, "test-jti") is False
+
+    def test_is_token_blacklisted_returns_false_on_error(self):
+        from app.api.v1.endpoints.auth import _is_token_blacklisted
+
+        redis = MagicMock()
+        redis.exists.side_effect = Exception("Redis down")
+        assert _is_token_blacklisted(redis, "test-jti") is False
+
+    def test_logout_blacklists_both_tokens(self):
+        from app.api.v1.endpoints.auth import _blacklist_token, _is_token_blacklisted
+        from jose import jwt as jose_jwt
+        import secrets
+
+        redis = MagicMock()
+        redis.exists.return_value = 0  # initially not blacklisted
+
+        access_jti = secrets.token_hex(16)
+        refresh_jti = secrets.token_hex(16)
+        exp = int(datetime.now(timezone.utc).timestamp()) + 3600
+
+        access_payload = {"jti": access_jti, "exp": exp, "type": "access", "sub": "user-1"}
+        refresh_payload = {"jti": refresh_jti, "exp": exp, "type": "refresh", "sub": "user-1"}
+
+        _blacklist_token(redis, access_jti, exp)
+        _blacklist_token(redis, refresh_jti, exp)
+
+        redis.setex.assert_any_call(f"token:bl:{access_jti}", 3600, "1")
+        redis.setex.assert_any_call(f"token:bl:{refresh_jti}", 3600, "1")
+
+        redis.exists.return_value = 1
+        assert _is_token_blacklisted(redis, access_jti) is True
+        assert _is_token_blacklisted(redis, refresh_jti) is True

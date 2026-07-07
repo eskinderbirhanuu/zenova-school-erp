@@ -4,6 +4,8 @@ from fastapi import HTTPException
 from app.models.telegram_bot import SchoolTelegramBot
 from app.models.notification_preference import NotificationPreference
 from app.config import settings
+import logging
+logger = logging.getLogger(__name__)
 
 
 TELEGRAM_API = "https://api.telegram.org/bot"
@@ -58,7 +60,7 @@ async def disconnect_bot(db: Session, school_id: str):
     try:
         await _telegram_api("deleteWebhook", bot.bot_token)
     except Exception:
-        pass
+        logger.warning("Failed to delete Telegram webhook for school", exc_info=True)
     bot.is_active = False
     db.commit()
     return {"message": "Bot disconnected"}

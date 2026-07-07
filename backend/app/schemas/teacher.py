@@ -44,6 +44,15 @@ class TeacherListResult(BaseModel):
     is_active: bool
 
 
+class TeacherUpdate(BaseModel):
+    full_name: str | None = Field(None, min_length=2, max_length=255)
+    email: str | None = Field(None, max_length=255)
+    phone: str | None = Field(None, max_length=50)
+    qualification: str | None = None
+    department: str | None = None
+    address: str | None = None
+
+
 class AssignGradeRequest(BaseModel):
     grade_id: str
 

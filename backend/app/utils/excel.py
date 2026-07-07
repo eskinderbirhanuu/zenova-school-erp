@@ -2,6 +2,8 @@ from io import BytesIO
 from fastapi import UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
+import logging
+logger = logging.getLogger(__name__)
 
 
 def parse_excel(file: UploadFile) -> list[dict]:
@@ -42,8 +44,8 @@ def generate_excel(headers: list[str], rows: list[list]) -> BytesIO:
         for cell in col:
             try:
                 max_len = max(max_len, len(str(cell.value or "")))
-            except:
-                pass
+            except Exception:
+                logger.debug("Could not measure cell width", exc_info=True)
         ws.column_dimensions[col_letter].width = min(max_len + 3, 50)
     buf = BytesIO()
     wb.save(buf)

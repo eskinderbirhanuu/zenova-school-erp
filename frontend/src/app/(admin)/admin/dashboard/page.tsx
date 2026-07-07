@@ -74,8 +74,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setupWizardService.status().then((res) => {
-      if (!res.data.all_done) setSetupSteps(res.data.steps)
-    }).catch(() => {})
+      if (res.data && !res.data.all_done) setSetupSteps(res.data.steps)
+    }).catch(() => {
+      /* setup wizard may not be available yet */
+    })
     Promise.all([
       dashboardService.overview(),
       dashboardService.trends(),

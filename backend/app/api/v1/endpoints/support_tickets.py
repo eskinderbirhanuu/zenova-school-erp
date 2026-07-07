@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.schemas.support_ticket import SupportTicketCreate, SupportTicketUpdate, SupportTicketResponse
 from app.services import support_ticket_service
 from app.models.user import User
 
 router = APIRouter()
-SUPER_ADMIN = [require_role("SUPER_ADMIN")]
+SUPER_ADMIN = [require_permission(Permission.LICENSE_MANAGE)]
 
 
 @router.post("/support/tickets", response_model=SupportTicketResponse, status_code=status.HTTP_201_CREATED)

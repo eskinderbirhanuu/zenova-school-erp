@@ -184,3 +184,52 @@ Internal messaging between users.
 | Payment Gateway | ❌ Not wired | Manual payments only |
 | Telegram Bot | ❌ Not wired | |
 | WebSocket | ❌ Not implemented | 30s polling used instead |
+
+## Platform Commission
+
+### Director Dashboard
+- `GET /api/v1/platform/dashboard` — Get current month's transactions, pending fees, invoice history for the director's school
+
+### Super Admin Dashboard
+- `GET /api/v1/platform/admin/dashboard` — Platform revenue overview: total transactions, pending/invoiced/paid fees, school rankings
+
+### Invoice Payment
+- `POST /api/v1/platform/invoice/{invoice_id}/pay` — Initialize Chapa payment for a platform invoice. Returns checkout_url.
+- `POST /api/v1/platform/invoice/webhook` — Chapa webhook handler: marks invoice paid on success
+
+### Reports
+- `GET /api/v1/platform/reports/daily?date=YYYY-MM-DD` — Daily revenue report
+- `GET /api/v1/platform/reports/monthly?month=M&year=Y` — Monthly revenue report  
+- `GET /api/v1/platform/reports/schools` — Per-school revenue breakdown
+
+## Parent Payment System
+
+### Dashboard & Invoices
+- `GET /api/v1/parent-payments/dashboard` — Parent payment dashboard: outstanding balances, children summary, payment history
+- `GET /api/v1/parent-payments/invoices` — All invoices for parent's children
+
+### Payment Session
+- `POST /api/v1/parent-payments/create-session?student_id=X&amount=Y&payment_method=chapa&invoice_id=Z` — Create a payment session
+- `POST /api/v1/parent-payments/chapa/initialize?session_id=X` — Initialize Chapa payment, returns checkout_url
+
+### Webhook & Verification
+- `POST /api/v1/parent-payments/chapa/webhook` — Chapa webhook callback handler (async, verifies signature, processes payment)
+
+### Receipts
+- `GET /api/v1/parent-payments/receipts` — List all receipts for parent
+- `GET /api/v1/parent-payments/receipts/{receipt_id}/download` — Download receipt as PDF
+
+### Refunds
+- `POST /api/v1/parent-payments/refund/request?payment_id=X&amount=Y&reason=Z` — Request refund
+- `POST /api/v1/parent-payments/refund/{refund_id}/approve` — Approve refund (finance permission required)
+- `POST /api/v1/parent-payments/refund/{refund_id}/process` — Process refund (finance permission required)
+
+## Background Jobs
+
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| Nightly Archive | 2:00 AM daily | Archive old records per retention policy |
+| Database Backup | 3:00 AM daily | Full database backup |
+| Daily Fee Calc | 11:30 PM daily | Calculate platform fees for today's payments |
+| Monthly Invoice Gen | 1st of month, 1:00 AM | Generate monthly platform invoices |
+| License Heartbeat | Every 6 hours | Send server heartbeat to license server |

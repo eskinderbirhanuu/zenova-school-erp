@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.schemas.inventory import (
     InventoryCategoryCreate, InventoryCategoryUpdate, InventoryCategoryResponse,
     InventoryItemCreate, InventoryItemUpdate, InventoryItemResponse,
@@ -13,8 +13,8 @@ from app.services import inventory_service
 from app.models.inventory_asset import InventoryAsset
 
 router = APIRouter()
-INVENTORY = [require_role("INVENTORY")]
-VIEW_INVENTORY = [require_role("INVENTORY", "FINANCE", "ADMIN")]
+INVENTORY = [require_permission(Permission.INVENTORY_MANAGE)]
+VIEW_INVENTORY = [require_permission(Permission.INVENTORY_MANAGE, Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS)]
 
 
 @router.post("/inventory/categories", response_model=InventoryCategoryResponse, dependencies=INVENTORY)

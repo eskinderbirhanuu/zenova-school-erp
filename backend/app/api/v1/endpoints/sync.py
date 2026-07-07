@@ -110,9 +110,19 @@ def receive_sync(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Bad timestamp")
     if abs(int(time.time()) - ts) > ALLOWED_CLOCK_SKEW:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Stale sync payload")
-    msg = f"{x_zenova_server_id}.{x_zenova_sync_ts}".encode()
-    expected = hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, x_zenova_sync_sig):
+    # Compute body hash for full-payload HMAC (critical: prevents replay with payload swap)
+    body_str = json.dumps(payload, sort_keys=True, default=str)
+    body_hash = hashlib.sha256(body_str.encode()).hexdigest()
+    
+    # New signature format: {server_id}.{ts}.{body_hash}
+    # Fallback to old format for backward compatibility
+    msg_new = f"{x_zenova_server_id}.{x_zenova_sync_ts}.{body_hash}".encode()
+    expected_new = hmac.new(secret.encode(), msg_new, hashlib.sha256).hexdigest()
+    
+    msg_old = f"{x_zenova_server_id}.{x_zenova_sync_ts}".encode()
+    expected_old = hmac.new(secret.encode(), msg_old, hashlib.sha256).hexdigest()
+    
+    if not hmac.compare_digest(expected_new, x_zenova_sync_sig) and not hmac.compare_digest(expected_old, x_zenova_sync_sig):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
 
     table = payload.get("table")
@@ -133,5 +143,6 @@ def receive_sync(
         operation=operation, payload=body,
         payload_hash=payload_hash,
         school_id=school_id,
+        source_server_id=x_zenova_server_id,
     )
     return {"received": True, "count": count}

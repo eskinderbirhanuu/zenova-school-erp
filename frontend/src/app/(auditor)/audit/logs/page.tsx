@@ -18,7 +18,7 @@ export default function AuditorLogs() {
   useEffect(() => {
     auditService.list({ limit: 200 })
       .then((res) => {
-        const raw = res.data?.data || res.data || []
+        const raw = res.data?.logs || []
         setLogs(raw.map((l: any) => ({
           id: l.id,
           action: l.action || "—",

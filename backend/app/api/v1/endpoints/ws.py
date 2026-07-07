@@ -1,5 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.services.notification_manager import notification_manager
+from app.services.scan_event_manager import scan_event_manager
 from app.core.security import decode_access_token
 
 router = APIRouter()
@@ -23,3 +24,19 @@ async def ws_notifications(websocket: WebSocket, token: str = Query(...)):
         notification_manager.disconnect(user_id, websocket)
     except Exception:
         notification_manager.disconnect(user_id, websocket)
+
+
+@router.websocket("/ws/nfc-scans")
+async def ws_nfc_scans(websocket: WebSocket, token: str = Query(...)):
+    payload = decode_access_token(token)
+    if payload is None or payload.get("type") != "access":
+        await websocket.close(code=4001)
+        return
+    await scan_event_manager.connect("nfc-scans", websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        scan_event_manager.disconnect("nfc-scans", websocket)
+    except Exception:
+        scan_event_manager.disconnect("nfc-scans", websocket)

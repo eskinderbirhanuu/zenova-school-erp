@@ -35,11 +35,15 @@ def parent_portal_dashboard(
     links = db.query(ParentStudentLink).filter(ParentStudentLink.parent_id == parent.id).all()
     student_ids = [l.student_id for l in links]
 
+    # Batch-load students to avoid N+1 queries
+    students = db.query(Student).filter(Student.id.in_(student_ids)).all() if student_ids else []
+    student_map = {s.id: s for s in students}
+
     now = datetime.now(timezone.utc)
     children_data = []
 
     for sid in student_ids:
-        student = db.query(Student).filter(Student.id == sid).first()
+        student = student_map.get(sid)
         if not student:
             continue
 

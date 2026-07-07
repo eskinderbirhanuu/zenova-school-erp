@@ -98,6 +98,30 @@ class TestNFCCardIsolation:
         sig = inspect.signature(update_nfc_status)
         assert "school_id" in sig.parameters
 
+    def test_nfc_v2_get_student_by_card_signature_accepts_school_id(self):
+        import inspect
+        from app.services.nfc_v2_service import get_student_by_card
+        sig = inspect.signature(get_student_by_card)
+        assert "school_id" in sig.parameters
+
+    def test_nfc_v2_get_staff_by_card_signature_accepts_school_id(self):
+        import inspect
+        from app.services.nfc_v2_service import get_staff_by_card
+        sig = inspect.signature(get_staff_by_card)
+        assert "school_id" in sig.parameters
+
+    def test_nfc_v2_get_parent_by_card_signature_accepts_school_id(self):
+        import inspect
+        from app.services.nfc_v2_service import get_parent_by_card
+        sig = inspect.signature(get_parent_by_card)
+        assert "school_id" in sig.parameters
+
+    def test_nfc_v2_get_employee_by_card_signature_accepts_school_id(self):
+        import inspect
+        from app.services.nfc_v2_service import get_employee_by_card
+        sig = inspect.signature(get_employee_by_card)
+        assert "school_id" in sig.parameters
+
 
 class TestTeacherIsolation:
     def test_assign_grade_signature_accepts_school_id(self):

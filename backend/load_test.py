@@ -140,7 +140,9 @@ def main():
         for i, s in enumerate(sessions):
             futures.append(pool.submit(run_scenario, s, i, all_results))
         for f in concurrent.futures.as_completed(futures):
-            pass
+            exc = f.exception()
+            if exc:
+                print(f"Worker failed: {exc}", file=sys.stderr)
 
     total_time = time.time() - t_start
 

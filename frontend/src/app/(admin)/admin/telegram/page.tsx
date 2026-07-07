@@ -60,7 +60,7 @@ export default function AdminTelegram() {
     if (!confirm("Disconnect this Telegram bot? Parents linked via this bot will no longer receive notifications.")) return
     setDisconnecting(true)
     try {
-      await api.post("/telegram/bot/disconnect")
+      await api.delete("/telegram/bot/disconnect")
       toast({ title: "Bot disconnected" })
       setBotConnected(false)
       setBotInfo({ bot_username: "", bot_name: "", logo_url: "" })

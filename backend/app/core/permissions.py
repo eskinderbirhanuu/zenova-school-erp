@@ -1,3 +1,4 @@
+import warnings
 from fastapi import Depends, HTTPException, status
 from app.api.v1.deps import get_current_user
 from app.models.user import User
@@ -23,6 +24,25 @@ class Permission:
     SETTINGS_MANAGE = "settings.manage"
     LICENSE_MANAGE = "licenses.manage"
     SCHOOL_MANAGE = "schools.manage"
+    DEVICE_REVIEW = "licenses.device_review"
+
+    # ZENOVA Corporate Permissions
+    CORPORATE_EMPLOYEE_VIEW = "corporate.employee.view"
+    CORPORATE_EMPLOYEE_CREATE = "corporate.employee.create"
+    CORPORATE_EMPLOYEE_EDIT = "corporate.employee.edit"
+    CORPORATE_DEPARTMENT_VIEW = "corporate.department.view"
+    CORPORATE_DEPARTMENT_MANAGE = "corporate.department.manage"
+
+    # Card Printing Permissions
+    GRADE_ENTER = "grades.enter"
+    CARD_PRINT = "card.print"
+    CARD_PRINT_ASSIGN = "card.assign"
+    CARD_PRINT_REPRINT = "card.reprint"
+
+    # ZENOVA Corporate Finance
+    CORPORATE_FINANCE_VIEW = "corporate.finance.view"
+    CORPORATE_SETTINGS_MANAGE = "corporate.settings.manage"
+    CORPORATE_DEPLOY = "corporate.deploy"
 
 
 # Backward-compat alias
@@ -44,25 +64,46 @@ ROLE_PERMISSIONS = {
         Permission.HR_MANAGE, Permission.INVENTORY_MANAGE,
         Permission.LIBRARY_MANAGE, Permission.CAFETERIA_POS,
         Permission.AUDIT_VIEW, Permission.SETTINGS_MANAGE,
+        Permission.CARD_PRINT, Permission.CARD_PRINT_ASSIGN,
+        Permission.CORPORATE_EMPLOYEE_VIEW, Permission.CORPORATE_DEPARTMENT_VIEW,
+        Permission.CORPORATE_DEPARTMENT_MANAGE, Permission.CORPORATE_FINANCE_VIEW,
     ],
     "DIRECTOR": [
         Permission.STUDENT_VIEW, Permission.STUDENT_CREATE,
         Permission.PARENT_CREATE, Permission.PARENT_EDIT,
         Permission.TEACHER_CREATE, Permission.STAFF_CREATE,
         Permission.FINANCE_REPORTS, Permission.AUDIT_VIEW,
+        Permission.CARD_PRINT_ASSIGN,
+        Permission.CORPORATE_EMPLOYEE_VIEW, Permission.CORPORATE_DEPARTMENT_VIEW,
     ],
     "REGISTRAR": [
         Permission.STUDENT_CREATE, Permission.STUDENT_EDIT, Permission.STUDENT_VIEW,
         Permission.PARENT_CREATE, Permission.PARENT_EDIT,
         Permission.AUDIT_VIEW,
     ],
-    "TEACHER": [Permission.STUDENT_VIEW],
+    "TEACHER": [Permission.STUDENT_VIEW, Permission.GRADE_ENTER],
     "FINANCE": [Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS],
     "HR": [Permission.HR_MANAGE],
     "INVENTORY": [Permission.INVENTORY_MANAGE],
     "LIBRARY": [Permission.LIBRARY_MANAGE],
     "CAFETERIA": [Permission.CAFETERIA_POS],
     "AUDITOR": [Permission.AUDIT_VIEW],
+    "ZENOVA_CARD_OFFICER": [
+        Permission.CARD_PRINT, Permission.CARD_PRINT_ASSIGN, Permission.CARD_PRINT_REPRINT,
+        Permission.STUDENT_VIEW, Permission.STAFF_CREATE,
+        Permission.CORPORATE_EMPLOYEE_VIEW,
+    ],
+    "ZENOVA_CORPORATE_ADMIN": [
+        Permission.CORPORATE_EMPLOYEE_VIEW, Permission.CORPORATE_EMPLOYEE_CREATE,
+        Permission.CORPORATE_EMPLOYEE_EDIT, Permission.CORPORATE_DEPARTMENT_VIEW,
+        Permission.CORPORATE_DEPARTMENT_MANAGE, Permission.CORPORATE_FINANCE_VIEW,
+        Permission.CORPORATE_SETTINGS_MANAGE, Permission.CORPORATE_DEPLOY,
+        Permission.AUDIT_VIEW,
+    ],
+    "ZENOVA_SUPPORT": [
+        Permission.AUDIT_VIEW, Permission.STUDENT_VIEW,
+        Permission.CORPORATE_EMPLOYEE_VIEW, Permission.CORPORATE_DEPARTMENT_VIEW,
+    ],
 }
 
 
@@ -101,6 +142,7 @@ def require_role(*role_names: str):
     Prefer ``require_permission()`` for new code; this function exists for
     coarse-grained checks where role-name comparison is sufficient.
     """
+    warnings.warn("require_role is deprecated, use require_permission() instead", DeprecationWarning, stacklevel=2)
     def _check(current_user: User = Depends(get_current_user)):
         if current_user.is_superuser:
             return current_user
@@ -122,6 +164,7 @@ class PermissionChecker:
     """Deprecated: Use ``require_permission()`` instead."""
 
     def __init__(self, permission: str):
+        warnings.warn("PermissionChecker is deprecated, use require_permission() instead", DeprecationWarning, stacklevel=2)
         self.permission = permission
 
     def __call__(self, current_user: User = Depends(get_current_user)):

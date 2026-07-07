@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { PageHeader } from "@/components/ui/page-header"
-import { teacherService, staffService, financeService, auditService, academicService, studentService } from "@/services/api"
+import { dashboardService, academicService, financeService } from "@/services/api"
 import Link from "next/link"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -34,24 +34,28 @@ export default function DirectorDashboard() {
 
   useEffect(() => {
     Promise.all([
-      teacherService.list({ limit: 1 }).then((res) => res.data?.total ?? res.data?.length ?? 0).catch(() => 0),
-      staffService.list({ limit: 1 }).then((res) => res.data?.total ?? res.data?.length ?? 0).catch(() => 0),
+      dashboardService.overview(),
       financeService.trialBalance().then((res) => {
         const tb = res.data
         const debit = tb?.total_debit ?? tb?.debit ?? 0
         const credit = tb?.total_credit ?? tb?.credit ?? 0
         return `$${(debit + credit).toLocaleString()}`
       }).catch(() => "—"),
-      auditService.list({ limit: 1 }).then((res) => res.data?.total ?? res.data?.length ?? 0).catch(() => 0),
-      studentService.list({ limit: 1 }).then((res) => res.data?.total ?? res.data?.length ?? 0).catch(() => 0),
-      academicService.classes.list().then((res) => (res.data || []).length).catch(() => 0),
-      academicService.subjects.list({ limit: 1 }).then((res) => res.data?.total ?? res.data?.length ?? 0).catch(() => 0),
-    ]).then(([teachers, staff, revenue, audits, students, classes, subjects]) => {
-      setTeachersCount(teachers)
-      setStaffCount(staff)
+      academicService.classes.list().then((res) => {
+        const items = res.data?.items ?? res.data ?? []
+        return Array.isArray(items) ? items.length : 0
+      }).catch(() => 0),
+      academicService.subjects.list().then((res) => {
+        const items = res.data?.items ?? res.data ?? []
+        return Array.isArray(items) ? items.length : 0
+      }).catch(() => 0),
+    ]).then(([overview, revenue, classes, subjects]) => {
+      const data = overview.data || overview
+      setStudentsCount(data.students ?? 0)
+      setTeachersCount(data.teachers ?? 0)
+      setStaffCount(data.staff ?? 0)
       setTotalRevenue(revenue)
-      setAuditCount(audits)
-      setStudentsCount(students)
+      setAuditCount(data.audits ?? 0)
       setClassCount(classes)
       setSubjectCount(subjects)
       setLoading(false)

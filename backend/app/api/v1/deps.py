@@ -4,6 +4,7 @@ from app.database import get_db
 from app.services.auth_service import decode_token, get_user_by_id
 from app.models.user import User
 from app.config import settings
+from app.core.redis_client import get_redis
 import ipaddress
 
 
@@ -16,6 +17,15 @@ def get_client_ip(request: Request) -> str:
 
 def get_user_agent(request: Request) -> str:
     return request.headers.get("User-Agent", "unknown")
+
+
+def _is_token_blacklisted(jti: str) -> bool:
+    """Check if a token JTI is blacklisted in Redis."""
+    try:
+        redis = get_redis()
+        return redis.exists(f"token:bl:{jti}") == 1
+    except Exception:
+        return False
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
@@ -45,6 +55,12 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
+        )
+    jti = payload.get("jti")
+    if jti and _is_token_blacklisted(jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
         )
     user = get_user_by_id(db, user_id)
     if not user:

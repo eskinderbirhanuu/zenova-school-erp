@@ -8,6 +8,8 @@ from app.models.user import User
 from app.services.communication_service import send_notification as send_inapp
 from app.services.email_service import send_absence_notification_email
 from app.services.telegram_bot_service import send_telegram_message
+import logging
+logger = logging.getLogger(__name__)
 
 
 def notify_parents_of_absence(
@@ -82,4 +84,4 @@ def notify_parents_of_absence(
                     f"Please contact the school if you have any questions.",
                 ))
             except Exception:
-                pass
+                logger.warning("Telegram notification failed for student", exc_info=True)

@@ -20,10 +20,16 @@ from app.services.license_crypto import (
     get_lic_file_path,
     get_machine_fingerprint,
     match_hostname,
+    match_fingerprint_components,
+    encode_hardware_components,
+    get_fingerprint_components,
+    get_active_environment,
+    get_environment_fingerprint,
 )
 from app.licensing.coreval_wrapper import verify_lic_file as c_verify_lic, has_c_extension
 from app.database import SessionLocal
 from app.models.license import License, LicenseType, LicenseStatus
+from app.core.audit import log_audit
 
 logger = logging.getLogger(__name__)
 
@@ -138,13 +144,38 @@ def validate_lic_file() -> LicenseValidationResult:
             )
         logger.info("Hostname match: %s", lic_fingerprint)
     else:
-        current = get_machine_fingerprint()
-        if lic_fingerprint != current:
-            logger.warning("Hardware fingerprint mismatch")
-            return LicenseValidationResult(
-                valid=False,
-                message="Hardware fingerprint mismatch — license bound to different machine",
-            )
+        db = SessionLocal()
+        try:
+            record = db.query(License).filter(
+                License.school_id == payload.get("school_id"),
+            ).first()
+            if record and record.hardware_id:
+                is_match, match_count, total = match_fingerprint_components(record.hardware_id)
+                if not is_match:
+                    logger.warning("Hardware fingerprint mismatch: %d/%d components", match_count, total)
+                    log_audit(
+                        db, "system", "HW_MISMATCH", "licenses",
+                        record.id,
+                        old_data={"hardware_id": record.hardware_id},
+                        new_data={"match_count": match_count, "total": total, "threshold": 0.75},
+                    )
+                    db.commit()
+                    return LicenseValidationResult(
+                        valid=False,
+                        message=f"Hardware fingerprint mismatch — only {match_count}/{total} components matched",
+                    )
+            else:
+                current = get_machine_fingerprint()
+                if lic_fingerprint != current:
+                    logger.warning("Hardware fingerprint mismatch (exact hash)")
+                    return LicenseValidationResult(
+                        valid=False,
+                        message="Hardware fingerprint mismatch — license bound to different machine",
+                    )
+        except Exception:
+            pass
+        finally:
+            db.close()
 
     return LicenseValidationResult(
         valid=True,
@@ -162,9 +193,20 @@ def _bind_license(payload: dict):
             License.school_id == payload.get("school_id"),
         ).first()
         if record and not record.machine_fingerprint:
-            record.machine_fingerprint = get_machine_fingerprint()
+            env = get_active_environment()
+            record.machine_fingerprint = get_environment_fingerprint(env)
+            record.hardware_id = encode_hardware_components(get_fingerprint_components())
+            record.runtime_environment = env
+            log_audit(
+                db, "system", "HW_BIND", "licenses",
+                record.id,
+                new_data={
+                    "machine_fingerprint": record.machine_fingerprint,
+                    "runtime_environment": env,
+                },
+            )
             db.commit()
-            logger.info("License bound to hardware: %s", record.id)
+            logger.info("License bound to hardware (%s): %s", env, record.id)
     except Exception as e:
         logger.error("Failed to bind license: %s", e)
     finally:

@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -6,10 +6,24 @@ from app.api.v1.deps import get_current_user
 from app.models.attendance import Attendance
 from app.models.student import Student
 from app.models.school import School
-from app.schemas.hr import AttendanceBulkItem, AttendanceBulkResponse, AttendanceResponse
+from app.schemas.hr import AttendanceBulkItem, AttendanceBulkResponse, AttendanceResponse, AttendanceUpdate
 from app.services.hr_service import get_attendance as hr_get_attendance
 from app.services.notification_service import notify_parents_of_absence
 from app.utils.excel import excel_response
+
+
+ETHIOPIA_UTC_OFFSET = timedelta(hours=3)  # UTC+3
+
+
+def _now_ethiopia() -> datetime:
+    """Return current time in Ethiopian timezone (UTC+3)."""
+    return datetime.now(timezone.utc) + ETHIOPIA_UTC_OFFSET
+
+
+def _attendance_window_open() -> bool:
+    """Check if current Ethiopian time is within the attendance window (2 ጠዋት–4 ጠዋት / 08:00–10:00)."""
+    now = _now_ethiopia()
+    return time(8, 0) <= now.time() <= time(10, 0)
 
 router = APIRouter(tags=["attendance"])
 
@@ -21,10 +35,17 @@ def mark_attendance_bulk(
     current_user=Depends(get_current_user),
 ):
     """Mark attendance for multiple students/staff in bulk.
-    Accessible by TEACHER, HR, ADMIN roles."""
+    Accessible by TEACHER, HR, ADMIN roles.
+    Attendance window: 2 ጠዋት–4 ጠዋት (08:00–10:00 Ethiopian time / UTC+3)."""
     school_id = current_user.school_id
     if not school_id:
         raise HTTPException(status_code=400, detail="User has no school association")
+
+    if not _attendance_window_open():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Attendance can only be marked between 2 ጠዋት and 4 ጠዋት (08:00–10:00 Ethiopian time)",
+        )
 
     created = 0
     errors = []
@@ -88,6 +109,8 @@ def query_attendance(
     date_filter: str | None = Query(None, alias="date"),
     student_id: str | None = Query(None),
     staff_profile_id: str | None = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -111,7 +134,7 @@ def query_attendance(
     if staff_profile_id:
         q = q.filter(Attendance.staff_profile_id == staff_profile_id)
 
-    records = q.order_by(Attendance.date.desc(), Attendance.created_at.desc()).all()
+    records = q.order_by(Attendance.date.desc(), Attendance.created_at.desc()).offset(skip).limit(limit).all()
     return [
         AttendanceResponse(
             id=r.id, staff_profile_id=r.staff_profile_id, student_id=r.student_id,
@@ -126,11 +149,17 @@ def query_attendance(
 @router.patch("/attendance/{attendance_id}", response_model=AttendanceResponse)
 def patch_attendance(
     attendance_id: str,
-    data: dict,
+    data: AttendanceUpdate,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Update an attendance record (status, reason, etc.)."""
+    """Update an attendance record (status, reason, etc.).
+    Attendance window: 2 ጠዋት–4 ጠዋት (08:00–10:00 Ethiopian time / UTC+3)."""
+    if not _attendance_window_open():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Attendance can only be modified between 2 ጠዋት and 4 ጠዋት (08:00–10:00 Ethiopian time)",
+        )
     att = db.query(Attendance).filter(
         Attendance.id == attendance_id,
         Attendance.school_id == current_user.school_id,
@@ -138,14 +167,15 @@ def patch_attendance(
     if not att:
         raise HTTPException(status_code=404, detail="Attendance record not found")
 
-    if "status" in data:
-        att.status = data["status"]
-    if "reason" in data:
-        att.reason = data["reason"]
-    if "check_in" in data:
-        att.check_in = data["check_in"]
-    if "check_out" in data:
-        att.check_out = data["check_out"]
+    update_data = data.model_dump(exclude_unset=True)
+    if "status" in update_data:
+        att.status = update_data["status"]
+    if "reason" in update_data:
+        att.reason = update_data["reason"]
+    if "check_in" in update_data:
+        att.check_in = update_data["check_in"]
+    if "check_out" in update_data:
+        att.check_out = update_data["check_out"]
 
     was_absent = att.status == "absent" and att.student_id
 
@@ -182,13 +212,15 @@ def export_attendance(
     if status_filter:
         q = q.filter(Attendance.status == status_filter)
     records = q.order_by(Attendance.date.desc()).all()
+
+    # Batch-load student names to avoid N+1 queries
+    student_ids = {r.student_id for r in records if r.student_id}
+    students = db.query(Student).filter(Student.id.in_(student_ids)).all() if student_ids else []
+    student_names = {s.id: f"{s.first_name} {s.last_name}" for s in students}
+
     headers = ["Date", "Student ID", "Student Name", "Status", "Reason", "Check In", "Check Out"]
     rows = []
     for r in records:
-        name = ""
-        if r.student_id:
-            s = db.query(Student).filter(Student.id == r.student_id).first()
-            if s:
-                name = f"{s.first_name} {s.last_name}"
+        name = student_names.get(r.student_id, "") if r.student_id else ""
         rows.append([str(r.date), r.student_id or "", name, r.status, r.reason or "", str(r.check_in or ""), str(r.check_out or "")])
     return excel_response(headers, rows, "attendance.xlsx")

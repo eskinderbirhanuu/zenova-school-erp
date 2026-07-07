@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { nfcService } from "@/services/api"
+import { nfcV2Service } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { CreditCard, CheckCircle, XCircle } from "lucide-react"
 
@@ -21,7 +21,7 @@ export default function NFCPage() {
     if (!studentId || !cardUid) { toast({ title: "Fill in student ID and card UID", variant: "destructive" }); return }
     setAssigning(true)
     try {
-      const res = await nfcService.assign({ student_id: studentId, card_uid: cardUid })
+      await nfcV2Service.assignStudent({ reference_id: studentId, card_uid: cardUid })
       toast({ title: "NFC card assigned" })
       setRecentAssignments(prev => [{ student_id: studentId, card_uid: cardUid, assigned_at: new Date().toISOString() }, ...prev].slice(0, 10))
       setStudentId(""); setCardUid("")
@@ -35,8 +35,8 @@ export default function NFCPage() {
     if (!validateUid) { toast({ title: "Enter a card UID to validate", variant: "destructive" }); return }
     setValidating(true)
     try {
-      const res = await nfcService.validate({ card_uid: validateUid })
-      setValidationResult(res.data)
+      const res = await nfcV2Service.getStudentByCard(validateUid)
+      setValidationResult({ valid: true, student_id: res.data.student_id, student_name: res.data.first_name + " " + res.data.last_name })
     } catch (err: any) {
       setValidationResult({ valid: false, error: err.response?.data?.detail || "Card not found or invalid" })
     }

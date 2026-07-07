@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
@@ -8,6 +9,7 @@ import { staffService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 
 export default function DirectorStaff() {
+  const router = useRouter()
   const [staff, setStaff] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -31,7 +33,7 @@ export default function DirectorStaff() {
         { key: "actions", header: "", render: () => <Button variant="ghost" size="sm">View</Button> },
       ]}
       data={staff} keyExtractor={(s) => s.id}
-      loading={loading} onCreateLabel="Add Staff"
+      loading={loading} onCreateLabel="Add Staff" onCreateClick={() => router.push("/director/staff/new")}
       emptyTitle="No staff found"
     />
   )

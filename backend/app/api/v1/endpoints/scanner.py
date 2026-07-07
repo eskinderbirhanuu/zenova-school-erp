@@ -45,17 +45,19 @@ def scan_qr_attendance(
         {"student_id": student.id, "date": str(data.date), "status": "present"},
     ], current_user.id)
 
+    student_name = f"{student.first_name} {student.middle_name or ''} {student.last_name}".strip()
+
     if result["errors"]:
         return ScanAttendanceResponse(
             success=True,
             student_id=student.id,
-            student_name=student.full_name,
+            student_name=student_name,
             message="Already marked present",
         )
 
     return ScanAttendanceResponse(
         success=True,
         student_id=student.id,
-        student_name=student.full_name,
+        student_name=student_name,
         message="Attendance marked",
     )

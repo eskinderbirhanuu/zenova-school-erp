@@ -17,9 +17,9 @@ def list_audit_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if not current_user.is_superuser:
-        return {"logs": [], "total": 0}
     q = db.query(AuditLog)
+    if not current_user.is_superuser:
+        q = q.filter(AuditLog.school_id == current_user.school_id)
     if action:
         q = q.filter(AuditLog.action == action.upper())
     if search:

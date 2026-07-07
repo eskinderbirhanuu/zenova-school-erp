@@ -335,6 +335,18 @@ def logout(
         user_agent=get_user_agent(request),
     )
     redis = get_redis()
+
+    # Blacklist both access and refresh tokens so they cannot be reused.
+    for cookie_name in ("access_token", "refresh_token"):
+        token = request.cookies.get(cookie_name, "")
+        if token and redis:
+            payload = auth_service.decode_token(token)
+            if payload:
+                jti = payload.get("jti", "")
+                exp = payload.get("exp")
+                if jti and exp is not None:
+                    _blacklist_token(redis, jti, exp)
+
     if current_user.id and redis:
         try:
             redis.delete(f"session:{current_user.id}")
@@ -414,11 +426,7 @@ def reset_password(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     if redis and jti and "exp" in payload:
-        ttl = max(payload["exp"] - int(datetime.now(timezone.utc).timestamp()), 1)
-        try:
-            redis.setex(f"token:bl:{jti}", ttl, "1")
-        except Exception:
-            pass
+        _blacklist_token(redis, jti, payload["exp"])
     auth_service.log_security_event(db, user_id, "PASSWORD_RESET", ip_address=None)
     return {"message": "Password reset successfully"}
 

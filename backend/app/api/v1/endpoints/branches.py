@@ -5,7 +5,7 @@ from app.database import get_db
 from app.schemas.license import BranchWithLicenseRequest, BranchUpdateRequest, BranchResponse
 from app.services import license_service
 from app.api.v1.deps import get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.branch import Branch
 from app.core.audit import log_audit
@@ -46,7 +46,7 @@ def list_branches(
 def create_branch(
     data: BranchWithLicenseRequest,
     db: Session = Depends(get_db),
-    current_user: User = require_role("ADMIN", "SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
     """Create a branch with branch license validation (ADMIN+ only)"""
     # Tenant scoping: body school_id honored only for SUPER_ADMIN.
@@ -90,7 +90,7 @@ def update_branch(
     branch_id: str,
     data: BranchUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
 ):
     q = db.query(Branch).filter(Branch.id == branch_id, Branch.school_id == current_user.school_id)
     if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
@@ -120,7 +120,7 @@ def update_branch(
 def delete_branch(
     branch_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
 ):
     q = db.query(Branch).filter(Branch.id == branch_id, Branch.school_id == current_user.school_id).execution_options(include_deleted=True)
     branch = q.first()

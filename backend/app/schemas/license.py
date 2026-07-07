@@ -329,3 +329,38 @@ class IssueRecoveryCodeResponse(BaseModel):
     recovery_code: str | None = None
     expires_in_seconds: int = 600
     message: str
+
+
+# ─── Device Change Review (Phase 2) ───────────────────────
+
+class DeviceChangeRequestResponse(BaseModel):
+    id: str
+    license_id: str
+    school_id: str | None
+    match_count: int
+    total_components: int
+    status: str
+    requested_by: str | None
+    reviewed_by: str | None
+    reviewed_at: datetime | None
+    review_note: str | None
+    expires_at: datetime
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DeviceChangeListResponse(BaseModel):
+    requests: list[DeviceChangeRequestResponse]
+    total: int
+
+
+class DeviceChangeReviewRequest(BaseModel):
+    note: str | None = None
+
+
+class DeviceChangeHistoryResponse(BaseModel):
+    device: str
+    changes: list[DeviceChangeRequestResponse]
+
+    model_config = ConfigDict(from_attributes=True)

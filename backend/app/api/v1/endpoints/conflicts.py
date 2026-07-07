@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.conflict_log import ConflictLog
 
@@ -14,7 +14,7 @@ def list_conflicts(
     status_filter: str = Query(None, alias="status"),
     limit: int = Query(50),
     db: Session = Depends(get_db),
-    current_user: User = require_role("SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     q = db.query(ConflictLog)
     if status_filter:
@@ -42,7 +42,7 @@ def resolve_conflict(
     conflict_id: str,
     resolution: str = Query(..., description="'local_wins' or 'incoming_wins'"),
     db: Session = Depends(get_db),
-    current_user: User = require_role("SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     conflict = db.query(ConflictLog).filter(ConflictLog.id == conflict_id).first()
     if not conflict:

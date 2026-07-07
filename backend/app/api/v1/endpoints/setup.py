@@ -16,8 +16,12 @@ from app.schemas.license import (
     SetupInitializeResponse,
 )
 from app.services import license_service
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_current_user, rate_limit as _rate_limit
 from app.core.permissions import require_permission, Permission
+
+SETUP_STATUS_LIMIT = _rate_limit("setup_status", limit=60, window_seconds=60)
+SETUP_VALIDATE_LIMIT = _rate_limit("setup_validate", limit=20, window_seconds=300)
+SETUP_INIT_LIMIT = _rate_limit("setup_init", limit=3, window_seconds=3600)
 from app.models.user import User
 from app.models.school import School
 from app.models.branch import Branch
@@ -27,7 +31,7 @@ router = APIRouter(tags=["setup"])
 
 
 @router.get("/setup/status", response_model=SetupStatusResponse)
-def public_setup_status(db: Session = Depends(get_db)):
+def public_setup_status(db: Session = Depends(get_db), _=Depends(SETUP_STATUS_LIMIT)):
     """Public: Check if system setup is complete (no auth required)"""
     school = db.query(School).filter(School.is_setup_complete == True).first()
     if not school:
@@ -50,7 +54,7 @@ def public_setup_status(db: Session = Depends(get_db)):
 
 
 @router.get("/setup/school-branding", response_model=SchoolBrandingResponse)
-def public_school_branding(db: Session = Depends(get_db)):
+def public_school_branding(db: Session = Depends(get_db), _=Depends(SETUP_STATUS_LIMIT)):
     """Public: Get school name + logo for login page (no auth required)"""
     school = db.query(School).filter(School.is_setup_complete == True).first()
     if not school:
@@ -66,7 +70,7 @@ def public_school_branding(db: Session = Depends(get_db)):
 
 
 @router.post("/setup/validate", response_model=SetupValidateResponse)
-def public_validate_licenses(data: SetupValidateRequest, db: Session = Depends(get_db)):
+def public_validate_licenses(data: SetupValidateRequest, db: Session = Depends(get_db), _=Depends(SETUP_VALIDATE_LIMIT)):
     """Public: Validate main + branch license keys (no auth required)"""
     main = license_service.verify_license(db, data.main_key)
     branch = license_service.verify_license(db, data.branch_key)
@@ -80,7 +84,7 @@ def public_validate_licenses(data: SetupValidateRequest, db: Session = Depends(g
 
 
 @router.post("/setup/initialize", response_model=SetupInitializeResponse, status_code=status.HTTP_201_CREATED)
-def public_initialize_system(data: SetupInitializeRequest, db: Session = Depends(get_db)):
+def public_initialize_system(data: SetupInitializeRequest, db: Session = Depends(get_db), _=Depends(SETUP_INIT_LIMIT)):
     """Public: Complete first-time system initialization (no auth required)"""
     existing = db.query(School).filter(School.is_setup_complete == True).first()
     if existing:

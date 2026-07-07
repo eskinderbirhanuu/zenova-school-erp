@@ -261,11 +261,18 @@ def student_transcript(
     promotion_history = db.query(PromotionRecord).filter(
         PromotionRecord.student_id == student_id,
     ).order_by(PromotionRecord.created_at.asc()).all()
+
+    # Batch-load class grades to avoid N+1 queries
+    class_ids = {pr.to_class_id for pr in promotion_history if pr.to_class_id}
+    classes = db.query(ClassGrade).filter(ClassGrade.id.in_(class_ids)).all() if class_ids else []
+    class_map = {c.id: c.name for c in classes}
+
     grade_history = []
     if promotion_history:
         for pr in promotion_history:
-            c = db.query(ClassGrade).filter(ClassGrade.id == pr.to_class_id).first()
-            if c: grade_history.append(c.name)
+            name = class_map.get(pr.to_class_id)
+            if name:
+                grade_history.append(name)
 
     all_semesters = db.query(Semester).join(AcademicYear).filter(
         AcademicYear.school_id == current_user.school_id,
@@ -275,12 +282,21 @@ def student_transcript(
     overall_total_pct = 0
     overall_count = 0
 
+    # Batch-load all exams for all semesters to avoid N+1 queries
+    semester_ids = [sem.id for sem in all_semesters]
+    all_exams = db.query(Exam).filter(
+        Exam.semester_id.in_(semester_ids),
+        Exam.class_id == student.grade_id,
+        Exam.school_id == current_user.school_id,
+    ).all() if semester_ids else []
+
+    # Group exams by semester_id
+    exams_by_semester = {}
+    for e in all_exams:
+        exams_by_semester.setdefault(e.semester_id, []).append(e)
+
     for sem in all_semesters:
-        exams = db.query(Exam).filter(
-            Exam.semester_id == sem.id,
-            Exam.class_id == student.grade_id,
-            Exam.school_id == current_user.school_id,
-        ).all()
+        exams = exams_by_semester.get(sem.id, [])
         exam_ids = [e.id for e in exams]
         results = db.query(ExamResult).filter(
             ExamResult.student_id == student_id,

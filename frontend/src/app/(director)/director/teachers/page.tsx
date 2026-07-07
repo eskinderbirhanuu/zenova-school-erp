@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { teacherService } from "@/services/api"
+import { toast } from "@/hooks/use-toast"
 
 interface Teacher {
   id: string
@@ -22,7 +23,7 @@ export default function DirectorTeachers() {
 
   useEffect(() => {
     setLoading(true)
-    teacherService.list().then((res) => setTeachers(res.data)).catch(() => {}).finally(() => setLoading(false))
+    teacherService.list().then((res) => setTeachers(res.data)).catch(() => toast({ title: "Failed to load teachers", variant: "destructive" })).finally(() => setLoading(false))
   }, [])
 
   const filtered = search

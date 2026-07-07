@@ -3,6 +3,8 @@ from fastapi import HTTPException
 from app.models.communication import Announcement, Notification, Message
 from app.models.user import User
 from app.core.audit import log_audit
+import logging
+logger = logging.getLogger(__name__)
 
 
 def create_announcement(db: Session, school_id: str, data, user_id: str):
@@ -52,7 +54,7 @@ def send_notification(db: Session, user_id: str, title: str, message: str = None
             "created_at": str(n.created_at),
         }))
     except Exception:
-        pass
+        logger.warning("Real-time push failed for notification %s", n.id, exc_info=True)
     return n
 
 

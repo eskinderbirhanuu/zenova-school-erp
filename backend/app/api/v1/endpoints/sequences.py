@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.number_sequence import NumberSequence
 
@@ -12,7 +12,7 @@ router = APIRouter(tags=["sequences"])
 def list_sequences(
     school_id: str = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = require_role("SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     q = db.query(NumberSequence)
     if school_id:
@@ -36,7 +36,7 @@ def reset_sequence(
     seq_id: str,
     last_number: int = Query(0, description="Reset to this value"),
     db: Session = Depends(get_db),
-    current_user: User = require_role("SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     seq = db.query(NumberSequence).filter(NumberSequence.id == seq_id).first()
     if not seq:

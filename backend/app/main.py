@@ -9,6 +9,7 @@ from app.api.v1.router import router as v1_router
 from app.database import Base, engine, SessionLocal
 from app.config import settings
 from app.core.rate_limit_middleware import RateLimitMiddleware
+from app.core.upload_limit_middleware import UploadLimitMiddleware
 from app.core.logging_config import configure_logging
 from app.api.v1.endpoints.metrics import MetricsMiddleware
 
@@ -65,6 +66,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(UploadLimitMiddleware)
 app.add_middleware(MetricsMiddleware)
 
 
@@ -108,6 +110,29 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 app.add_middleware(CSRFMiddleware)
 
 app.include_router(v1_router)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch-all exception handler to prevent stack trace leaks.
+
+    In non-development environments, returns a generic 500
+    with a sanitized message and logs the full traceback server-side.
+    """
+    import traceback
+    
+    # Always log the full exception
+    logger.error("Unhandled exception: %s", exc, exc_info=True)
+    
+    # In dev/debug mode, allow the default behavior (shows stack trace)
+    if settings.environment in ("development", "dev", "local"):
+        raise exc
+    
+    # In all other environments, return a sanitized 500
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
 
 
 @app.middleware("http")
@@ -174,7 +199,7 @@ def _sync_worker_loop():
             finally:
                 db.close()
         except Exception:
-            pass
+            logger.warning("Sync worker error, will retry in 300s", exc_info=True)
         if _sync_shutdown.wait(timeout=300):
             break
 

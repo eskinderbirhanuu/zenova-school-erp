@@ -12,12 +12,22 @@ from app.schemas.license import (
     LicenseResponse,
     LicenseListResponse,
     LicenseStatusResponse,
+    DeviceChangeRequestResponse,
+    DeviceChangeListResponse,
+    DeviceChangeReviewRequest,
+    DeviceChangeHistoryResponse,
 )
 from app.services import license_service
+from app.services.device_review_service import (
+    approve_device_change,
+    reject_device_change,
+    auto_approve_expired_requests,
+)
 from app.api.v1.deps import get_current_user, rate_limit
 from app.core.permissions import require_permission, Permission
 from app.models.user import User
-from app.models.license import License
+from app.models.license import License, LicenseStatus
+from app.models.device_change_request import DeviceChangeRequest
 
 router = APIRouter(tags=["licenses"])
 
@@ -138,3 +148,122 @@ def get_license_status(
         days_remaining=days_remaining,
         is_expired=is_expired,
     )
+
+
+# ─── Device Change Review ─────────────────────────────────
+
+
+@router.get("/licenses/device-changes", response_model=DeviceChangeListResponse)
+def list_device_changes(
+    status_filter: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = require_permission(Permission.DEVICE_REVIEW),
+):
+    """List device change requests (SUPER_ADMIN / licensed admin only)."""
+    query = db.query(DeviceChangeRequest).filter(
+        DeviceChangeRequest.deleted_at.is_(None),
+    )
+    if status_filter:
+        query = query.filter(DeviceChangeRequest.status == status_filter)
+    requests = query.order_by(DeviceChangeRequest.created_at.desc()).all()
+    return DeviceChangeListResponse(
+        requests=[DeviceChangeRequestResponse.model_validate(r) for r in requests],
+        total=len(requests),
+    )
+
+
+@router.post("/licenses/device-changes/{request_id}/approve", response_model=DeviceChangeRequestResponse)
+def approve_device_change_request(
+    request_id: str,
+    data: DeviceChangeReviewRequest,
+    db: Session = Depends(get_db),
+    current_user: User = require_permission(Permission.DEVICE_REVIEW),
+):
+    """Approve a device change request. Rebinds the license to current hardware."""
+    result = approve_device_change(db, request_id, current_user.id, data.note)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device change request not found or already processed",
+        )
+    return DeviceChangeRequestResponse.model_validate(result)
+
+
+@router.post("/licenses/device-changes/{request_id}/reject", response_model=DeviceChangeRequestResponse)
+def reject_device_change_request(
+    request_id: str,
+    data: DeviceChangeReviewRequest,
+    db: Session = Depends(get_db),
+    current_user: User = require_permission(Permission.DEVICE_REVIEW),
+):
+    """Reject a device change request. Suspends the license."""
+    result = reject_device_change(db, request_id, current_user.id, data.note)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device change request not found or already processed",
+        )
+    return DeviceChangeRequestResponse.model_validate(result)
+
+
+@router.post("/licenses/device-changes/auto-approve", status_code=status.HTTP_200_OK)
+def run_auto_approve(
+    db: Session = Depends(get_db),
+    current_user: User = require_permission(Permission.DEVICE_REVIEW),
+):
+    """Auto-approve any device change requests past 24h expiry."""
+    auto_approve_expired_requests(db)
+    return {"message": "Auto-approve completed"}
+
+
+@router.get("/licenses/device-changes/history", response_model=DeviceChangeHistoryResponse)
+def get_device_change_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get device change history for the current user's school."""
+    school_id = current_user.school_id
+    requests = db.query(DeviceChangeRequest).filter(
+        DeviceChangeRequest.school_id == school_id,
+        DeviceChangeRequest.deleted_at.is_(None),
+    ).order_by(DeviceChangeRequest.created_at.desc()).limit(50).all()
+
+    from app.services.license_crypto import get_short_fingerprint
+    return DeviceChangeHistoryResponse(
+        device=get_short_fingerprint(),
+        changes=[DeviceChangeRequestResponse.model_validate(r) for r in requests],
+    )
+
+
+@router.get("/licenses/device-changes/history/all", response_model=list[DeviceChangeHistoryResponse])
+def get_all_device_change_history(
+    db: Session = Depends(get_db),
+    current_user: User = require_permission(Permission.DEVICE_REVIEW),
+):
+    """Get device change history across all schools (SUPER_ADMIN only)."""
+    from app.models.school import School
+
+    schools = db.query(School).filter(School.deleted_at.is_(None)).all()
+    school_ids = [s.id for s in schools]
+
+    # Batch-load device change requests to avoid N+1 queries
+    all_requests = db.query(DeviceChangeRequest).filter(
+        DeviceChangeRequest.school_id.in_(school_ids),
+        DeviceChangeRequest.deleted_at.is_(None),
+    ).order_by(DeviceChangeRequest.created_at.desc()).all() if school_ids else []
+
+    # Group requests by school_id
+    requests_by_school = {}
+    for r in all_requests:
+        requests_by_school.setdefault(r.school_id, []).append(r)
+
+    result = []
+    for school in schools:
+        requests = requests_by_school.get(school.id, [])[:20]
+        if requests:
+            from app.services.license_crypto import get_short_fingerprint
+            result.append(DeviceChangeHistoryResponse(
+                device=f"{school.name} ({get_short_fingerprint()})",
+                changes=[DeviceChangeRequestResponse.model_validate(r) for r in requests],
+            ))
+    return result

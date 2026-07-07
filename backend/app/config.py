@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     backup_cloud_access_key: str = ""
     backup_cloud_secret_key: str = ""
 
+    base_url: str = "http://localhost:8000"
     license_server_url: str = "https://superadmin.free.nf"
     license_offline_grace_days: int = 45
 

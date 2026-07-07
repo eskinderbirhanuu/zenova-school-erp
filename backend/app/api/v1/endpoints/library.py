@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.schemas.library import BookCategoryCreate, BookCategoryResponse, BookCreate, BookUpdate, BookResponse, BorrowingCreate, BorrowingResponse
 from app.services import library_service
 
@@ -9,8 +9,8 @@ from app.models.library_member import LibraryMember
 from app.models.library_fine import LibraryFine
 
 router = APIRouter()
-LIBRARY = [require_role("LIBRARY")]
-VIEW_LIBRARY = [require_role("LIBRARY", "ADMIN")]
+LIBRARY = [require_permission(Permission.LIBRARY_MANAGE)]
+VIEW_LIBRARY = [require_permission(Permission.LIBRARY_MANAGE)]
 
 
 @router.post("/library/categories", response_model=BookCategoryResponse, dependencies=LIBRARY)

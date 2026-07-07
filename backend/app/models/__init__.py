@@ -61,3 +61,17 @@ from app.models.conflict_log import ConflictLog
 from app.models.student_document import StudentDocument
 from app.models.announcement import Announcement
 from app.models.archive import ArchiveJob, ArchivedRecord
+from app.models.school_transaction import SchoolTransaction
+from app.models.platform_fee import PlatformFee
+from app.models.monthly_platform_invoice import MonthlyPlatformInvoice
+from app.models.payment_gateway_config import PaymentGatewayConfig
+from app.models.device_change_request import DeviceChangeRequest
+from app.models.student_card import StudentCard
+from app.models.staff_card import StaffCard
+from app.models.parent_card import ParentCard
+from app.models.employee_card import EmployeeCard
+from app.models.nfc_scan_log import NfcScanLog
+from app.models.card_print_request import CardPrintRequest
+from app.models.card_design import CardDesign
+from app.models.corporate_department import CorporateDepartment
+from app.models.corporate_employee import CorporateEmployee

@@ -28,6 +28,8 @@ const autoMap: Record<string, "success" | "destructive" | "warning" | "info" | "
   suspended: "destructive", expired: "destructive",
   info: "info", submitted: "info",
   new: "purple",
+  auto_approved: "info",
+  archived: "default",
 }
 
 const iconMap: Record<string, LucideIcon> = {

@@ -13,7 +13,13 @@ from app.schemas.installer import (
 from app.services import license_service
 from app.services.license_crypto import bind_license_to_hardware, invalidate_license_cache
 from app.core import server_identity
+from app.api.v1.deps import rate_limit as _rate_limit
+
+INSTALLER_STATUS_LIMIT = _rate_limit("installer_status", limit=60, window_seconds=60)
+INSTALLER_INIT_LIMIT = _rate_limit("installer_init", limit=3, window_seconds=3600)
+CONNECT_VPS_LIMIT = _rate_limit("connect_vps", limit=10, window_seconds=300)
 from app.core.security import get_password_hash
+from app.services.watermark import watermark_seed_data, set_school_watermark
 from app.config import settings
 from app.models.server import ServerIdentity, ServerRole
 from app.models.school import School
@@ -53,7 +59,7 @@ def _generate_employee_id(db: Session, role_prefix: str) -> str:
 
 
 @router.get("/installer/status", response_model=InstallerStatusResponse)
-def installer_status(db: Session = Depends(get_db)):
+def installer_status(db: Session = Depends(get_db), _=Depends(INSTALLER_STATUS_LIMIT)):
     identity = server_identity.get_server_identity()
     school = db.query(School).filter(School.is_setup_complete == True).first()
     has_master = bool(settings.master_setup_key)
@@ -67,7 +73,7 @@ def installer_status(db: Session = Depends(get_db)):
 
 
 @router.post("/installer/initialize-super-admin", response_model=InitializeSuperAdminResponse, status_code=status.HTTP_201_CREATED)
-def installer_init_super_admin(data: InitializeSuperAdminRequest, db: Session = Depends(get_db)):
+def installer_init_super_admin(data: InitializeSuperAdminRequest, db: Session = Depends(get_db), _=Depends(INSTALLER_INIT_LIMIT)):
     _ensure_roles(db)
 
     if server_identity.is_already_registered():
@@ -131,7 +137,7 @@ def installer_init_super_admin(data: InitializeSuperAdminRequest, db: Session = 
 
 
 @router.post("/installer/initialize-main", response_model=InitializeMainResponse, status_code=status.HTTP_201_CREATED)
-def installer_init_main(data: InitializeMainRequest, db: Session = Depends(get_db)):
+def installer_init_main(data: InitializeMainRequest, db: Session = Depends(get_db), _=Depends(INSTALLER_INIT_LIMIT)):
     _ensure_roles(db)
 
     if server_identity.is_already_registered():
@@ -191,6 +197,8 @@ def installer_init_main(data: InitializeMainRequest, db: Session = Depends(get_d
     school.is_setup_complete = True
     server_identity.save_server_identity(sid, "MAIN_SCHOOL", school.id)
     invalidate_license_cache()
+    set_school_watermark(school.id, school.name)
+    watermark_seed_data(db, school.id)
     db.commit()
 
     return InitializeMainResponse(
@@ -201,7 +209,7 @@ def installer_init_main(data: InitializeMainRequest, db: Session = Depends(get_d
 
 
 @router.post("/installer/initialize-branch", response_model=InitializeBranchResponse, status_code=status.HTTP_201_CREATED)
-def installer_init_branch(data: InitializeBranchRequest, db: Session = Depends(get_db)):
+def installer_init_branch(data: InitializeBranchRequest, db: Session = Depends(get_db), _=Depends(INSTALLER_INIT_LIMIT)):
     _ensure_roles(db)
 
     if server_identity.is_already_registered():
@@ -309,7 +317,7 @@ def installer_whoami():
 
 
 @router.post("/installer/connect-vps", response_model=ConnectVpsResponse)
-def connect_vps(data: ConnectVpsRequest, db: Session = Depends(get_db)):
+def connect_vps(data: ConnectVpsRequest, db: Session = Depends(get_db), _=Depends(CONNECT_VPS_LIMIT)):
     identity = server_identity.get_server_identity()
     if not identity:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Server not registered. Run installer first.")

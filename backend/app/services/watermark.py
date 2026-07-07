@@ -7,11 +7,19 @@ from app.models.student import Student
 from app.models.parent import Parent
 from app.models.school import School
 
-SCHOOL_WATERMARK = os.environ.get("SCHOOL_WATERMARK", "dev")
+_WATERMARK_OVERRIDE: Optional[str] = None
+
+
+def set_school_watermark(school_id: str, school_name: str = "") -> None:
+    """Set the watermark for a school. Called during activation."""
+    global _WATERMARK_OVERRIDE
+    short_id = school_id[:8] if school_id else "unknown"
+    name_part = school_name[:4].replace(" ", "_").upper() if school_name else "SCHOOL"
+    _WATERMARK_OVERRIDE = f"{name_part}_{short_id}"
 
 
 def get_watermark() -> str:
-    return SCHOOL_WATERMARK
+    return _WATERMARK_OVERRIDE or os.environ.get("SCHOOL_WATERMARK", "dev")
 
 
 def encrypt_watermark(school_id: str) -> str:

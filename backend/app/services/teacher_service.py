@@ -154,5 +154,56 @@ def list_teachers(db: Session, school_id: str | None = None) -> list[dict]:
     return result
 
 
+def update_teacher_profile(
+    db: Session,
+    teacher_id: str,
+    school_id: str,
+    full_name: str | None = None,
+    email: str | None = None,
+    phone: str | None = None,
+    qualification: str | None = None,
+    department: str | None = None,
+    address: str | None = None,
+) -> dict:
+    profile = db.query(TeacherProfile).filter(
+        TeacherProfile.teacher_id == teacher_id,
+        TeacherProfile.school_id == school_id,
+    ).first()
+    if not profile:
+        raise ValueError("Teacher not found")
+
+    user = db.query(User).filter(User.id == profile.user_id).first()
+    if not user:
+        raise ValueError("User not found")
+
+    if full_name is not None:
+        user.full_name = full_name
+    if email is not None:
+        existing = db.query(User).filter(User.email == email, User.id != user.id).first()
+        if existing:
+            raise ValueError("Email already in use")
+        user.email = email
+    if phone is not None:
+        user.phone = phone
+    if qualification is not None:
+        profile.qualification = qualification
+    if department is not None:
+        profile.department = department
+
+    log_audit(
+        db=db,
+        table_name="teacher_profiles",
+        record_id=profile.id,
+        action="TEACHER_UPDATED",
+        new_data={"teacher_id": teacher_id},
+        user_id=profile.user_id,
+    )
+    db.commit()
+    db.refresh(user)
+    db.refresh(profile)
+
+    return {"user": user, "profile": profile}
+
+
 def get_teacher_by_user_id(db: Session, user_id: str) -> TeacherProfile | None:
     return db.query(TeacherProfile).filter(TeacherProfile.user_id == user_id).first()

@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pip install ruff
+      - run: ruff check app/ --select=E,F,W
+
+  lint-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  test-backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: zenova_user
+          POSTGRES_PASSWORD: zenova_pass
+          POSTGRES_DB: zenova_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pip install pytest-cov
+      - run: pytest --cov=app/ --cov-report=xml
+        env:
+          DATABASE_URL: postgresql://zenova_user:zenova_pass@localhost:5432/zenova_test
+          ENVIRONMENT: testing
+      - uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --passWithNoTests
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint-backend, lint-frontend, test-backend, test-frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Build artifacts placeholder"

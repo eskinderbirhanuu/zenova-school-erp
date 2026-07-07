@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.models.report import Report
 from app.models.student import Student
 from app.models.user import User
@@ -21,9 +21,11 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 
 router = APIRouter()
-ALL_ROLES = [require_role("SUPER_ADMIN", "ADMIN", "DIRECTOR",
-                          "HR", "FINANCE", "INVENTORY",
-                          "LIBRARY", "AUDITOR", "CAFETERIA")]
+ALL_ROLES = [require_permission(
+    Permission.STUDENT_VIEW, Permission.HR_MANAGE,
+    Permission.FINANCE_REPORTS, Permission.INVENTORY_MANAGE,
+    Permission.LIBRARY_MANAGE, Permission.CAFETERIA_POS, Permission.AUDIT_VIEW,
+)]
 
 REPORT_DEFINITIONS = {
     "system": [

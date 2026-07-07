@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException, status
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.models.payment import Payment
 from app.schemas.finance import (
     AccountCreate, AccountUpdate, AccountResponse,
@@ -25,10 +25,10 @@ from app.utils.excel import parse_excel, excel_response
 
 router = APIRouter()
 
-FINANCE = [require_role("FINANCE")]
-FINANCE_DIRECTOR = [require_role("FINANCE", "DIRECTOR")]
-FINANCE_ADMIN = [require_role("FINANCE", "ADMIN")]
-VIEW_FINANCE = [require_role("FINANCE", "ADMIN", "AUDITOR", "DIRECTOR")]
+FINANCE = [require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS)]
+FINANCE_DIRECTOR = [require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS)]
+FINANCE_ADMIN = [require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS)]
+VIEW_FINANCE = [require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS, Permission.AUDIT_VIEW)]
 
 
 @router.post("/accounts", response_model=AccountResponse, dependencies=FINANCE)
@@ -200,7 +200,7 @@ def lock_period(period_id: str, db: Session = Depends(get_db), current_user=Depe
     return {"message": "Period locked"}
 
 
-@router.post("/periods/{period_id}/unlock", dependencies=[require_role("SUPER_ADMIN")])
+@router.post("/periods/{period_id}/unlock", dependencies=[require_permission(Permission.LICENSE_MANAGE)])
 def unlock_period(period_id: str, reason: str = Query(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     finance_service.unlock_period(db, period_id, current_user.id, reason, school_id=current_user.school_id)
     return {"message": "Period unlocked"}
@@ -245,7 +245,7 @@ def list_budget_items(budget_id: str, db: Session = Depends(get_db), current_use
     return finance_service.get_budget_items(db, budget_id, current_user.school_id, include_deleted=include_deleted)
 
 
-@router.post("/purchase-requests", response_model=PurchaseRequestResponse, dependencies=[require_role("FINANCE", "INVENTORY")])
+@router.post("/purchase-requests", response_model=PurchaseRequestResponse, dependencies=[require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS, Permission.INVENTORY_MANAGE)])
 def create_purchase_request(data: PurchaseRequestCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return finance_service.create_purchase_request(db, current_user.school_id, data, current_user.id)
 
@@ -262,7 +262,7 @@ def approve_purchase_request(pr_id: str, db: Session = Depends(get_db), current_
     return {"message": "Purchase request approved"}
 
 
-@router.post("/purchase-orders", response_model=PurchaseOrderResponse, dependencies=[require_role("FINANCE", "INVENTORY")])
+@router.post("/purchase-orders", response_model=PurchaseOrderResponse, dependencies=[require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS, Permission.INVENTORY_MANAGE)])
 def create_purchase_order(data: PurchaseOrderCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return finance_service.create_purchase_order(db, current_user.school_id, data, current_user.id)
 

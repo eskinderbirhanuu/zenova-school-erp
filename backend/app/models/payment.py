@@ -11,6 +11,7 @@ class Payment(Base):
     payment_number = Column(String(50), nullable=False)
     invoice_id = Column(String(36), ForeignKey("invoices.id"), nullable=True)
     student_id = Column(String(36), ForeignKey("students.id"), nullable=True)
+    parent_id = Column(String(36), ForeignKey("parents.id"), nullable=True)
     amount = Column(DECIMAL(15, 2), nullable=False)
     payment_method = Column(String(50), nullable=False)
     reference = Column(String(255), nullable=True)

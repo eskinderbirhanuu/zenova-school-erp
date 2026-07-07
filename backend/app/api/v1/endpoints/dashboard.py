@@ -20,6 +20,7 @@ from app.models.license import License, LicenseStatus
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
 from collections import OrderedDict
+from app.services import analytics_service
 
 router = APIRouter(tags=["dashboard"])
 
@@ -227,21 +228,7 @@ def grade_distribution(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.class_ import ClassGrade
-    from sqlalchemy import case
-
-    counts = db.query(
-        ClassGrade.name,
-        func.sum(case((Student.gender == "female", 1), else_=0)).label("girls"),
-        func.sum(case((Student.gender == "male", 1), else_=0)).label("boys"),
-    ).outerjoin(Student, Student.grade_id == ClassGrade.id
-    ).filter(
-        ClassGrade.school_id == current_user.school_id,
-        Student.school_id == current_user.school_id,
-    ).group_by(ClassGrade.id, ClassGrade.name
-    ).order_by(ClassGrade.name).all()
-
-    return [{"grade": name, "boys": int(boys), "girls": int(girls)} for name, girls, boys in counts]
+    return analytics_service.get_grade_distribution(db, current_user.school_id)
 
 
 @router.get("/analytics/staff-distribution")
@@ -249,15 +236,21 @@ def staff_distribution(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.teacher_profile import TeacherProfile
-    from app.models.staff_profile import StaffProfile
-    teachers = db.query(func.count(TeacherProfile.id)).filter(
-        TeacherProfile.school_id == current_user.school_id,
-    ).scalar() or 0
-    staff = db.query(func.count(StaffProfile.id)).filter(
-        StaffProfile.school_id == current_user.school_id,
-    ).scalar() or 0
-    return [
-        {"name": "Teachers", "value": teachers},
-        {"name": "Staff", "value": staff},
-    ]
+    return analytics_service.get_staff_distribution(db, current_user.school_id)
+
+
+@router.get("/analytics/attendance-summary")
+def attendance_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return analytics_service.get_attendance_summary(db, current_user.school_id)
+
+
+@router.get("/analytics/trends")
+def analytics_trends(
+    months: int = 12,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return analytics_service.get_trends(db, current_user.school_id, months)

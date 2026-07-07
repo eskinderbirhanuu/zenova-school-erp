@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.schemas.user import UserResponse, UserUpdate, RoleResponse
 from app.models.user import User
 from app.models.role import Role
 
 router = APIRouter()
-ADMIN = [require_role("ADMIN", "SUPER_ADMIN")]
-VIEW_USERS = [require_role("ADMIN", "SUPER_ADMIN", "DIRECTOR")]
+ADMIN = [require_permission(Permission.SETTINGS_MANAGE)]
+VIEW_USERS = [require_permission(Permission.SETTINGS_MANAGE, Permission.STUDENT_VIEW)]
 
 
 @router.get("/users", response_model=list[UserResponse], dependencies=VIEW_USERS)

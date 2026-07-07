@@ -107,6 +107,23 @@ Analysis-only documentation produced for DeepSeek V4 Flash to implement. No code
 | [DEEPSEEK_TASKS.md](DEEPSEEK_TASKS.md) | 26 step-by-step tasks (P0→P3) for implementation |
 | [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) | Go/no-go: score 5.5/10, blockers, deploy checklist |
 
+## Security Documentation (2026-07-05)
+
+Anti-piracy and source protection architecture across 18 defense layers.
+
+| Doc | Description |
+|-----|-------------|
+| [security/01_LICENSE_ARCHITECTURE.md](security/01_LICENSE_ARCHITECTURE.md) | License types, key format, RSA-signed .lic files, feature locking |
+| [security/02_DEVICE_BINDING.md](security/02_DEVICE_BINDING.md) | Hardware fingerprinting (8 components), 75% tolerance, review mode |
+| [security/03_ANTI_PIRACY.md](security/03_ANTI_PIRACY.md) | Watermarks, honeytokens, multi-installation detection, legal |
+| [security/04_DOCKER_PROTECTION.md](security/04_DOCKER_PROTECTION.md) | Multi-stage builds, distroless images, non-root, image signing |
+| [security/05_BACKEND_PROTECTION.md](security/05_BACKEND_PROTECTION.md) | Nuitka/PyInstaller compilation, PyArmor obfuscation, C extension |
+| [security/06_FRONTEND_PROTECTION.md](security/06_FRONTEND_PROTECTION.md) | Minification, obfuscation, watermark injection, anti-debugging |
+| [security/07_TAMPER_DETECTION.md](security/07_TAMPER_DETECTION.md) | File integrity monitoring, monkey-patch detection, runtime checks |
+| [security/08_AUDIT_SYSTEM.md](security/08_AUDIT_SYSTEM.md) | License audit events, alerting rules, anti-piracy dashboard |
+| [security/09_DISASTER_RECOVERY.md](security/09_DISASTER_RECOVERY.md) | Server replacement, backup encryption, emergency access |
+| [security/10_SECURITY_ROADMAP.md](security/10_SECURITY_ROADMAP.md) | 8-week phased implementation plan, resource estimates, success criteria |
+
 ## Core Rules
 
 1. No hard delete — soft delete only (`deleted_at` timestamp)

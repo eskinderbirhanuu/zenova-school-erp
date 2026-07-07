@@ -5,6 +5,7 @@ import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { PageHeader } from "@/components/ui/page-header"
 import { parentService } from "@/services/api"
+import { toast } from "@/hooks/use-toast"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import {
@@ -30,7 +31,7 @@ export default function ParentDashboard() {
         setSelectedChild(res.data.children[0].id)
       }
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => { toast({ title: "Failed to load dashboard", variant: "destructive" }); setLoading(false) })
   }, [])
 
   const children = dashboardData?.children || []

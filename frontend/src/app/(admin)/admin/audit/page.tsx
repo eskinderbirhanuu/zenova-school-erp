@@ -20,7 +20,7 @@ export default function AdminAudit() {
 
   useEffect(() => {
     setLoading(true)
-    auditService.list({ limit: 100 }).then((r: any) => setLogs(Array.isArray(r.data) ? r.data : [])).catch(() => {}).finally(() => setLoading(false))
+    auditService.list({ limit: 100 }).then((r: any) => setLogs(r.data?.logs || [])).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const filtered = logs.filter(l => !search || l.action?.toLowerCase().includes(search.toLowerCase()) || l.user?.toLowerCase().includes(search.toLowerCase()))

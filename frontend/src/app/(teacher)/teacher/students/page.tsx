@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { studentService } from "@/services/api"
+import { teacherService } from "@/services/api"
+import { toast } from "@/hooks/use-toast"
 
 export default function TeacherStudentsPage() {
   const [students, setStudents] = useState<any[]>([])
@@ -12,7 +13,7 @@ export default function TeacherStudentsPage() {
 
   useEffect(() => {
     setLoading(true)
-    studentService.list({ limit: 100 }).then((r: any) => setStudents(r.data)).catch(() => {}).finally(() => setLoading(false))
+    teacherService.getMyStudents().then((r: any) => setStudents(Array.isArray(r.data) ? r.data : [])).catch(() => toast({ title: "Failed to load students", variant: "destructive" })).finally(() => setLoading(false))
   }, [])
 
   const filtered = students.filter(s => !search || `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()) || s.student_id?.includes(search))
@@ -23,7 +24,7 @@ export default function TeacherStudentsPage() {
       columns={[
         { key: "id", header: "ID", render: (s) => <span className="font-mono text-xs text-muted-foreground">{s.student_id}</span> },
         { key: "name", header: "Name", render: (s) => <span className="font-medium">{s.first_name} {s.last_name}</span> },
-        { key: "class", header: "Class", render: (s) => <span className="text-muted-foreground">{s.grade_id || "-"}</span> },
+        { key: "class", header: "Class", render: (s) => <span className="text-muted-foreground">{s.grade_name || "-"}</span> },
         { key: "status", header: "Status", render: (s) => <StatusBadge status={s.status} /> },
       ]}
       data={filtered} keyExtractor={(s) => s.id}

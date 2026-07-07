@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { auditService } from "@/services/api"
 import { ClipboardList, Search, Loader2 } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 
 export default function DirectorAudit() {
   const [logs, setLogs] = useState<any[]>([])
@@ -15,8 +16,8 @@ export default function DirectorAudit() {
     setLoading(true)
     auditService
       .list({ limit: 50 })
-      .then((r: any) => setLogs(r.data || []))
-      .catch(() => {})
+      .then((r: any) => setLogs(r.data?.logs || []))
+      .catch(() => toast({ title: "Failed to load audit logs", variant: "destructive" }))
       .finally(() => setLoading(false))
   }, [])
 

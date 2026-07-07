@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend,
 } from "recharts"
-import { Users, DollarSign, GraduationCap, TrendingUp, Loader2 } from "lucide-react"
+import { Users, DollarSign, GraduationCap, TrendingUp, Loader2, ScanLine } from "lucide-react"
 import api from "@/services/api"
 import { dashboardService } from "@/services/api"
 
@@ -18,16 +18,22 @@ export default function AdminAnalytics() {
   const [gradeDist, setGradeDist] = useState<any[]>([])
   const [staffDist, setStaffDist] = useState<any[]>([])
   const [overview, setOverview] = useState<any>(null)
+  const [trends, setTrends] = useState<any>(null)
+  const [attSummary, setAttSummary] = useState<any>(null)
 
   useEffect(() => {
     Promise.all([
       api.get("/analytics/grade-distribution"),
       api.get("/analytics/staff-distribution"),
       dashboardService.overview().catch(() => ({ data: null })),
-    ]).then(([g, s, o]) => {
+      dashboardService.trends(12).catch(() => ({ data: null })),
+      api.get("/analytics/attendance-summary").catch(() => ({ data: null })),
+    ]).then(([g, s, o, t, a]) => {
       setGradeDist(g.data || [])
       setStaffDist(s.data || [])
       setOverview(o.data || null)
+      setTrends(t.data || null)
+      setAttSummary(a.data || null)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -36,8 +42,11 @@ export default function AdminAnalytics() {
   }
 
   const totals = overview?.totals || {}
-  const totalEnrolled = (totals.students || 0) + (totals.teachers || 0)
-  const staffCount = staffDist.reduce((sum: number, s: any) => sum + s.value, 0)
+  const finance = overview?.finance || {}
+  const revTrend = trends?.revenue_trend || []
+  const enrollTrend = trends?.enrollment_trend || []
+  const attTrend = trends?.attendance_trend || []
+  const todayAtt = attSummary?.today || 0
 
   return (
     <div className="space-y-6">
@@ -46,11 +55,12 @@ export default function AdminAnalytics() {
         <p className="text-sm text-muted-foreground">Data-driven insights and performance metrics</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <KPICard title="Total Students" value={String(totals.students || 0)} icon={GraduationCap} iconColor="text-blue-600" />
         <KPICard title="Teachers" value={String(totals.teachers || 0)} icon={Users} iconColor="text-green-600" />
         <KPICard title="Staff" value={String(totals.staff || 0)} icon={Users} iconColor="text-emerald-600" />
-        <KPICard title="Classes" value={String(totals.classes || 0)} icon={TrendingUp} iconColor="text-purple-600" />
+        <KPICard title="Revenue" value={`$${Number(finance.revenue || 0).toLocaleString()}`} icon={DollarSign} iconColor="text-yellow-600" />
+        <KPICard title="Attendance Today" value={String(todayAtt)} icon={ScanLine} iconColor="text-purple-600" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -60,7 +70,7 @@ export default function AdminAnalytics() {
             <CardDescription>Student distribution by grade level and gender</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
+            <div className="h-72">
               {gradeDist.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={gradeDist}>
@@ -86,7 +96,7 @@ export default function AdminAnalytics() {
             <CardDescription>Staff composition by department type</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-80 flex items-center justify-center">
+            <div className="h-72 flex items-center justify-center">
               {staffDist.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -100,6 +110,80 @@ export default function AdminAnalytics() {
                 </ResponsiveContainer>
               ) : (
                 <div className="text-gray-400">No staff data</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Trend</CardTitle>
+            <CardDescription>Monthly revenue over the past 12 months</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-60">
+              {revTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={revTrend}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">No revenue data</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Enrollment Trend</CardTitle>
+            <CardDescription>New student enrollment over the past 12 months</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-60">
+              {enrollTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={enrollTrend}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="students" stroke="hsl(var(--chart-3, 142 70% 50%))" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">No enrollment data</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Attendance Trend</CardTitle>
+            <CardDescription>Monthly scan volume over the past 12 months</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-60">
+              {attTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={attTrend}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="scans" stroke="hsl(var(--chart-4, 30 90% 55%))" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">No attendance data</div>
               )}
             </div>
           </CardContent>

@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.schemas.cafeteria import ProductCreate, ProductUpdate, ProductResponse, OrderCreate, OrderResponse, OrderStatusUpdate
 from app.services import cafeteria_service
 
 router = APIRouter()
-CAFETERIA = [require_role("CAFETERIA")]
-VIEW_CAFE = [require_role("CAFETERIA", "ADMIN")]
+CAFETERIA = [require_permission(Permission.CAFETERIA_POS)]
+VIEW_CAFE = [require_permission(Permission.CAFETERIA_POS)]
 
 
 @router.post("/cafeteria/products", response_model=ProductResponse, dependencies=CAFETERIA)

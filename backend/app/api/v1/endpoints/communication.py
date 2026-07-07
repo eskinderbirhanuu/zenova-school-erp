@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.schemas.communication import (
     AnnouncementCreate, AnnouncementResponse, NotificationResponse,
     MessageCreate, MessageResponse,
@@ -12,13 +12,27 @@ from app.models.user import User
 from app.models.notification_preference import NotificationPreference
 
 router = APIRouter()
-ADMIN = [require_role("ADMIN")]
-ALL_ROLES = [
-    "ADMIN", "DIRECTOR", "REGISTRAR", "TEACHER",
-    "FINANCE", "HR", "INVENTORY", "LIBRARY", "CAFETERIA",
+ADMIN = [require_permission(Permission.SETTINGS_MANAGE)]
+ALL = [
+    require_permission(
+        Permission.STUDENT_VIEW,
+        Permission.FINANCE_ENTRY,
+        Permission.HR_MANAGE,
+        Permission.INVENTORY_MANAGE,
+        Permission.LIBRARY_MANAGE,
+        Permission.CAFETERIA_POS,
+    ),
 ]
-ALL = [require_role(*ALL_ROLES)]
-MESSAGING = [require_role(*ALL_ROLES)]
+MESSAGING = [
+    require_permission(
+        Permission.STUDENT_VIEW,
+        Permission.FINANCE_ENTRY,
+        Permission.HR_MANAGE,
+        Permission.INVENTORY_MANAGE,
+        Permission.LIBRARY_MANAGE,
+        Permission.CAFETERIA_POS,
+    ),
+]
 
 
 @router.post("/announcements", response_model=AnnouncementResponse, dependencies=ADMIN)

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.teacher import (
-    TeacherCreate, TeacherResponse, TeacherListResult,
+    TeacherCreate, TeacherUpdate, TeacherResponse, TeacherListResult,
     AssignGradeRequest, AssignSectionRequest,
 )
 from app.services import teacher_service, id_service, qr_service, nfc_service
@@ -45,6 +45,45 @@ def create_teacher(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    return TeacherResponse(
+        id=result["profile"].id,
+        teacher_id=result["profile"].teacher_id,
+        user_id=result["user"].id,
+        full_name=result["user"].full_name,
+        email=result["user"].email,
+        phone=result["user"].phone,
+        qualification=result["profile"].qualification,
+        department=result["profile"].department,
+        employment_date=result["profile"].employment_date,
+        photo_url=result["user"].photo_url,
+        is_active=result["user"].is_active,
+        created_at=result["user"].created_at,
+    )
+
+
+@router.patch("/teachers/{teacher_id}", response_model=TeacherResponse)
+def update_teacher(
+    teacher_id: str,
+    data: TeacherUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update own teacher profile (TEACHER) or any teacher (DIRECTOR/ADMIN)"""
+    school_id = current_user.school_id
+    try:
+        result = teacher_service.update_teacher_profile(
+            db=db,
+            teacher_id=teacher_id,
+            school_id=school_id,
+            full_name=data.full_name,
+            email=data.email,
+            phone=data.phone,
+            qualification=data.qualification,
+            department=data.department,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
     return TeacherResponse(
         id=result["profile"].id,
@@ -188,6 +227,49 @@ def get_my_teacher_profile(
     return {"id": profile.id, "teacher_id": profile.teacher_id, "user_id": profile.user_id}
 
 
+@router.patch("/teachers/me", response_model=TeacherResponse)
+def update_my_teacher_profile(
+    data: TeacherUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.models.teacher_profile import TeacherProfile
+    profile = db.query(TeacherProfile).filter(
+        TeacherProfile.user_id == current_user.id,
+        TeacherProfile.school_id == current_user.school_id,
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher profile not found")
+    try:
+        result = teacher_service.update_teacher_profile(
+            db=db,
+            teacher_id=profile.id,
+            school_id=current_user.school_id,
+            full_name=data.full_name,
+            email=data.email,
+            phone=data.phone,
+            qualification=data.qualification,
+            department=data.department,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+    return TeacherResponse(
+        id=result["profile"].id,
+        teacher_id=result["profile"].teacher_id,
+        user_id=result["user"].id,
+        full_name=result["user"].full_name,
+        email=result["user"].email,
+        phone=result["user"].phone,
+        qualification=result["profile"].qualification,
+        department=result["profile"].department,
+        employment_date=result["profile"].employment_date,
+        photo_url=result["user"].photo_url,
+        is_active=result["user"].is_active,
+        created_at=result["user"].created_at,
+    )
+
+
 @router.get("/teachers/{teacher_id}/subjects", response_model=list[dict])
 def get_teacher_subjects(
     teacher_id: str,
@@ -205,3 +287,47 @@ def get_teacher_subjects(
         TeacherSubject.school_id == current_user.school_id,
     ).all()
     return [{"id": s.id, "name": s.name, "code": s.code} for s in results]
+
+
+@router.get("/teachers/me/students")
+def get_my_students(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.models.teacher_profile import TeacherProfile
+    from app.models.teacher_grade_assignment import TeacherGradeAssignment
+    from app.models.student import Student
+    from app.models.class_ import ClassGrade
+    profile = db.query(TeacherProfile).filter(
+        TeacherProfile.user_id == current_user.id,
+        TeacherProfile.school_id == current_user.school_id,
+    ).first()
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher profile not found")
+
+    grade_ids = [
+        r.grade_id for r in db.query(TeacherGradeAssignment.grade_id).filter(
+            TeacherGradeAssignment.teacher_id == profile.id,
+        ).all()
+    ]
+    if not grade_ids:
+        return []
+
+    grades = {g.id: g.name for g in db.query(ClassGrade).filter(ClassGrade.id.in_(grade_ids)).all()}
+    students = db.query(Student).filter(
+        Student.school_id == current_user.school_id,
+        Student.grade_id.in_(grade_ids),
+        Student.deleted_at.is_(None),
+    ).order_by(Student.first_name).all()
+
+    return [
+        {
+            "id": s.id,
+            "student_id": s.student_id,
+            "first_name": s.first_name,
+            "last_name": s.last_name,
+            "grade_name": grades.get(s.grade_id, s.grade_id or ""),
+            "status": s.status,
+        }
+        for s in students
+    ]

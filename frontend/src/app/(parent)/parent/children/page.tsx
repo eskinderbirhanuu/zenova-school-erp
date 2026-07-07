@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { studentService } from "@/services/api"
+import { toast } from "@/hooks/use-toast"
 
 export default function ParentChildrenPage() {
   const [children, setChildren] = useState<any[]>([])
@@ -11,7 +12,7 @@ export default function ParentChildrenPage() {
 
   useEffect(() => {
     setLoading(true)
-    studentService.list({ limit: 10 }).then((r: any) => setChildren(r.data)).catch(() => {}).finally(() => setLoading(false))
+    studentService.list({ limit: 10 }).then((r: any) => setChildren(r.data)).catch(() => toast({ title: "Failed to load children", variant: "destructive" })).finally(() => setLoading(false))
   }, [])
 
   return (

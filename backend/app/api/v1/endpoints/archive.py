@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.services import archive_service
 
@@ -11,7 +11,7 @@ router = APIRouter(tags=["archive"])
 @router.get("/archive/status")
 def archive_status(
     db: Session = Depends(get_db),
-    current_user: User = require_role("SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
 ):
     return {
         "jobs": archive_service.get_archive_status(db),
@@ -24,7 +24,7 @@ def archive_status(
 def run_archive(
     table_name: str = Query(None, description="Specific table or all archivable tables"),
     db: Session = Depends(get_db),
-    current_user: User = require_role("SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
 ):
     if table_name and table_name not in archive_service.ARCHIVABLE_TABLES:
         raise HTTPException(
@@ -40,7 +40,7 @@ def restore_archived(
     archive_ids: list[str],
     force: bool = Query(False, description="Overwrite existing records"),
     db: Session = Depends(get_db),
-    current_user: User = require_role("SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
 ):
     if not archive_ids:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="No archive IDs provided")

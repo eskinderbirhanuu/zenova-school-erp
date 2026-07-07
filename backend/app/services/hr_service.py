@@ -222,16 +222,6 @@ def bulk_mark_attendance(db: Session, school_id: str, records: list, user_id: st
     for a in created:
         db.refresh(a)
     return {"created": len(created), "errors": errors}
-    a = Attendance(
-        staff_profile_id=data.staff_profile_id, student_id=data.student_id,
-        date=data.date, check_in=data.check_in, check_out=data.check_out,
-        status=data.status, school_id=school_id, marked_by=user_id,
-    )
-    db.add(a)
-    log_audit(db, user_id, "ATTENDANCE_MARKED", "attendance", a.id, f"Attendance for {data.date}")
-    db.commit()
-    db.refresh(a)
-    return a
 
 
 def update_attendance(db: Session, attendance_id: str, data, user_id: str, school_id: str, include_deleted: bool = False):

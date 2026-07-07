@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException, status
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_role
+from app.core.permissions import require_permission, Permission
 from app.models.assignment import Assignment
 from app.models.exam import Exam
 from app.models.student import Student
+from app.models.teacher_profile import TeacherProfile
 from app.schemas.academic import (
     AcademicYearCreate, AcademicYearResponse,
     SemesterCreate, SemesterResponse,
@@ -25,8 +26,8 @@ from app.utils.excel import parse_excel, excel_response
 
 router = APIRouter()
 
-DIRECTOR_CREATE = [require_role("DIRECTOR", "REGISTRAR")]
-DIRECTOR_ONLY = [require_role("DIRECTOR")]
+DIRECTOR_CREATE = [require_permission(Permission.STUDENT_CREATE)]
+DIRECTOR_ONLY = [require_permission(Permission.TEACHER_CREATE)]
 
 
 @router.get("/academic-years", response_model=list[AcademicYearResponse])
@@ -168,13 +169,13 @@ def get_timetable(section_id: str = Query(...), db: Session = Depends(get_db), c
 
 @router.get("/timetable/by-teacher", response_model=list[TimetableEntryResponse])
 def get_teacher_timetable(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    teacher_id = None
-    if current_user.teacher_profile_id:
-        teacher_id = current_user.teacher_profile_id
-    elif current_user.role in ("ADMIN", "DIRECTOR"):
-        teacher_id = current_user.id
+    tp = db.query(TeacherProfile).filter(TeacherProfile.user_id == current_user.id).first()
+    teacher_id = tp.id if tp else None
     if not teacher_id:
-        raise HTTPException(status_code=400, detail="User is not a teacher")
+        if current_user.role and current_user.role.name in ("ADMIN", "DIRECTOR"):
+            teacher_id = current_user.id
+        else:
+            raise HTTPException(status_code=400, detail="User is not a teacher")
     return db.query(TimetableEntry).filter(
         TimetableEntry.school_id == current_user.school_id,
         TimetableEntry.teacher_id == teacher_id,
@@ -367,11 +368,16 @@ def export_exam_results_excel(
 ):
     results = academic_service.get_exam_results(db, current_user.school_id, exam_id)
     exam = db.query(Exam).filter(Exam.id == exam_id, Exam.school_id == current_user.school_id).first()
+
+    # Batch-load student names to avoid N+1 queries
+    student_ids = {r.student_id for r in results if r.student_id}
+    students = db.query(Student).filter(Student.id.in_(student_ids)).all() if student_ids else []
+    student_map = {s.id: f"{s.first_name} {s.last_name}" for s in students}
+
     headers = ["Student ID", "Student Name", "Score", "Remarks"]
     rows = []
     for r in results:
-        student = db.query(Student).filter(Student.id == r.student_id).first()
-        name = f"{student.first_name} {student.last_name}" if student else r.student_id
+        name = student_map.get(r.student_id, r.student_id)
         rows.append([r.student_id, name, r.score, r.remarks or ""])
     filename = f"exam_results_{exam.name if exam else exam_id}.xlsx"
     return excel_response(headers, rows, filename)

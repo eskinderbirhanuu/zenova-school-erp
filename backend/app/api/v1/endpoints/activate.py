@@ -25,12 +25,15 @@ from app.core.security import (
 )
 from app.config import settings
 from app.api.v1.deps import rate_limit, get_current_user
-from app.core.permissions import require_role
+from app.services.watermark import watermark_seed_data, set_school_watermark
+from app.core.permissions import require_permission, Permission
 from app.models.school import School
 from app.models.branch import Branch
 from app.models.user import User
 from app.models.role import Role
 from app.models.license import License, LicenseType, LicenseStatus
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["activate"])
 
@@ -170,6 +173,8 @@ def initialize_main(data: InitializeMainRequest, db: Session = Depends(get_db), 
     school.owner_id = admin.id
     school.is_setup_complete = True
     invalidate_license_cache()
+    set_school_watermark(school.id, school.name)
+    watermark_seed_data(db, school.id)
     db.commit()
     db.refresh(school)
 
@@ -291,7 +296,7 @@ def create_employee(
 def issue_recovery_code(
     data: IssueRecoveryCodeRequest,
     db: Session = Depends(get_db),
-    current_user: User = require_role("ADMIN", "SUPER_ADMIN"),
+    current_user: User = require_permission(Permission.SETTINGS_MANAGE),
     _=Depends(RECOVERY_ISSUE_LIMIT),
 ):
     """Admin: Issue a time-bound recovery code for a user (600s TTL)."""
@@ -361,7 +366,7 @@ def verify_super_admin_contact(data: VerifyContactRequest, db: Session = Depends
                           "Super Admin contact verified from welcome page")
                 db.commit()
             except Exception:
-                pass
+                logger.warning("Failed to record audit for super admin contact match", exc_info=True)
     return VerifyContactResponse(
         verified=False,
         is_super_admin=False,

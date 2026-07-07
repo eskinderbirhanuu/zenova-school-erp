@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import os
 import platform
 import subprocess
@@ -7,6 +8,8 @@ import base64
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -16,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.license import License, LicenseStatus
 from app.core.redis_client import get_redis
+from app.core.audit import log_audit
 
 
 # ─── Machine Fingerprinting (8 components + 75% tolerance) ─
@@ -30,6 +34,143 @@ FINGERPRINT_COMPONENT_NAMES = [
     "dmi_uuid",
     "boot_id",
 ]
+
+# ─── VM / Container Detection ─────────────────────────────
+
+KNOWN_HYPERVISOR_MAC_PREFIXES = [
+    "00:05:69", "00:0c:29", "00:1c:14", "00:50:56",  # VMware
+    "00:15:5d",                                         # Hyper-V
+    "00:1e:0f", "00:21:f6",                             # VirtualBox
+    "00:16:3e",                                         # Xen
+    "02:42:ac",                                         # Docker
+    "0a:00:27",                                         # VirtualBox (NAT)
+    "00:03:ff",                                         # Microsoft Hyper-V
+]
+
+VM_DMI_PATTERNS = [
+    "vmware", "virtualbox", "qemu", "kvm", "xen",
+    "microsoft corporation", "bochs", "oracle corporation",
+]
+
+
+def detect_environment() -> str:
+    """Detect if running in a VM, Docker container, or bare metal.
+
+    Returns one of: 'docker', 'vm', 'bare_metal', 'unknown'.
+    """
+    system = platform.system()
+
+    # Docker detection
+    if system == "Linux":
+        try:
+            if os.path.exists("/proc/1/cgroup"):
+                with open("/proc/1/cgroup") as f:
+                    content = f.read()
+                    if "docker" in content or "containerd" in content:
+                        return "docker"
+        except Exception:
+            pass
+        try:
+            if os.path.exists("/.dockerenv"):
+                return "docker"
+        except Exception:
+            pass
+
+    # VM detection via DMI UUID
+    try:
+        if system == "Linux" and os.path.exists("/sys/class/dmi/id/product_uuid"):
+            with open("/sys/class/dmi/id/product_uuid") as f:
+                uuid_val = f.read().strip().lower()
+                if any(vm in uuid_val for vm in VM_DMI_PATTERNS):
+                    return "vm"
+        elif system == "Windows":
+            result = subprocess.run(
+                ["wmic", "csproduct", "get", "UUID"],
+                capture_output=True, text=True, timeout=5,
+            )
+            for line in result.stdout.split("\n"):
+                line = line.strip().lower()
+                if line and line != "uuid":
+                    if any(vm in line for vm in VM_DMI_PATTERNS):
+                        return "vm"
+    except Exception:
+        pass
+
+    # VM detection via MAC prefix
+    try:
+        if system == "Linux":
+            for iface_name in os.listdir("/sys/class/net"):
+                path = f"/sys/class/net/{iface_name}/address"
+                if os.path.exists(path):
+                    with open(path) as f:
+                        addr = f.read().strip().lower()
+                        if any(addr.startswith(p) for p in KNOWN_HYPERVISOR_MAC_PREFIXES):
+                            return "vm"
+        else:
+            mac = str(uuid.getnode())
+            mac_hex = f"{mac:012x}"
+            mac_str = f"{mac_hex[0:2]}:{mac_hex[2:4]}:{mac_hex[4:6]}"
+            if any(mac_str.startswith(p.replace(":", "")) for p in KNOWN_HYPERVISOR_MAC_PREFIXES):
+                return "vm"
+    except Exception:
+        pass
+
+    # VM detection via CPU flags
+    if system == "Linux" and os.path.exists("/proc/cpuinfo"):
+        try:
+            with open("/proc/cpuinfo") as f:
+                for line in f:
+                    if "hypervisor" in line.lower():
+                        return "vm"
+        except Exception:
+            pass
+
+    return "bare_metal"
+
+
+ENVIRONMENT_GRACE_DAYS = {
+    "bare_metal": 45,
+    "vm": 30,
+    "docker": 15,
+    "unknown": 7,
+}
+
+ENVIRONMENT_BINDING_COMPONENTS = {
+    "bare_metal": FINGERPRINT_COMPONENT_NAMES,
+    "vm": ["machine_id", "disk_serial"],
+    "docker": ["machine_id"],
+    "unknown": ["hostname", "mac"],
+}
+
+
+def get_active_environment() -> str:
+    """Get detected environment, cached per process."""
+    if not hasattr(get_active_environment, "_cached"):
+        get_active_environment._cached = detect_environment()
+    return get_active_environment._cached
+
+
+def get_environment_grace_days(env: str | None = None) -> int:
+    if env is None:
+        env = get_active_environment()
+    return ENVIRONMENT_GRACE_DAYS.get(env, 7)
+
+
+def get_effective_fingerprint_components(env: str | None = None) -> dict:
+    """Collect only the components relevant for the current environment."""
+    if env is None:
+        env = get_active_environment()
+    keys = ENVIRONMENT_BINDING_COMPONENTS.get(env, FINGERPRINT_COMPONENT_NAMES)
+    all_comp = _collect_fingerprint_components()
+    return {k: all_comp.get(k, f"no-{k}") for k in keys}
+
+
+def get_environment_fingerprint(env: str | None = None) -> str:
+    """SHA-256 of only the environment-relevant fingerprint components."""
+    comp = get_effective_fingerprint_components(env)
+    keys = list(comp.keys())
+    raw = ":".join(str(comp.get(k, "")) for k in keys)
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
 def _collect_fingerprint_components() -> dict:
@@ -195,6 +336,34 @@ def get_short_fingerprint() -> str:
     return get_machine_fingerprint()[:8]
 
 
+def encode_hardware_components(components: dict) -> str:
+    """Base64-encode the 8 hardware components for DB storage in hardware_id column."""
+    return base64.b64encode(json.dumps(components, separators=(",", ":")).encode()).decode()
+
+
+def decode_hardware_components(encoded: str) -> dict:
+    """Decode stored hardware components from hardware_id column."""
+    return json.loads(base64.b64decode(encoded))
+
+
+def match_fingerprint_components(stored_components_b64: str, threshold: float = 0.75) -> tuple:
+    """Compare stored hardware components with current hardware.
+
+    Uses the keys present in stored data (supports environment-reduced sets
+    like VM with only machine_id+disk_serial, or Docker with only machine_id).
+    Returns (is_match: bool, match_count: int, total: int).
+    """
+    stored = decode_hardware_components(stored_components_b64)
+    current = _collect_fingerprint_components()
+    keys = list(stored.keys())
+    total = len(keys)
+    if total == 0:
+        return False, 0, 0
+    matches = sum(1 for k in keys if stored.get(k) == current.get(k))
+    ratio = matches / total
+    return ratio >= threshold, matches, total
+
+
 def match_hostname(pattern: str) -> bool:
     """Check if current hostname matches a pattern in the license.
     
@@ -338,7 +507,7 @@ def verify_license_file(
 
 # ─── License Validation ──────────────────────────────────
 
-OFFLINE_GRACE_DAYS = 45
+OFFLINE_GRACE_DAYS = 45  # default; overridden by environment-specific value at runtime
 
 
 def _can_reach_license_server() -> bool:
@@ -355,14 +524,21 @@ def _can_reach_license_server() -> bool:
         return False
 
 
-def _verify_cloud_license(key: str, fingerprint: str) -> dict:
+def _verify_cloud_license(key: str, fingerprint: str, tpm_sealed: str | None = None,
+                           environment: str | None = None) -> dict:
     """Verify license against cloud license server."""
     import httpx
     from app.config import settings
     try:
+        payload = {
+            "key": key,
+            "machine_fingerprint": fingerprint,
+            "tpm_sealed": tpm_sealed,
+            "environment": environment or get_active_environment(),
+        }
         resp = httpx.post(
             f"{settings.license_server_url}/api/v1/license/verify",
-            json={"key": key, "machine_fingerprint": fingerprint},
+            json=payload,
             timeout=10,
         )
         if resp.status_code == 200:
@@ -400,24 +576,90 @@ def validate_license_at_startup(db: Session) -> dict:
             "message": "License has expired",
         }
 
-    # Check hardware binding
+    # TPM-enhanced verification — if TPM sealed data exists, unseal and verify
+    if license_record.tpm_sealed_data:
+        try:
+            from app.services.tpm_service import unseal_license_data, is_tpm_available
+            if is_tpm_available():
+                unsealed = unseal_license_data(license_record.tpm_sealed_data)
+                if not unsealed:
+                    logger.warning("TPM unseal failed — hardware may have changed at TPM level")
+                    log_audit(
+                        db, "system", "HW_MISMATCH", "licenses",
+                        license_record.id,
+                        description="TPM unseal failed — machine may have changed",
+                    )
+        except Exception:
+            pass
+
+    # Check hardware binding — use 75% component-level matching when available
     if license_record.machine_fingerprint:
-        current = get_machine_fingerprint()
-        if license_record.machine_fingerprint != current:
-            return {
-                "valid": False,
-                "restrict_nfc": True,
-                "restrict_qr": True,
-                "restrict_import": True,
-                "restrict_id_card": True,
-                "message": "Hardware fingerprint mismatch",
-            }
+        if license_record.hardware_id:
+            is_match, match_count, total = match_fingerprint_components(license_record.hardware_id)
+            if is_match:
+                if match_count < total:
+                    log_audit(
+                        db, "system", "HW_MINOR_CHANGE", "licenses",
+                        license_record.id,
+                        description=f"Hardware change detected — {match_count}/{total} components matched (auto-approved)",
+                    )
+            else:
+                logger.warning(
+                    "Hardware fingerprint mismatch: %d/%d components matched",
+                    match_count, total,
+                )
+                # Route through device review workflow
+                from app.services.device_review_service import create_device_change_request
+                change_req = create_device_change_request(
+                    db, license_record, license_record.hardware_id,
+                    match_count, total,
+                )
+                if license_record.status == LicenseStatus.DEVICE_LOCKED:
+                    return {
+                        "valid": False,
+                        "restrict_nfc": True,
+                        "restrict_qr": True,
+                        "restrict_import": True,
+                        "restrict_id_card": True,
+                        "device_change_request_id": change_req.id,
+                        "message": f"Hardware changed substantially — {match_count}/{total} components matched. License locked. Contact Super Admin.",
+                    }
+                return {
+                    "valid": False,
+                    "restrict_nfc": False,
+                    "restrict_qr": False,
+                    "restrict_import": False,
+                    "restrict_id_card": False,
+                    "device_change_request_id": change_req.id,
+                    "message": f"Hardware changed — {match_count}/{total} components matched. License in review mode (read-only, 24h auto-approve).",
+                }
+        else:
+            current = get_machine_fingerprint()
+            if license_record.machine_fingerprint != current:
+                logger.warning("Hardware fingerprint mismatch (legacy exact hash)")
+                log_audit(
+                    db, "system", "HW_MISMATCH", "licenses",
+                    license_record.id,
+                    old_data={"machine_fingerprint": license_record.machine_fingerprint},
+                )
+                return {
+                    "valid": False,
+                    "restrict_nfc": True,
+                    "restrict_qr": True,
+                    "restrict_import": True,
+                    "restrict_id_card": True,
+                    "message": "Hardware fingerprint mismatch",
+                }
 
     # Check online — verify against cloud license server
     cloud_ok = _can_reach_license_server()
     if cloud_ok:
         current_fingerprint = get_machine_fingerprint()
-        cloud_result = _verify_cloud_license(license_record.key, current_fingerprint)
+        cloud_result = _verify_cloud_license(
+            license_record.key, current_fingerprint,
+            tpm_sealed=license_record.tpm_sealed_data,
+            environment=license_record.runtime_environment,
+        )
         if cloud_result.get("valid"):
             # Reset offline grace period on successful cloud check
             license_record.offline_grace_start = None
@@ -431,21 +673,23 @@ def validate_license_at_startup(db: Session) -> dict:
                 "restrict_id_card": False,
                 "message": "License is valid (cloud verified)",
             }
-        # Cloud says invalid — check if we're in offline grace
+        # Cloud says invalid — check if we're in offline grace (environment-aware)
         if license_record.last_online_validation:
+            env = license_record.runtime_environment or get_active_environment()
+            max_grace = get_environment_grace_days(env)
             now = datetime.now(timezone.utc)
             if license_record.offline_grace_start is None:
                 license_record.offline_grace_start = now
                 db.commit()
             grace_days = (now - license_record.offline_grace_start).days
-            if grace_days <= OFFLINE_GRACE_DAYS:
+            if grace_days <= max_grace:
                 return {
                     "valid": True,
                     "restrict_nfc": False,
                     "restrict_qr": False,
                     "restrict_import": False,
                     "restrict_id_card": False,
-                    "message": f"License in offline grace ({OFFLINE_GRACE_DAYS - grace_days} days remaining)",
+                    "message": f"License in offline grace ({max_grace - grace_days} days remaining, {env})",
                 }
         return {
             "valid": False,
@@ -456,21 +700,23 @@ def validate_license_at_startup(db: Session) -> dict:
             "message": f"Cloud verification failed: {cloud_result.get('message', 'unknown error')}",
         }
 
-    # Offline mode — check grace period
+    # Offline mode — check grace period (environment-aware)
+    env = license_record.runtime_environment or get_active_environment()
+    max_grace = get_environment_grace_days(env)
     now = datetime.now(timezone.utc)
     if license_record.offline_grace_start is None:
         license_record.offline_grace_start = now
         db.commit()
 
     grace_days = (now - license_record.offline_grace_start).days
-    if grace_days > OFFLINE_GRACE_DAYS:
+    if grace_days > max_grace:
         return {
             "valid": False,
             "restrict_nfc": True,
             "restrict_qr": True,
             "restrict_import": True,
             "restrict_id_card": True,
-            "message": f"Offline grace period expired ({grace_days} days)",
+            "message": f"Offline grace period expired ({grace_days} days, max {max_grace} for {env})",
         }
 
     return {
@@ -479,7 +725,7 @@ def validate_license_at_startup(db: Session) -> dict:
         "restrict_qr": True,
         "restrict_import": True,
         "restrict_id_card": True,
-        "message": f"License valid offline ({OFFLINE_GRACE_DAYS - grace_days} days remaining)",
+        "message": f"License valid offline ({max_grace - grace_days} days remaining, {env})",
     }
 
 
@@ -516,10 +762,26 @@ def invalidate_license_cache():
 
 
 def bind_license_to_hardware(db: Session, license_id: str):
-    """Bind license to current machine hardware on first activation."""
-    fingerprint = get_machine_fingerprint()
+    """Bind license to current machine hardware on first activation.
+    
+    Stores both the SHA-256 fingerprint hash and raw 8-component JSON
+    (base64-encoded) for 75% tolerance matching on subsequent starts.
+    Also records the detected runtime environment (bare_metal/vm/docker).
+    Optionally TPM-seals the fingerprint for enhanced binding.
+    """
+    env = get_active_environment()
+    fingerprint = get_environment_fingerprint(env)
+    components = get_effective_fingerprint_components(env)
+    encoded = encode_hardware_components(components)
     lic = db.query(License).filter(License.id == license_id).first()
     if lic and not lic.machine_fingerprint:
         lic.machine_fingerprint = fingerprint
+        lic.hardware_id = encoded
+        lic.runtime_environment = env
+        try:
+            from app.services.tpm_service import seal_license_data
+            lic.tpm_sealed_data = seal_license_data(fingerprint)
+        except Exception:
+            pass
         db.commit()
         invalidate_license_cache()

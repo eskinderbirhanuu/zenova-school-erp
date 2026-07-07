@@ -6,6 +6,7 @@ from app.database import get_db
 from app.api.v1.deps import get_current_user
 from app.models.user import User
 from app.models.school_settings import SchoolSettings
+from app.core.permissions import require_permission, Permission
 
 router = APIRouter(tags=["settings"])
 
@@ -26,7 +27,7 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get
 def update_settings(
     data: dict,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
     if not current_user.school_id:
         raise HTTPException(status_code=400, detail="User has no school")
