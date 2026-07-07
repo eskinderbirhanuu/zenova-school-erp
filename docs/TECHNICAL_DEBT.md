@@ -2,6 +2,76 @@
 
 **Date:** 2026-06-30 · **Analyst:** GLM-5.2 · **No code was modified.**
 
+**Updated:** 2026-07-07 · **Lead Software Architect (AI-Agent)** · **Security fixes + schema precision fixes applied.**
+
+---
+
+## Resolved in this Cycle (2026-07-07)
+
+### Settings PUT privilege overflow
+- **File:** `backend/app/api/v1/endpoints/settings.py`
+- **Fix:** Added `require_permission(Permission.SETTINGS_MANAGE)` to PUT endpoint.
+- **Status:** RESOLVED
+
+### Card design IDOR
+- **File:** `backend/app/api/v1/endpoints/card_design.py`
+- **Fix:** Added `school_id` ownership validation.
+- **Status:** RESOLVED
+
+### Branches PATCH/DELETE missing permission
+- **File:** `backend/app/api/v1/endpoints/branches.py`
+- **Fix:** Added `require_permission(Permission.SCHOOL_MANAGE)` and `log_audit`.
+- **Status:** RESOLVED
+
+### Corporate endpoints cross-tenant leak
+- **File:** `backend/app/api/v1/endpoints/corporate.py`
+- **Fix:** Gated behind `CORPORATE_EMPLOYEE_VIEW` / `CORPORATE_DEPARTMENT_MANAGE`.
+- **Status:** RESOLVED (endpoint layer; schema-level `school_id` deferred)
+
+### NFC by-card cross-tenant lookup
+- **File:** `backend/app/services/nfc_v2_service.py`, `backend/app/api/v1/endpoints/nfc_v2.py`
+- **Fix:** Added `school_id` filter in service functions and endpoints.
+- **Status:** RESOLVED
+
+### Parent payments refund endpoints
+- **File:** `backend/app/api/v1/endpoints/parent_payments.py`, `backend/app/services/parent_payment_service.py`
+- **Fix:** Added payment ownership validation and `school_id` filter.
+- **Status:** RESOLVED
+
+### Platform/IGA global exposure
+- **Files:** `backend/app/api/v1/endpoints/platform_commission.py`, `backend/app/api/v1/endpoints/iga.py`
+- **Fix:** Added `require_permission(Permission.AUDIT_VIEW)`.
+- **Status:** RESOLVED
+
+### Setup/Installer rate limits
+- **Files:** `backend/app/api/v1/endpoints/setup.py`, `backend/app/api/v1/endpoints/installer.py`
+- **Fix:** Added `SETUP_*_LIMIT` and `INSTALLER_*_LIMIT` dependencies.
+- **Status:** RESOLVED
+
+### Sync HMAC body signing
+- **File:** `backend/app/api/v1/endpoints/sync.py`
+- **Fix:** HMAC now signs `{server_id}.{ts}.{body_hash}` with backward compatibility.
+- **Status:** RESOLVED
+
+### Telegram webhook signature
+- **File:** `backend/app/api/v1/endpoints/telegram.py`
+- **Fix:** Added HMAC-SHA256 verification using bot token.
+- **Status:** RESOLVED
+
+### Global exception handler
+- **File:** `backend/app/main.py`
+- **Fix:** Added `@app.exception_handler(Exception)` that redacts stack traces in non-dev environments.
+- **Status:** RESOLVED
+
+### Float money in schemas
+- **Files:** `backend/app/schemas/finance.py`, `cafeteria.py`, `hr.py`, `inventory.py`, `library.py`
+- **Fix:** Replaced `float` with `Decimal` for all money fields.
+- **Status:** RESOLVED
+
+---
+
+## Remaining Debt
+
 Debt register. Each entry:
 
 ```

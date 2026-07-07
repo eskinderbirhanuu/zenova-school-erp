@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import date, datetime
@@ -42,4 +43,4 @@ class BorrowingCreate(BaseModel):
 class BorrowingResponse(BaseModel):
     id: str; book_id: str; borrower_type: str; borrower_id: str
     borrow_date: date; due_date: date; return_date: Optional[date] = None
-    status: str; fine_amount: float; school_id: str; created_by: str; created_at: Optional[datetime] = None
+    status: str; fine_amount: Decimal; school_id: str; created_by: str; created_at: Optional[datetime] = None

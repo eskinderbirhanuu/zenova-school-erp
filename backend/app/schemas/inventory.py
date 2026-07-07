@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
@@ -27,9 +28,9 @@ class InventoryItemCreate(BaseModel):
     description: Optional[str] = None
     category_id: Optional[str] = None
     unit: Optional[str] = None
-    quantity: float = 0.0
-    min_quantity: float = 0.0
-    unit_price: float = 0.0
+    quantity: Decimal = Decimal("0.00")
+    min_quantity: Decimal = Decimal("0.00")
+    unit_price: Decimal = Decimal("0.00")
 
 
 class InventoryItemUpdate(BaseModel):
@@ -37,8 +38,8 @@ class InventoryItemUpdate(BaseModel):
     description: Optional[str] = None
     category_id: Optional[str] = None
     unit: Optional[str] = None
-    min_quantity: Optional[float] = None
-    unit_price: Optional[float] = None
+    min_quantity: Optional[Decimal] = None
+    unit_price: Optional[Decimal] = None
 
 
 class InventoryItemResponse(BaseModel):
@@ -48,9 +49,9 @@ class InventoryItemResponse(BaseModel):
     description: Optional[str] = None
     category_id: Optional[str] = None
     unit: Optional[str] = None
-    quantity: float
-    min_quantity: float
-    unit_price: float
+    quantity: Decimal
+    min_quantity: Decimal
+    unit_price: Decimal
     school_id: str
     created_at: Optional[datetime] = None
 
@@ -58,7 +59,7 @@ class InventoryItemResponse(BaseModel):
 class StockMovementCreate(BaseModel):
     item_id: str
     movement_type: str = Field(max_length=20)
-    quantity: float
+    quantity: Decimal
     reference: Optional[str] = None
     notes: Optional[str] = None
 
@@ -67,7 +68,7 @@ class StockMovementResponse(BaseModel):
     id: str
     item_id: str
     movement_type: str
-    quantity: float
+    quantity: Decimal
     reference: Optional[str] = None
     notes: Optional[str] = None
     school_id: str

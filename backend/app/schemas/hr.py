@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import date, datetime, time
@@ -10,7 +11,7 @@ class ContractCreate(BaseModel):
     end_date: Optional[date] = None
     position: str = Field(max_length=255)
     department: Optional[str] = None
-    basic_salary: float
+    basic_salary: Decimal
     notes: Optional[str] = None
 
 
@@ -22,7 +23,7 @@ class ContractResponse(BaseModel):
     end_date: Optional[date] = None
     position: str
     department: Optional[str] = None
-    basic_salary: float
+    basic_salary: Decimal
     status: str
     notes: Optional[str] = None
     created_by: str

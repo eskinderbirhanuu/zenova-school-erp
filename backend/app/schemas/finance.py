@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import date, datetime
@@ -32,8 +33,8 @@ class AccountResponse(BaseModel):
 
 class JournalLineCreate(BaseModel):
     account_id: str
-    debit: float = 0.0
-    credit: float = 0.0
+    debit: Decimal = Decimal("0.00")
+    credit: Decimal = Decimal("0.00")
     description: Optional[str] = None
 
 
@@ -60,8 +61,8 @@ class JournalLineResponse(BaseModel):
     id: str
     journal_entry_id: str
     account_id: str
-    debit: float
-    credit: float
+    debit: Decimal
+    credit: Decimal
     description: Optional[str] = None
 
 
@@ -89,7 +90,7 @@ class FeeTypeResponse(BaseModel):
 class FeeStructureCreate(BaseModel):
     fee_type_id: str
     class_id: Optional[str] = None
-    amount: float
+    amount: Decimal
     due_date: Optional[str] = None
 
 
@@ -97,7 +98,7 @@ class FeeStructureResponse(BaseModel):
     id: str
     fee_type_id: str
     class_id: Optional[str] = None
-    amount: float
+    amount: Decimal
     due_date: Optional[str] = None
     created_at: Optional[datetime] = None
 
@@ -105,7 +106,7 @@ class FeeStructureResponse(BaseModel):
 class FeeAssignmentCreate(BaseModel):
     student_id: str
     fee_structure_id: str
-    amount: float
+    amount: Decimal
     academic_year_id: str
     is_waived: bool = False
 
@@ -114,7 +115,7 @@ class FeeAssignmentResponse(BaseModel):
     id: str
     student_id: str
     fee_structure_id: str
-    amount: float
+    amount: Decimal
     academic_year_id: str
     is_waived: bool
     created_at: Optional[datetime] = None
@@ -134,8 +135,8 @@ class InvoiceResponse(BaseModel):
     academic_year_id: str
     issue_date: date
     due_date: date
-    total_amount: float
-    paid_amount: float
+    total_amount: Decimal
+    paid_amount: Decimal
     status: str
     school_id: str
     created_by: str
@@ -145,7 +146,7 @@ class InvoiceResponse(BaseModel):
 class PaymentCreate(BaseModel):
     invoice_id: Optional[str] = None
     student_id: Optional[str] = None
-    amount: float
+    amount: Decimal
     payment_method: str = Field(max_length=50)
     reference: Optional[str] = None
     payment_date: date
@@ -157,7 +158,7 @@ class PaymentResponse(BaseModel):
     payment_number: str
     invoice_id: Optional[str] = None
     student_id: Optional[str] = None
-    amount: float
+    amount: Decimal
     payment_method: str
     reference: Optional[str] = None
     idempotency_key: Optional[str] = None
@@ -171,13 +172,13 @@ class PaymentResponse(BaseModel):
 class WalletResponse(BaseModel):
     id: str
     student_id: str
-    balance: float
+    balance: Decimal
     created_at: Optional[datetime] = None
 
 
 class WalletTransactionCreate(BaseModel):
     transaction_type: str = Field(max_length=20)
-    amount: float
+    amount: Decimal
     reference: Optional[str] = None
 
 
@@ -185,9 +186,9 @@ class WalletTransactionResponse(BaseModel):
     id: str
     wallet_id: str
     transaction_type: str
-    amount: float
-    balance_before: float
-    balance_after: float
+    amount: Decimal
+    balance_before: Decimal
+    balance_after: Decimal
     reference: Optional[str] = None
     journal_entry_id: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -196,7 +197,7 @@ class WalletTransactionResponse(BaseModel):
 class ScholarshipCreate(BaseModel):
     student_id: str
     scholarship_type: str = Field(max_length=20)
-    value: float
+    value: Decimal
     academic_year_id: str
 
 
@@ -204,7 +205,7 @@ class ScholarshipResponse(BaseModel):
     id: str
     student_id: str
     scholarship_type: str
-    value: float
+    value: Decimal
     academic_year_id: str
     approved_by: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -251,14 +252,14 @@ class PayrollItemResponse(BaseModel):
     id: str
     payroll_run_id: str
     employee_id: str
-    basic_salary: float
-    allowances: float
-    bonuses: float
-    overtime: float
-    tax: float
-    pension: float
-    loan_deduction: float
-    net_pay: float
+    basic_salary: Decimal
+    allowances: Decimal
+    bonuses: Decimal
+    overtime: Decimal
+    tax: Decimal
+    pension: Decimal
+    loan_deduction: Decimal
+    net_pay: Decimal
 
 
 class BudgetCreate(BaseModel):
@@ -271,7 +272,7 @@ class BudgetResponse(BaseModel):
     name: str
     academic_year_id: str
     school_id: str
-    total_amount: float
+    total_amount: Decimal
     created_by: str
     created_at: Optional[datetime] = None
 
@@ -279,7 +280,7 @@ class BudgetResponse(BaseModel):
 class BudgetItemCreate(BaseModel):
     account_id: str
     description: str = Field(max_length=500)
-    planned_amount: float
+    planned_amount: Decimal
 
 
 class BudgetItemResponse(BaseModel):
@@ -287,14 +288,14 @@ class BudgetItemResponse(BaseModel):
     budget_id: str
     account_id: str
     description: str
-    planned_amount: float
-    actual_amount: float
+    planned_amount: Decimal
+    actual_amount: Decimal
 
 
 class PurchaseRequestCreate(BaseModel):
     description: str
     department: Optional[str] = None
-    estimated_amount: Optional[float] = None
+    estimated_amount: Optional[Decimal] = None
 
 
 class PurchaseRequestResponse(BaseModel):
@@ -303,7 +304,7 @@ class PurchaseRequestResponse(BaseModel):
     requested_by: str
     department: Optional[str] = None
     description: str
-    estimated_amount: Optional[float] = None
+    estimated_amount: Optional[Decimal] = None
     status: str
     approved_by: Optional[str] = None
     school_id: str
@@ -313,7 +314,7 @@ class PurchaseRequestResponse(BaseModel):
 class PurchaseOrderCreate(BaseModel):
     purchase_request_id: Optional[str] = None
     supplier: str = Field(max_length=255)
-    total_amount: Optional[float] = None
+    total_amount: Optional[Decimal] = None
 
 
 class PurchaseOrderResponse(BaseModel):
@@ -321,7 +322,7 @@ class PurchaseOrderResponse(BaseModel):
     po_number: str
     purchase_request_id: Optional[str] = None
     supplier: str
-    total_amount: Optional[float] = None
+    total_amount: Optional[Decimal] = None
     status: str
     school_id: str
     created_by: str
@@ -332,12 +333,12 @@ class TrialBalanceRow(BaseModel):
     account_id: str
     account_number: str
     account_name: str
-    total_debit: float
-    total_credit: float
-    balance: float
+    total_debit: Decimal
+    total_credit: Decimal
+    balance: Decimal
 
 
 class TrialBalanceResponse(BaseModel):
     rows: list[TrialBalanceRow]
-    total_debit: float
-    total_credit: float
+    total_debit: Decimal
+    total_credit: Decimal
