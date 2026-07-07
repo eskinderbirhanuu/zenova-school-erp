@@ -62,7 +62,7 @@ def assign_parent_card(
 def assign_employee_card(
     data: NfcAssignRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.CARD_PRINT_ASSIGN),
     _: None = Depends(require_licensed_feature("nfc")),
 ):
     try:

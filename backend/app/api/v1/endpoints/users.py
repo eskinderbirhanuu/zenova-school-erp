@@ -56,6 +56,16 @@ def update_user(
     if not current_user.is_superuser and u.school_id != current_user.school_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot manage users outside your school")
     update_data = data.model_dump(exclude_none=True)
+    
+    # Validate role_id belongs to the same school (prevent role escalation within tenant)
+    if "role_id" in update_data and update_data["role_id"] is not None:
+        new_role = db.query(Role).filter(Role.id == update_data["role_id"]).first()
+        if not new_role:
+            raise HTTPException(status_code=400, detail="Invalid role_id")
+        # Prevent escalation to SUPER_ADMIN within tenant
+        if new_role.name == "SUPER_ADMIN":
+            raise HTTPException(status_code=403, detail="Cannot assign SUPER_ADMIN role via this endpoint")
+    
     for key, val in update_data.items():
         setattr(u, key, val)
     db.commit()

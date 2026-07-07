@@ -175,20 +175,25 @@ def scan_nfc(
     db.commit()
     db.refresh(scan)
 
-    # Broadcast scan event
+    # Broadcast scan event (safe for both sync and async contexts)
     try:
         from app.services.scan_event_manager import scan_event_manager
         import asyncio
-        asyncio.ensure_future(scan_event_manager.broadcast("nfc-scans", {
-            "event": "nfc_scan",
-            "card_uid": card_uid,
-            "reference_type": ref_type,
-            "reference_id": ref_id,
-            "scan_type": scan_type,
-            "reader_location": reader_location,
-            "person_name": person_name,
-            "scanned_at": str(scan.scanned_at),
-        }))
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(scan_event_manager.broadcast("nfc-scans", {
+                "event": "nfc_scan",
+                "card_uid": card_uid,
+                "reference_type": ref_type,
+                "reference_id": ref_id,
+                "scan_type": scan_type,
+                "reader_location": reader_location,
+                "person_name": person_name,
+                "scanned_at": str(scan.scanned_at),
+            }))
+        except RuntimeError:
+            # No running event loop (sync context) — skip broadcast
+            pass
     except Exception:
         pass
 
