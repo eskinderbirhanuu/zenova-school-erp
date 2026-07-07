@@ -110,21 +110,25 @@ async def platform_invoice_webhook(
     if not verify_webhook_signature(payload, signature):
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
-    data = await request.json()
-    tx_ref = data.get("tx_ref", "")
-    status = data.get("status")
+    try:
+        data = await request.json()
+        tx_ref = data.get("tx_ref", "")
+        status = data.get("status")
 
-    if status == "success" and tx_ref.startswith("PINV-"):
-        invoice_number = tx_ref.replace("PINV-", "")
-        inv = db.query(MonthlyPlatformInvoice).filter(
-            MonthlyPlatformInvoice.invoice_number == invoice_number,
-        ).first()
-        if inv and inv.status != "paid":
-            mark_invoice_paid(db, inv.id, data.get("reference", ""), "system")
-            db.commit()
-        return {"status": "success"}
+        if status == "success" and tx_ref.startswith("PINV-"):
+            invoice_number = tx_ref.replace("PINV-", "")
+            inv = db.query(MonthlyPlatformInvoice).filter(
+                MonthlyPlatformInvoice.invoice_number == invoice_number,
+            ).first()
+            if inv and inv.status != "paid":
+                mark_invoice_paid(db, inv.id, data.get("reference", ""), "system")
+                db.commit()
+            return {"status": "success"}
 
-    return {"status": "ignored"}
+        return {"status": "ignored"}
+    except Exception:
+        logger.exception("Platform invoice webhook processing failed")
+        raise HTTPException(status_code=500, detail="Webhook processing failed")
 
 
 @router.get("/platform/reports/daily")

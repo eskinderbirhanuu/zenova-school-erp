@@ -190,9 +190,12 @@ async def chapa_webhook_handler(
 
                 return {"status": "success", "payment_id": payment.id}
 
-        return {"status": "ignored"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return{"status": "ignored"}
+    except Exception:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.exception("Chapa webhook processing failed")
+        raise HTTPException(status_code=500, detail="Webhook processing failed")
 
 
 @router.get("/parent-payments/receipts")
