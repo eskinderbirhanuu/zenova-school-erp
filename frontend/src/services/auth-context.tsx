@@ -1,6 +1,7 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { authService } from "./api"
 import { ROLE_DASHBOARD } from "@/config/navigation"
 
@@ -37,27 +38,34 @@ function eraseCookie(name: string) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
 
-  const fetchUser = useCallback(async () => {
-    try {
-      const res = await authService.me()
-      setUser(normalizeUser(res.data))
-    } catch {
-      setUser(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { isLoading } = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: async () => {
+      try {
+        const res = await authService.me()
+        const u = normalizeUser(res.data)
+        setUser(u)
+        return u as User
+      } catch {
+        setUser(null)
+        return null
+      }
+    },
+    staleTime: 60 * 1000,
+    retry: false,
+  })
 
-  useEffect(() => { fetchUser() }, [fetchUser])
+  const loading = isLoading && user === null
 
   const login = async (email: string, password: string, employee_id?: string) => {
     await authService.login(email, password, employee_id)
     const meRes = await authService.me()
     const normalized = normalizeUser(meRes.data)
     setUser(normalized)
+    queryClient.setQueryData(["auth", "me"], normalized)
     const role = getRole(meRes.data)
     const dashboard = ROLE_DASHBOARD[role]
     if (dashboard && typeof window !== "undefined") {
@@ -73,11 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       eraseCookie("user_role")
       eraseCookie("csrf_token")
       setUser(null)
+      queryClient.setQueryData(["auth", "me"], null)
+      queryClient.clear()
       if (typeof window !== "undefined") {
         window.location.href = "/login"
       }
     }
-  }, [])
+  }, [queryClient])
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>

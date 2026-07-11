@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Providers } from "@/services/providers"
 import { AuthProvider } from "@/services/auth-context"
 import { Toaster } from "@/components/layout/toaster"
 import { PWARegister } from "@/components/pwa/register-sw"
@@ -30,12 +31,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          {children}
-          <Toaster />
-          <PWARegister />
-          <PWAInstallPrompt />
-        </AuthProvider>
+        <Providers>
+          <AuthProvider>
+            {children}
+            <Toaster />
+            <PWARegister />
+            <PWAInstallPrompt />
+          </AuthProvider>
+        </Providers>
       </body>
     </html>
   )
