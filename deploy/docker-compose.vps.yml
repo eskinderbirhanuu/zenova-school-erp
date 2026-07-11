@@ -92,6 +92,20 @@ services:
       - redis
     restart: unless-stopped
 
+  # license-server:
+  #   build:
+  #     context: ../license-server
+  #     dockerfile: Dockerfile
+  #   expose:
+  #     - "8001"
+  #   environment:
+  #     DATABASE_URL: "postgresql://${LICENSE_DB_USER:-zenova_license}:${LICENSE_DB_PASSWORD}@license-db:5432/${LICENSE_DB_NAME:-zenova_license}"
+  #     SECRET_KEY: ${LICENSE_SECRET_KEY}
+  #   depends_on:
+  #     license-db:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+
   backup-worker:
     image: postgres:16-alpine
     entrypoint: |
