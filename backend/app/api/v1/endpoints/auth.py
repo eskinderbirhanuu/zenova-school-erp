@@ -128,6 +128,12 @@ def login(
 
     role_name = auth_service.get_user_role_name(user)
 
+    if not user.mfa_enabled and mfa_service.mfa_required_for_role(role_name):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="MFA is required for your role. Please enable MFA before logging in.",
+        )
+
     if user.mfa_enabled:
         mfa_token = auth_service.create_mfa_token({"sub": user.id, "role": role_name})
         return TokenResponse(
