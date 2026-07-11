@@ -28,7 +28,7 @@ Root `docker-compose.yml` orchestrates all services. Backend uses `read_only: tr
 
 ### Dockerfiles
 - **Backend**: Multi-stage build (python:3.12-slim), non-root user (`zenova`)
-- **Frontend**: Multi-stage build (node:22-alpine), non-root user (`nextjs`)
+- **Frontend**: Multi-stage build (node:20-alpine), non-root user (`nextjs`)
 
 ### Nginx Config
 Routes `/` → frontend:3000, `/api/` → backend:8000.

@@ -37,7 +37,7 @@ docker compose exec -T db psql -U zenova_user zenova_db < app/backups/<file>.sql
 docker compose logs -f backend
 
 # Seed demo data
-docker compose exec backend python seed_demo.py
+docker compose exec backend python scripts/seed_demo.py
 
 # License check
 docker compose exec backend python -c "from app.core.license_manager import verify_license; print(verify_license())"

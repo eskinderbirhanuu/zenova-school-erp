@@ -1,6 +1,9 @@
 # License signing keys — NEVER commit
 keys/
 
+# Build artifacts
+dist/
+
 # Environment
 .env
 *.env.local

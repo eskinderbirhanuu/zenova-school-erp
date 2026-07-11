@@ -377,7 +377,7 @@ This is your work queue. Each task is **self-contained**: file(s), the exact pro
 
 ### Task-19 — Implement the signed sync protocol  (P1, after Task-01)
 - **Files:** `endpoints/sync.py`, `services/sync_service.py`, `core/server_identity.py`, new migration.
-- **Steps:** Implement the protocol described in `ARCHITECTURE_REVIEW.md` §5:
+- **Steps:** Implement the protocol described in `ARCHITECTURE_REVIEW_2026-06-30_GLM.md` §5:
   1. Add `sync_secret` (32-byte hex) to `ServerIdentity` at registration; store hashed is **not** possible (we need it to sign) — store encrypted at rest with the app secret, or rely on filesystem perms.
   2. `process_queue`: batch pending rows, canonical-JSON each, HMAC sign, POST to `${vps_url}/api/v1/sync/receive` with the three headers; mark `SENT` + delivery token; handle ACKs.
   3. `/sync/receive`: verify (already stubbed in Task-01), dedupe by `(table_name, record_id, operation, payload_hash)`, apply within a transaction, emit ACK.

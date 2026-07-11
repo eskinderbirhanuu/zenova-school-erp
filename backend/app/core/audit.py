@@ -14,9 +14,11 @@ def log_audit(
     user_agent: str | None = None,
     old_data: dict | None = None,
     new_data: dict | None = None,
+    school_id: str | None = None,
 ):
     """Add an audit row to the current session. Does NOT commit — caller owns the transaction."""
     audit = AuditLog(
+        school_id=school_id,
         table_name=table_name,
         record_id=record_id,
         action=action,
@@ -42,9 +44,10 @@ def log_audit_and_commit(
     user_agent: str | None = None,
     old_data: dict | None = None,
     new_data: dict | None = None,
+    school_id: str | None = None,
 ):
     """Add an audit row and commit immediately. Use only when the caller has no open transaction."""
     audit = log_audit(db, user_id, action, table_name, record_id,
-                       description, ip_address, user_agent, old_data, new_data)
+                       description, ip_address, user_agent, old_data, new_data, school_id=school_id)
     db.commit()
     return audit

@@ -1,6 +1,6 @@
 import warnings
 from fastapi import Depends, HTTPException, status
-from app.api.v1.deps import get_current_user
+from app.core.auth_deps import get_current_user
 from app.models.user import User
 from app.core.server_identity import get_server_identity
 
@@ -43,6 +43,7 @@ class Permission:
     CORPORATE_FINANCE_VIEW = "corporate.finance.view"
     CORPORATE_SETTINGS_MANAGE = "corporate.settings.manage"
     CORPORATE_DEPLOY = "corporate.deploy"
+    INFRASTRUCTURE_VIEW = "infrastructure.view"
 
 
 # Backward-compat alias
@@ -64,6 +65,7 @@ ROLE_PERMISSIONS = {
         Permission.HR_MANAGE, Permission.INVENTORY_MANAGE,
         Permission.LIBRARY_MANAGE, Permission.CAFETERIA_POS,
         Permission.AUDIT_VIEW, Permission.SETTINGS_MANAGE,
+        Permission.INFRASTRUCTURE_VIEW,
         Permission.CARD_PRINT, Permission.CARD_PRINT_ASSIGN,
         Permission.CORPORATE_EMPLOYEE_VIEW, Permission.CORPORATE_DEPARTMENT_VIEW,
         Permission.CORPORATE_DEPARTMENT_MANAGE, Permission.CORPORATE_FINANCE_VIEW,

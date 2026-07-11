@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import api from "@/services/api";
 import { CheckCircle, Receipt, ArrowLeft, RefreshCw, AlertCircle } from "lucide-react";
 
 interface SessionDetails {
@@ -57,7 +57,7 @@ export default function PaymentSuccessPage() {
         clearInterval(interval);
         setPolling(false);
         if (data?.receipt_id) {
-          toast.success("Receipt ready");
+          toast({ title: "Receipt ready" });
         }
       }
     }, 2000);

@@ -65,6 +65,7 @@ def create_device_change_request(
             "total_components": total_components,
             "status": status,
         },
+        school_id=license_record.school_id,
     )
 
     if status != "auto_approved":
@@ -179,6 +180,7 @@ def approve_device_change(
             change_request.id,
             old_data={"old_hardware_id": old_hw},
             new_data={"new_hardware_id": license_record.hardware_id, "note": note},
+            school_id=change_request.school_id,
         )
 
     db.commit()
@@ -219,6 +221,7 @@ def reject_device_change(
             db, reviewer_id, "DEVICE_CHANGE_REJECTED", "device_change_requests",
             change_request.id,
             new_data={"note": note},
+            school_id=change_request.school_id,
         )
 
     db.commit()
@@ -262,6 +265,7 @@ def auto_approve_expired_requests(db: Session):
                 req.id,
                 old_data={"old_hardware_id": req.old_hardware_id},
                 new_data={"new_hardware_id": lic.hardware_id},
+                school_id=req.school_id,
             )
     if expired:
         db.commit()

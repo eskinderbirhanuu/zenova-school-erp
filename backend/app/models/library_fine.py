@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey
+from sqlalchemy import Column, String, DECIMAL, Integer, DateTime, ForeignKey
 from app.database import Base
 
 
@@ -13,7 +13,7 @@ class LibraryFine(Base):
     member_name = Column(String(255), nullable=True)
     book_title = Column(String(255), nullable=True)
     days_overdue = Column(Integer, default=0)
-    amount = Column(Float, default=0)
+    amount = Column(DECIMAL(15, 2), default=0.00)
     status = Column(String(20), default="unpaid")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime, nullable=True)

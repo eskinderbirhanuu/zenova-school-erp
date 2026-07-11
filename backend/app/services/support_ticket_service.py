@@ -4,8 +4,10 @@ from app.models.user import User
 from app.models.school import School
 
 
-def generate_ticket_number(db: Session, include_deleted: bool = False) -> str:
+def generate_ticket_number(db: Session, include_deleted: bool = False, school_id: str | None = None) -> str:
     q = db.query(SupportTicket).order_by(SupportTicket.created_at.desc())
+    if school_id:
+        q = q.filter(SupportTicket.school_id == school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
     last = q.first()
@@ -20,7 +22,7 @@ def generate_ticket_number(db: Session, include_deleted: bool = False) -> str:
 
 def create_ticket(db: Session, data, user_id: str, school_id: str = None):
     ticket = SupportTicket(
-        ticket_number=generate_ticket_number(db),
+        ticket_number=generate_ticket_number(db, school_id=school_id),
         school_id=school_id or data.school_id,
         school_name=data.school_name,
         subject=data.subject,
@@ -35,8 +37,10 @@ def create_ticket(db: Session, data, user_id: str, school_id: str = None):
     return ticket
 
 
-def list_tickets(db: Session, skip: int = 0, limit: int = 50, status: str = None, priority: str = None, include_deleted: bool = False):
+def list_tickets(db: Session, skip: int = 0, limit: int = 50, status: str = None, priority: str = None, include_deleted: bool = False, school_id: str | None = None):
     q = db.query(SupportTicket).order_by(SupportTicket.created_at.desc())
+    if school_id:
+        q = q.filter(SupportTicket.school_id == school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
     if status:
@@ -69,8 +73,10 @@ def list_tickets(db: Session, skip: int = 0, limit: int = 50, status: str = None
     return result
 
 
-def get_ticket(db: Session, ticket_id: str, include_deleted: bool = False):
+def get_ticket(db: Session, ticket_id: str, include_deleted: bool = False, school_id: str | None = None):
     q = db.query(SupportTicket).filter(SupportTicket.id == ticket_id)
+    if school_id:
+        q = q.filter(SupportTicket.school_id == school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
     t = q.first()
@@ -98,8 +104,10 @@ def get_ticket(db: Session, ticket_id: str, include_deleted: bool = False):
     }
 
 
-def update_ticket(db: Session, ticket_id: str, data, include_deleted: bool = False):
+def update_ticket(db: Session, ticket_id: str, data, include_deleted: bool = False, school_id: str | None = None):
     q = db.query(SupportTicket).filter(SupportTicket.id == ticket_id)
+    if school_id:
+        q = q.filter(SupportTicket.school_id == school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
     t = q.first()
@@ -113,11 +121,13 @@ def update_ticket(db: Session, ticket_id: str, data, include_deleted: bool = Fal
         t.assigned_to = data.assigned_to
     db.commit()
     db.refresh(t)
-    return get_ticket(db, ticket_id, include_deleted=include_deleted)
+    return get_ticket(db, ticket_id, include_deleted=include_deleted, school_id=school_id)
 
 
-def get_ticket_counts(db: Session, include_deleted: bool = False):
+def get_ticket_counts(db: Session, include_deleted: bool = False, school_id: str | None = None):
     q = db.query(SupportTicket)
+    if school_id:
+        q = q.filter(SupportTicket.school_id == school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
     total = q.count()

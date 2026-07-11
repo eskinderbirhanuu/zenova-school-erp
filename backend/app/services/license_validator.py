@@ -158,6 +158,7 @@ def validate_lic_file() -> LicenseValidationResult:
                         record.id,
                         old_data={"hardware_id": record.hardware_id},
                         new_data={"match_count": match_count, "total": total, "threshold": 0.75},
+                        school_id=payload.get("school_id"),
                     )
                     db.commit()
                     return LicenseValidationResult(
@@ -204,6 +205,7 @@ def _bind_license(payload: dict):
                     "machine_fingerprint": record.machine_fingerprint,
                     "runtime_environment": env,
                 },
+                school_id=payload.get("school_id"),
             )
             db.commit()
             logger.info("License bound to hardware (%s): %s", env, record.id)

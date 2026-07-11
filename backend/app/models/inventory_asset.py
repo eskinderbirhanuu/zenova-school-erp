@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, String, DECIMAL, DateTime, ForeignKey
 from app.database import Base
 
 
@@ -11,7 +11,7 @@ class InventoryAsset(Base):
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     name = Column(String(255), nullable=False)
     category = Column(String(100), nullable=True)
-    value = Column(Float, default=0)
+    value = Column(DECIMAL(15, 2), default=0.00)
     location = Column(String(255), nullable=True)
     status = Column(String(20), default="active")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

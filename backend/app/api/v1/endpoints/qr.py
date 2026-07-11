@@ -3,11 +3,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.qr import QRGenerateRequest, QRResponse, QRValidateResponse, QRHistoryResponse
 from app.services import qr_service
-from app.api.v1.deps import get_current_user, require_licensed_feature
+from app.api.v1.deps import get_current_user, require_licensed_feature, rate_limit as _rate_limit
 from app.core.permissions import require_permission, Permission
 from app.models.user import User
 
 router = APIRouter(tags=["qr"])
+
+QR_VALIDATE_LIMIT = _rate_limit("qr_validate", limit=60, window_seconds=60)
 
 
 @router.post("/qr/generate", response_model=QRResponse, status_code=status.HTTP_201_CREATED)
@@ -27,7 +29,7 @@ def generate_qr(
 
 
 @router.get("/qr/{uuid}", response_model=QRValidateResponse)
-def validate_qr(uuid: str, db: Session = Depends(get_db)):
+def validate_qr(uuid: str, db: Session = Depends(get_db), _=Depends(QR_VALIDATE_LIMIT)):
     result = qr_service.validate_qr(db, uuid)
     return QRValidateResponse(**result)
 

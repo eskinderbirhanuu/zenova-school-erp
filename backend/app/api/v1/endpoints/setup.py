@@ -22,6 +22,7 @@ from app.core.permissions import require_permission, Permission
 SETUP_STATUS_LIMIT = _rate_limit("setup_status", limit=60, window_seconds=60)
 SETUP_VALIDATE_LIMIT = _rate_limit("setup_validate", limit=20, window_seconds=300)
 SETUP_INIT_LIMIT = _rate_limit("setup_init", limit=3, window_seconds=3600)
+SETUP_MANAGE_LIMIT = _rate_limit("setup_manage", limit=10, window_seconds=60)
 from app.models.user import User
 from app.models.school import School
 from app.models.branch import Branch
@@ -126,6 +127,7 @@ def setup_create_school(
     data: SchoolCreateRequest,
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.SCHOOL_MANAGE),
+    _=Depends(SETUP_MANAGE_LIMIT),
 ):
     """Create an additional school (requires auth)"""
     try:
@@ -144,6 +146,7 @@ def setup_create_branch(
     data: BranchCreateRequest,
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.SCHOOL_MANAGE),
+    _=Depends(SETUP_MANAGE_LIMIT),
 ):
     """Create an additional branch (requires auth)"""
     try:
@@ -163,6 +166,7 @@ def setup_create_admin(
     data: SetupAdminRequest,
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.SCHOOL_MANAGE),
+    _=Depends(SETUP_MANAGE_LIMIT),
 ):
     """Create an admin user for an existing school (requires auth)"""
     try:

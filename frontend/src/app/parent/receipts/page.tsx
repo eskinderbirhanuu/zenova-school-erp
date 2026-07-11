@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import api from "@/services/api";
 import { Receipt, Download, ArrowLeft, FileText } from "lucide-react";
 
 interface ReceiptItem {
@@ -32,7 +32,7 @@ export default function ReceiptsPage() {
       const res = await api.get("/parent-payments/receipts");
       setReceipts(res.data);
     } catch {
-      toast.error("Failed to load receipts");
+      toast({ title: "Failed to load receipts", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -42,11 +42,11 @@ export default function ReceiptsPage() {
     try {
       const res = await api.get(`/parent-payments/receipts/${receiptId}/download`);
       const data = res.data;
-      toast.success(
-        `Receipt: ${data.receipt_number} — ETB ${data.amount_paid.toLocaleString()}`
-      );
+      toast({
+        title: `Receipt: ${data.receipt_number} — ETB ${data.amount_paid.toLocaleString()}`,
+      });
     } catch {
-      toast.error("Failed to download receipt");
+      toast({ title: "Failed to download receipt", variant: "destructive" });
     }
   };
 

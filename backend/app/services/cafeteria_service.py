@@ -11,7 +11,7 @@ def create_product(db: Session, school_id: str, data, user_id: str):
     p = CafeteriaProduct(name=data.name, price=Decimal(str(data.price)), category=data.category,
                          stock=data.stock, school_id=school_id)
     db.add(p)
-    log_audit(db, user_id, "CAFETERIA_PRODUCT_CREATED", "cafeteria_product", p.id, f"Product '{data.name}'")
+    log_audit(db, user_id, "CAFETERIA_PRODUCT_CREATED", "cafeteria_product", p.id, f"Product '{data.name}'", school_id=school_id)
     db.commit()
     db.refresh(p)
     enqueue_sync(db, "cafeteria_products", p.id, "CREATE",
@@ -53,7 +53,7 @@ def create_order(db: Session, school_id: str, data, user_id: str):
                            total=total, payment_method=data.payment_method, school_id=school_id, created_by=user_id)
     db.add(order); db.flush()
     for it in items: it.order_id = order.id; db.add(it)
-    log_audit(db, user_id, "CAFETERIA_ORDER_CREATED", "cafeteria_order", order.id, f"Order total: {total}")
+    log_audit(db, user_id, "CAFETERIA_ORDER_CREATED", "cafeteria_order", order.id, f"Order total: {total}", school_id=school_id)
     db.commit()
     db.refresh(order)
     enqueue_sync(db, "cafeteria_orders", order.id, "CREATE",
@@ -81,7 +81,7 @@ def update_product(db: Session, product_id: str, school_id: str, data, user_id: 
         p.category = data.category
     if data.stock is not None:
         p.stock = data.stock
-    log_audit(db, user_id, "CAFETERIA_PRODUCT_UPDATED", "cafeteria_product", p.id, f"Product '{p.name}'")
+    log_audit(db, user_id, "CAFETERIA_PRODUCT_UPDATED", "cafeteria_product", p.id, f"Product '{p.name}'", school_id=school_id)
     db.commit()
     db.refresh(p)
     return p
@@ -95,7 +95,7 @@ def delete_product(db: Session, product_id: str, school_id: str, user_id: str, i
     if not p:
         raise HTTPException(404, "Product not found")
     p.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "CAFETERIA_PRODUCT_DELETED", "cafeteria_product", product_id, f"Product '{p.name}'")
+    log_audit(db, user_id, "CAFETERIA_PRODUCT_DELETED", "cafeteria_product", product_id, f"Product '{p.name}'", school_id=school_id)
     db.commit()
     return {"ok": True}
 
@@ -110,7 +110,7 @@ def update_order_status(db: Session, order_id: str, school_id: str, status: str,
     if order.status == "cancelled":
         raise HTTPException(400, "Cannot update a cancelled order")
     order.status = status
-    log_audit(db, user_id, "CAFETERIA_ORDER_STATUS_CHANGED", "cafeteria_order", order.id, f"Status: {status}")
+    log_audit(db, user_id, "CAFETERIA_ORDER_STATUS_CHANGED", "cafeteria_order", order.id, f"Status: {status}", school_id=school_id)
     db.commit()
     db.refresh(order)
     return order

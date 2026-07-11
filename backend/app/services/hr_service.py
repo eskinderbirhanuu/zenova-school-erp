@@ -18,7 +18,7 @@ def create_contract(db: Session, data, user_id: str, school_id: str):
         notes=data.notes, created_by=user_id,
     )
     db.add(c)
-    log_audit(db, user_id, "CONTRACT_CREATED", "employee_contract", c.id, f"Contract for staff {data.staff_profile_id}")
+    log_audit(db, user_id, "CONTRACT_CREATED", "employee_contract", c.id, f"Contract for staff {data.staff_profile_id}", school_id=school_id)
     db.commit()
     db.refresh(c)
     return c
@@ -45,7 +45,7 @@ def terminate_contract(db: Session, contract_id: str, end_date: date, user_id: s
         raise HTTPException(status_code=404, detail="Contract not found")
     c.status = "terminated"
     c.end_date = end_date
-    log_audit(db, user_id, "CONTRACT_TERMINATED", "employee_contract", contract_id, "Contract terminated")
+    log_audit(db, user_id, "CONTRACT_TERMINATED", "employee_contract", contract_id, "Contract terminated", school_id=school_id)
     db.commit()
     return c
 
@@ -53,7 +53,7 @@ def terminate_contract(db: Session, contract_id: str, end_date: date, user_id: s
 def create_leave_type(db: Session, school_id: str, data, user_id: str):
     lt = LeaveType(name=data.name, default_days=data.default_days, is_paid=data.is_paid, school_id=school_id)
     db.add(lt)
-    log_audit(db, user_id, "LEAVE_TYPE_CREATED", "leave_type", lt.id, f"Leave type '{data.name}' created")
+    log_audit(db, user_id, "LEAVE_TYPE_CREATED", "leave_type", lt.id, f"Leave type '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(lt)
     return lt
@@ -89,7 +89,7 @@ def request_leave(db: Session, data, user_id: str, school_id: str, include_delet
         start_date=data.start_date, end_date=data.end_date, days=days, reason=data.reason,
     )
     db.add(lr)
-    log_audit(db, user_id, "LEAVE_REQUESTED", "leave_request", lr.id, f"Leave requested for {days} days")
+    log_audit(db, user_id, "LEAVE_REQUESTED", "leave_request", lr.id, f"Leave requested for {days} days", school_id=school_id)
     db.commit()
     db.refresh(lr)
     return lr
@@ -114,7 +114,7 @@ def approve_leave(db: Session, request_id: str, user_id: str, school_id: str, in
     if bal:
         bal.used_days += lr.days
         bal.remaining_days = bal.total_days - bal.used_days
-    log_audit(db, user_id, "LEAVE_APPROVED", "leave_request", request_id, "Leave approved")
+    log_audit(db, user_id, "LEAVE_APPROVED", "leave_request", request_id, "Leave approved", school_id=school_id)
     db.commit()
     return lr
 
@@ -130,7 +130,7 @@ def reject_leave(db: Session, request_id: str, user_id: str, school_id: str, inc
         raise HTTPException(status_code=404, detail="Leave request not found")
     lr.status = "rejected"
     lr.approved_by = user_id
-    log_audit(db, user_id, "LEAVE_REJECTED", "leave_request", request_id, "Leave rejected")
+    log_audit(db, user_id, "LEAVE_REJECTED", "leave_request", request_id, "Leave rejected", school_id=school_id)
     db.commit()
     return lr
 
@@ -175,6 +175,7 @@ def mark_attendance(db: Session, school_id: str, data, user_id: str, include_del
         Attendance.staff_profile_id == data.staff_profile_id,
         Attendance.student_id == data.student_id,
         Attendance.date == data.date,
+        Attendance.school_id == school_id,
     )
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -201,6 +202,7 @@ def bulk_mark_attendance(db: Session, school_id: str, records: list, user_id: st
             Attendance.staff_profile_id == data.get("staff_profile_id"),
             Attendance.student_id == data.get("student_id"),
             Attendance.date == data.get("date"),
+            Attendance.school_id == school_id,
         )
         if include_deleted:
             q = q.execution_options(include_deleted=True)
@@ -242,7 +244,7 @@ def update_attendance(db: Session, attendance_id: str, data, user_id: str, schoo
         a.status = data.status
     if hasattr(data, 'reason') and data.reason is not None:
         a.reason = data.reason
-    log_audit(db, user_id, "ATTENDANCE_UPDATED", "attendance", attendance_id, "Attendance updated")
+    log_audit(db, user_id, "ATTENDANCE_UPDATED", "attendance", attendance_id, "Attendance updated", school_id=school_id)
     db.commit()
     return a
 
@@ -265,7 +267,7 @@ def create_performance_review(db: Session, data, user_id: str, school_id: str):
         period=data.period, rating=data.rating, comments=data.comments,
     )
     db.add(pr)
-    log_audit(db, user_id, "PERFORMANCE_REVIEW_CREATED", "performance_review", pr.id, f"Review for staff {data.staff_profile_id}")
+    log_audit(db, user_id, "PERFORMANCE_REVIEW_CREATED", "performance_review", pr.id, f"Review for staff {data.staff_profile_id}", school_id=school_id)
     db.commit()
     db.refresh(pr)
     return pr

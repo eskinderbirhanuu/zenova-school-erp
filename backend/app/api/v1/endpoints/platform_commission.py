@@ -1,9 +1,12 @@
 """Platform Commission API Endpoints — director dashboard, super admin dashboard, invoice payment."""
+import logging
 from decimal import Decimal
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.api.v1.deps import get_current_user
@@ -117,9 +120,10 @@ async def platform_invoice_webhook(
 
         if status == "success" and tx_ref.startswith("PINV-"):
             invoice_number = tx_ref.replace("PINV-", "")
+            # Lock the invoice row to prevent double-processing on concurrent webhook callbacks
             inv = db.query(MonthlyPlatformInvoice).filter(
                 MonthlyPlatformInvoice.invoice_number == invoice_number,
-            ).first()
+            ).with_for_update().first()
             if inv and inv.status != "paid":
                 mark_invoice_paid(db, inv.id, data.get("reference", ""), "system")
                 db.commit()

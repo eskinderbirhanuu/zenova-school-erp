@@ -25,6 +25,10 @@ spec:
       labels:
         app: zenova-backend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
         - name: backend
           image: zenova/backend:latest

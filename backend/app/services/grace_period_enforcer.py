@@ -37,6 +37,7 @@ def enforce_offline_grace_periods(db: Session) -> int:
                     "reason": f"Offline grace period exceeded ({grace_days} days, max {max_grace} for {env})",
                     "offline_grace_start": lic.offline_grace_start.isoformat(),
                 },
+                school_id=lic.school_id,
             )
             expired_count += 1
 

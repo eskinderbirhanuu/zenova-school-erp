@@ -16,3 +16,4 @@ class NfcScanLog(Base):
     reader_location = Column(String(100), nullable=True)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

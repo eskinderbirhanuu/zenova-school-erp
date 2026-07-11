@@ -88,9 +88,12 @@ def _build_receipt_styles():
     return styles
 
 
-def generate_receipt_pdf(db: Session, receipt_id: str) -> bytes:
+def generate_receipt_pdf(db: Session, receipt_id: str, school_id: str | None = None) -> bytes:
     """Generate a PDF receipt using ReportLab."""
-    receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+    q = db.query(Receipt).filter(Receipt.id == receipt_id)
+    if school_id:
+        q = q.filter(Receipt.school_id == school_id)
+    receipt = q.first()
     if not receipt:
         raise ValueError("Receipt not found")
 
@@ -184,9 +187,12 @@ def generate_receipt_pdf(db: Session, receipt_id: str) -> bytes:
     return buf.getvalue()
 
 
-def get_receipt_details(db: Session, receipt_id: str) -> dict:
+def get_receipt_details(db: Session, receipt_id: str, school_id: str | None = None) -> dict:
     """Get detailed receipt information."""
-    receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+    q = db.query(Receipt).filter(Receipt.id == receipt_id)
+    if school_id:
+        q = q.filter(Receipt.school_id == school_id)
+    receipt = q.first()
     if not receipt:
         raise ValueError("Receipt not found")
 
@@ -216,9 +222,12 @@ def get_receipt_details(db: Session, receipt_id: str) -> dict:
     }
 
 
-def cancel_receipt(db: Session, receipt_id: str, reason: str, cancelled_by: str) -> Receipt:
+def cancel_receipt(db: Session, receipt_id: str, reason: str, cancelled_by: str, school_id: str | None = None) -> Receipt:
     """Cancel a receipt (for refunds or corrections)."""
-    receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+    q = db.query(Receipt).filter(Receipt.id == receipt_id)
+    if school_id:
+        q = q.filter(Receipt.school_id == school_id)
+    receipt = q.first()
     if not receipt:
         raise ValueError("Receipt not found")
 
@@ -233,11 +242,14 @@ def cancel_receipt(db: Session, receipt_id: str, reason: str, cancelled_by: str)
     return receipt
 
 
-def email_receipt_pdf(db: Session, receipt_id: str, recipient_email: str) -> bool:
+def email_receipt_pdf(db: Session, receipt_id: str, recipient_email: str, school_id: str | None = None) -> bool:
     """Generate PDF receipt and send via email."""
     try:
-        pdf_bytes = generate_receipt_pdf(db, receipt_id)
-        receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+        pdf_bytes = generate_receipt_pdf(db, receipt_id, school_id=school_id)
+        q = db.query(Receipt).filter(Receipt.id == receipt_id)
+        if school_id:
+            q = q.filter(Receipt.school_id == school_id)
+        receipt = q.first()
         if not receipt:
             return False
 

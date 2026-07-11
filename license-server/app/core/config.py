@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     license_public_key_path: str = ""
     super_admin_email: str = "super@zenova.app"
     super_admin_password: str = "change-me"
+    cors_origins: list[str] = ["*"]
 
     class Config:
         env_file = ".env"

@@ -10,6 +10,7 @@ from app.api.v1.deps import get_current_user, require_licensed_feature
 from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.nfc_card import NFCCard
+from app.utils.uid_hash import hash_card_uid
 
 router = APIRouter(tags=["nfc"])
 
@@ -55,7 +56,7 @@ def get_nfc_card(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    nfc = db.query(NFCCard).filter(NFCCard.card_uid == uid).first()
+    nfc = db.query(NFCCard).filter(NFCCard.card_uid == hash_card_uid(uid)).first()
     if not nfc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NFC card not found")
     # Tenant isolation: non-superuser callers cannot read cards from other schools.

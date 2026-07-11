@@ -50,7 +50,7 @@ Recurring (monthly/term/yearly) or one-time fee templates.
 
 ### Payments
 Multiple methods: Cash, Bank Transfer, Mobile Money, Telebirr, CBE Birr, Wallet
-Payments recorded against invoices; no over-payment enforcement.
+Payments recorded against invoices; over-payment blocked (see Security Fixes below).
 
 ## Student Wallet
 

@@ -410,6 +410,7 @@ def match_fingerprint(stored_hash: str, threshold: float = 0.75) -> bool:
 # ─── RSA Key Management ───────────────────────────────────
 
 from app.licensing.public_key import get_license_public_key
+from app.licensing.private_key import get_license_private_key
 
 LIC_FILE_PATHS = {
     "Linux": "/etc/zenova/license.lic",
@@ -427,8 +428,10 @@ def create_license_file(
     school_name: str,
     machine_fingerprint: str,
     valid_until: str,
-    private_key_pem: bytes,
+    private_key_pem: bytes | None = None,
 ) -> str:
+    if private_key_pem is None:
+        private_key_pem = get_license_private_key().encode()
     payload = {
         "version": 2,
         "school_id": school_id,
@@ -588,6 +591,7 @@ def validate_license_at_startup(db: Session) -> dict:
                         db, "system", "HW_MISMATCH", "licenses",
                         license_record.id,
                         description="TPM unseal failed — machine may have changed",
+                        school_id=license_record.school_id,
                     )
         except Exception:
             pass
@@ -602,6 +606,7 @@ def validate_license_at_startup(db: Session) -> dict:
                         db, "system", "HW_MINOR_CHANGE", "licenses",
                         license_record.id,
                         description=f"Hardware change detected — {match_count}/{total} components matched (auto-approved)",
+                        school_id=license_record.school_id,
                     )
             else:
                 logger.warning(
@@ -641,6 +646,7 @@ def validate_license_at_startup(db: Session) -> dict:
                     db, "system", "HW_MISMATCH", "licenses",
                     license_record.id,
                     old_data={"machine_fingerprint": license_record.machine_fingerprint},
+                    school_id=license_record.school_id,
                 )
                 return {
                     "valid": False,

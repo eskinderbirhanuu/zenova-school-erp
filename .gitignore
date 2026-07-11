@@ -19,8 +19,8 @@ graphify-out/
 *.lic
 backend/keys/
 backend/app/data/
-backend/debug_routes*.py
-backend/fix_enum*.py
+backend/scripts/debug/debug_routes*.py
+backend/scripts/fixes/fix_enum*.py
 .pytest_cache/
 *.pyc
 .mypy_cache/
@@ -29,3 +29,4 @@ backend/fix_enum*.py
 *.swo
 *~
 .DS_Store?
+dist/

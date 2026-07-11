@@ -97,13 +97,6 @@ def _blacklist_token(redis, jti: str, exp: int) -> None:
         pass
 
 
-def _is_token_blacklisted(redis, jti: str) -> bool:
-    try:
-        return redis.exists(f"token:bl:{jti}") == 1
-    except Exception:
-        return False
-
-
 @router.post("/login", response_model=TokenResponse)
 def login(
     request: Request,
@@ -269,18 +262,38 @@ def refresh_token(request: Request, response: Response, data: RefreshRequest, db
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token type",
         )
-    from app.core.redis_client import get_redis
-    redis = get_redis()
-    jti = payload.get("jti", "")
-    if redis and _is_token_blacklisted(redis, jti):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has been revoked",
-        )
-    if redis:
-        _blacklist_token(redis, jti, payload["exp"])
+        from app.core.redis_client import get_redis
+        from app.core.auth_deps import _is_token_blacklisted
+        redis = get_redis()
+        jti = payload.get("jti", "")
+        user_id = payload.get("sub")
 
-    user_id = payload.get("sub")
+        # ── Refresh Token Rotation + Reuse Detection ──────────────
+    # Each refresh token belongs to a "family" identified by the user id.
+    # Redis stores the current (latest) jti for the family under `rtf:{user_id}`.
+    # If an old (already-blacklisted) refresh token is presented, we detect
+    # reuse and invalidate the entire family — the attacker's stolen token
+    # cannot be used, but also the legitimate user is forced to re-login.
+    if redis:
+        family_key = f"rtf:{user_id}"
+        current_jti = redis.get(family_key)
+
+        if _is_token_blacklisted(jti):
+            # This jti was already consumed — possible token reuse attack.
+            # Invalidate the entire family so the old token is useless.
+            if current_jti:
+                _blacklist_token(redis, current_jti, payload.get("exp", 0))
+            redis.delete(family_key)
+            from app.services import auth_service as _as
+            _as.log_security_event(db, user_id or "unknown", "REFRESH_REUSE_DETECTED")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked — possible token reuse detected. Please log in again.",
+            )
+
+        # Blacklist the old token (standard rotation)
+        _blacklist_token(redis, jti, payload.get("exp", 0))
+
     user = auth_service.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(
@@ -289,6 +302,11 @@ def refresh_token(request: Request, response: Response, data: RefreshRequest, db
         )
     new_access = auth_service.create_access_token({"sub": user.id, "role": auth_service.get_user_role_name(user)})
     new_refresh = auth_service.create_refresh_token({"sub": user.id})
+    new_jti = auth_service.decode_token(new_refresh).get("jti", "")
+
+    # Store the new refresh token's jti as the current family member
+    if redis and new_jti:
+        redis.setex(family_key, 60 * 60 * 24 * 7, new_jti)
 
     role_name = auth_service.get_user_role_name(user)
     response.set_cookie(

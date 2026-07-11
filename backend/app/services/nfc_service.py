@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.nfc_card import NFCCard
 from app.core.audit import log_audit
+from app.utils.uid_hash import hash_card_uid
 
 
 def assign_nfc(
@@ -13,12 +14,13 @@ def assign_nfc(
     assigned_by: str | None = None,
 ) -> NFCCard:
     """Assign an NFC card to a person"""
-    existing = db.query(NFCCard).filter(NFCCard.card_uid == card_uid).first()
+    uid_hash = hash_card_uid(card_uid)
+    existing = db.query(NFCCard).filter(NFCCard.card_uid == uid_hash).first()
     if existing:
         raise ValueError("NFC card UID already assigned")
 
     nfc = NFCCard(
-        card_uid=card_uid,
+        card_uid=uid_hash,
         reference_type=reference_type,
         reference_id=reference_id,
         school_id=school_id,
@@ -32,6 +34,7 @@ def assign_nfc(
         record_id=nfc.id,
         action="NFC_ASSIGNED",
         new_data={"card_uid": card_uid, "reference_type": reference_type, "reference_id": reference_id},
+        school_id=school_id,
     )
     db.commit()
     db.refresh(nfc)
@@ -41,7 +44,7 @@ def assign_nfc(
 
 def validate_nfc(db: Session, card_uid: str) -> dict:
     """Validate an NFC card by UID"""
-    nfc = db.query(NFCCard).filter(NFCCard.card_uid == card_uid).first()
+    nfc = db.query(NFCCard).filter(NFCCard.card_uid == hash_card_uid(card_uid)).first()
     if not nfc:
         return {"valid": False, "message": "NFC card not found"}
 
@@ -79,6 +82,7 @@ def update_nfc_status(db: Session, nfc_id: str, status: str, school_id: str = No
         action="NFC_STATUS_CHANGED",
         old_data={"status": old_status},
         new_data={"status": status},
+        school_id=nfc.school_id,
     )
     db.commit()
 

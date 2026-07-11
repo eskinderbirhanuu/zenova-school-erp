@@ -12,8 +12,8 @@ router = APIRouter()
 def register(data: SchoolRegister, db: Session = Depends(get_db)):
     from app.services.license_service import create_license
     school = school_service.register_school(
-        db, data.name, data.email, data.phone,
-        data.address, data.city, data.country,
+        db, data.name, data.email, data.password,
+        data.phone, data.address, data.city, data.country,
     )
     # Auto-generate trial license
     create_license(db, school.id, license_type="trial", max_users=30, max_branches=1)

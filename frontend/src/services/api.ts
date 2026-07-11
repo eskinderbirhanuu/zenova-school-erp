@@ -2,10 +2,24 @@ import axios from "axios"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
 
+function getCsrfToken(): string | undefined {
+  if (typeof document === "undefined") return undefined
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/)
+  return match?.[1]
+}
+
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
+})
+
+api.interceptors.request.use((config) => {
+  const csrfToken = getCsrfToken()
+  if (csrfToken && !config.headers.get("X-CSRF-Token")) {
+    config.headers.set("X-CSRF-Token", csrfToken)
+  }
+  return config
 })
 
 api.interceptors.response.use(

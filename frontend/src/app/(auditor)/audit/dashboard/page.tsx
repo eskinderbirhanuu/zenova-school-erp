@@ -18,29 +18,48 @@ import {
 import { AnimatedBackground } from "@/components/3d/animated-background"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
-const auditTypes = [
-  { type: "Login", count: 45 },
-  { type: "Data", count: 23 },
-  { type: "Config", count: 12 },
-  { type: "Security", count: 8 },
-  { type: "User", count: 18 },
-]
+interface AuditEntry {
+  action: string; user: string; resource: string; details: string; ip_address: string; created_at: string
+}
 
-const recentAudits = [
-  { action: "Login attempt", user: "admin@zenova.com", time: "10 min ago", badge: "success" as const },
-  { action: "Data exported", user: "finance@zenova.com", time: "25 min ago", badge: "info" as const },
-  { action: "Permission changed", user: "admin@zenova.com", time: "1 hour ago", badge: "warning" as const },
-  { action: "Config modified", user: "super@zenova.com", time: "2 hours ago", badge: "purple" as const },
-  { action: "User created", user: "admin@zenova.com", time: "3 hours ago", badge: "success" as const },
-]
+interface DashboardData {
+  totalLogs: number; securityEvents: number; auditTypes: { type: string; count: number }[]; recent: AuditEntry[]
+}
+
+function badgeForAction(action: string): "success" | "warning" | "info" | "purple" {
+  const a = action.toUpperCase()
+  if (["CREATE", "LOGIN"].includes(a)) return "success"
+  if (["UPDATE", "MODIFY", "CHANGE"].includes(a)) return "warning"
+  if (["DELETE", "FAILED"].includes(a)) return "purple"
+  return "info"
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins} min ago`
+  const hours = Math.floor(mins / 60)
+  return `${hours} hour${hours > 1 ? "s" : ""} ago`
+}
 
 export default function AuditorDashboard() {
-  const [stats, setStats] = useState({ logs: "-" })
+  const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    auditService.list({ limit: 1 }).then(r => {
-      setStats({ logs: r.data?.length || 0 })
+    auditService.list({ limit: 100 }).then(r => {
+      const logs: AuditEntry[] = r.data?.logs ?? []
+      const actionCounts: Record<string, number> = {}
+      logs.forEach(l => {
+        const key = l.action.charAt(0).toUpperCase() + l.action.slice(1).toLowerCase()
+        actionCounts[key] = (actionCounts[key] || 0) + 1
+      })
+      setData({
+        totalLogs: r.data?.total ?? logs.length,
+        securityEvents: logs.filter(l => l.action === "SECURITY").length,
+        auditTypes: Object.entries(actionCounts).map(([type, count]) => ({ type, count })),
+        recent: logs.slice(0, 5),
+      })
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -67,8 +86,8 @@ export default function AuditorDashboard() {
 
       <StaggerContainer>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StaggerItem><KPICard title="Audit Logs" value={stats.logs} icon={ClipboardList} trend={{ value: "+12", positive: true }} /></StaggerItem>
-          <StaggerItem><KPICard title="Security Events" value="0" icon={Shield} trend={{ value: "0", positive: true }} accentColor="bg-emerald-500" /></StaggerItem>
+          <StaggerItem><KPICard title="Audit Logs" value={data?.totalLogs ?? 0} icon={ClipboardList} trend={{ value: "+12", positive: true }} /></StaggerItem>
+          <StaggerItem><KPICard title="Security Events" value={data?.securityEvents ?? 0} icon={Shield} trend={{ value: "0", positive: true }} accentColor="bg-emerald-500" /></StaggerItem>
           <StaggerItem><KPICard title="Reports" value="0" icon={FileText} trend={{ value: "0", positive: true }} /></StaggerItem>
           <StaggerItem><KPICard title="Compliance" value="Pending" icon={Search} trend={{ value: "On track", positive: true }} /></StaggerItem>
         </div>
@@ -89,7 +108,7 @@ export default function AuditorDashboard() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={auditTypes}>
+              <BarChart data={data?.auditTypes ?? []}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                 <XAxis dataKey="type" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
@@ -111,16 +130,16 @@ export default function AuditorDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {recentAudits.map((a, i) => (
+              {(data?.recent ?? []).map((a, i) => (
                 <div key={i} className="flex items-start gap-3 border-b border-border/50 pb-3 last:border-0 last:pb-0">
                   <div className="rounded-full bg-primary/5 p-1.5 text-primary">
                     <ClipboardList className="h-3 w-3" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{a.action}</p>
-                    <p className="text-xs text-muted-foreground">{a.user} - {a.time}</p>
+                    <p className="text-sm font-medium">{a.action} {a.resource && `- ${a.resource}`}</p>
+                    <p className="text-xs text-muted-foreground">{a.user} - {timeAgo(a.created_at)}</p>
                   </div>
-                  <StatusBadge status={a.badge === "success" ? "Success" : a.badge === "warning" ? "Pending" : a.badge === "purple" ? "Update" : "Info"} variant={a.badge} />
+                  <StatusBadge status={a.action} variant={badgeForAction(a.action)} />
                 </div>
               ))}
             </div>

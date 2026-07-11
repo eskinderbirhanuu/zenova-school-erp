@@ -9,6 +9,7 @@ class StudentCard(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     student_id = Column(String(36), ForeignKey("students.id"), nullable=False, index=True)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=True, index=True)
     card_uid = Column(String(100), unique=True, nullable=False, index=True)
     card_tier = Column(String(20), default="standard")
     status = Column(String(20), default="active")

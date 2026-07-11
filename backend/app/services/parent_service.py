@@ -123,6 +123,7 @@ def link_parent_to_student(
         record_id=f"{parent_id}_{student_id}",
         action="PARENT_LINKED",
         new_data={"parent_id": parent_id, "student_id": student_id},
+        school_id=school_id,
     )
     db.commit()
 
@@ -147,6 +148,7 @@ def unlink_parent_from_student(db: Session, parent_id: str, student_id: str, sch
         table_name="parent_student_links",
         record_id=f"{parent_id}_{student_id}",
         action="PARENT_UNLINKED",
+        school_id=school_id,
     )
     db.commit()
 
@@ -160,10 +162,13 @@ def get_linked_students(db: Session, parent_id: str, school_id: str = None) -> l
     return q.all()
 
 
-def get_linked_parents(db: Session, student_id: str) -> list[ParentStudentLink]:
-    return db.query(ParentStudentLink).filter(
+def get_linked_parents(db: Session, student_id: str, school_id: str = None) -> list[ParentStudentLink]:
+    q = db.query(ParentStudentLink).filter(
         ParentStudentLink.student_id == student_id,
-    ).all()
+    )
+    if school_id:
+        q = q.filter(ParentStudentLink.school_id == school_id)
+    return q.all()
 
 
 def delete_parent(db: Session, parent_id: str, school_id: str = None, include_deleted: bool = False) -> bool:

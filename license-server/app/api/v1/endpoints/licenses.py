@@ -10,6 +10,7 @@ from app.schemas import (
 from app.services.license_service import (
     create_license, verify_license, activate_license, list_school_licenses,
 )
+from app.api.v1.endpoints.auth import get_current_admin
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ def ping():
 
 
 @router.post("/verify", response_model=LicenseVerifyResponse)
-def verify(data: LicenseVerifyRequest, db: Session = Depends(get_db)):
+def verify(data: LicenseVerifyRequest, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
     result = verify_license(db, data.key, data.machine_fingerprint)
     return LicenseVerifyResponse(
         valid=result["valid"],
@@ -33,7 +34,7 @@ def verify(data: LicenseVerifyRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/activate", response_model=LicenseActivateResponse)
-def activate(data: LicenseActivateRequest, db: Session = Depends(get_db)):
+def activate(data: LicenseActivateRequest, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
     result = activate_license(db, data.key, data.machine_fingerprint)
     return LicenseActivateResponse(
         activated=result["activated"],
@@ -42,7 +43,7 @@ def activate(data: LicenseActivateRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/generate")
-def generate(data: LicenseKeyGenerate, db: Session = Depends(get_db)):
+def generate(data: LicenseKeyGenerate, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
     lic = create_license(
         db, data.school_id, data.license_type,
         data.valid_until, data.max_users, data.max_branches,
@@ -51,7 +52,7 @@ def generate(data: LicenseKeyGenerate, db: Session = Depends(get_db)):
 
 
 @router.get("/school/{school_id}")
-def get_school_licenses(school_id: str, db: Session = Depends(get_db)):
+def get_school_licenses(school_id: str, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
     licenses = list_school_licenses(db, school_id)
     return {
         "school_id": school_id,

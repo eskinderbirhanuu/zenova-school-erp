@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import api from "@/services/api";
 import { XCircle, AlertCircle, RefreshCw, ArrowLeft } from "lucide-react";
 
 interface SessionDetails {
@@ -33,7 +33,7 @@ export default function PaymentFailedPage() {
         const res = await api.get(`/parent-payments/session/${sessionId}`);
         setSession(res.data);
       } catch {
-        toast.error("Failed to load session details");
+        toast({ title: "Failed to load session details", variant: "destructive" });
       } finally {
         setLoading(false);
       }

@@ -9,11 +9,13 @@ from app.schemas.nfc_v2 import (
     CardPrintRequestCreate, CardPrintRequestResponse, NfcScanLogResponse,
 )
 from app.services import nfc_v2_service
-from app.api.v1.deps import get_current_user, require_licensed_feature
+from app.api.v1.deps import get_current_user, require_licensed_feature, rate_limit as _rate_limit
 from app.core.permissions import require_permission, Permission
 from app.models.user import User
 
 router = APIRouter(tags=["nfc"])
+
+NFC_PUBLIC_LOOKUP_LIMIT = _rate_limit("nfc_public_lookup", limit=60, window_seconds=60)
 
 
 @router.post("/nfc/student/assign", response_model=StudentCardResponse, status_code=status.HTTP_201_CREATED)
@@ -89,6 +91,7 @@ def bulk_assign_cards(
 def public_lookup_card(
     card_uid: str,
     db: Session = Depends(get_db),
+    _=Depends(NFC_PUBLIC_LOOKUP_LIMIT),
 ):
     """Public endpoint — no authentication required.
     Returns ONLY whether the card belongs to ZENOVA, with contact info.
@@ -203,7 +206,7 @@ def create_print_request(
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.CARD_PRINT),
 ):
-    req = nfc_v2_service.request_card_print(db, data.card_type, data.reference_id, current_user.id, data.notes)
+    req = nfc_v2_service.request_card_print(db, data.card_type, data.reference_id, current_user.id, data.notes, current_user.school_id)
     return CardPrintRequestResponse.model_validate(req)
 
 
@@ -213,7 +216,7 @@ def list_print_requests(
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.CARD_PRINT),
 ):
-    reqs = nfc_v2_service.list_print_requests(db, status_filter)
+    reqs = nfc_v2_service.list_print_requests(db, status_filter, current_user.school_id)
     return [CardPrintRequestResponse.model_validate(r) for r in reqs]
 
 

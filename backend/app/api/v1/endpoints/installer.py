@@ -50,6 +50,44 @@ class ConnectVpsResponse(BaseModel):
     message: str
 
 
+def _validate_vps_url(url: str) -> bool:
+    """Validate VPS URL to prevent SSRF attacks.
+    
+    Returns True if the URL passes safety checks:
+    - Uses http:// or https:// scheme
+    - Does not point to localhost, loopback, or private internal IPs
+    """
+    from urllib.parse import urlparse
+    from ipaddress import ip_address, AddressValueError
+    
+    try:
+        parsed = urlparse(url)
+        # Must be http or https
+        if parsed.scheme not in ("http", "https"):
+            return False
+        
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        
+        # Block localhost and loopback variations
+        if hostname.lower() in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+            return False
+        
+        # Block internal IP ranges
+        try:
+            ip = ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_reserved:
+                return False
+        except (AddressValueError, ValueError):
+            # Not an IP address, check for internal-looking names
+            pass
+        
+        return True
+    except Exception:
+        return False
+
+
 def _generate_employee_id(db: Session, role_prefix: str) -> str:
     while True:
         eid = f"ZNV-{role_prefix}-{secrets.token_hex(3).upper()}"
@@ -318,6 +356,12 @@ def installer_whoami():
 
 @router.post("/installer/connect-vps", response_model=ConnectVpsResponse)
 def connect_vps(data: ConnectVpsRequest, db: Session = Depends(get_db), _=Depends(CONNECT_VPS_LIMIT)):
+    if not _validate_vps_url(data.vps_url):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Invalid VPS URL. Must be a public http:// or https:// URL."
+        )
+
     identity = server_identity.get_server_identity()
     if not identity:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Server not registered. Run installer first.")

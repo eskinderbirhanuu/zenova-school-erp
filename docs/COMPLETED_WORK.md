@@ -56,7 +56,7 @@
 - **Solution:** Changed `Depends(require_role("ROLE"))` → `require_role("ROLE")`.
 
 ### watermark.py Student model mismatch fixed
-- **Files Changed:** `backend/app/core/watermark.py`
+- **Files Changed:** `backend/app/services/watermark.py`
 - **Problem:** Referenced `Student.full_name`, `mother_name`, `grade`, `section`, `stream`, `blood_type`, `is_active` — none exist on Student model (has `first_name`, `middle_name`, `last_name`).
 - **Solution:** Replaced with `Student.first_name`, removed non-existent fields, added required `student_id`, `gender`, `date_of_birth`, `admission_date`, `status`.
 

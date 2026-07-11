@@ -12,6 +12,7 @@ from app.core.rate_limit_middleware import RateLimitMiddleware
 from app.core.upload_limit_middleware import UploadLimitMiddleware
 from app.core.logging_config import configure_logging
 from app.api.v1.endpoints.metrics import MetricsMiddleware
+from app.core.request_logging_middleware import RequestLoggingMiddleware
 
 logger = configure_logging(settings.environment)
 
@@ -68,6 +69,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(UploadLimitMiddleware)
 app.add_middleware(MetricsMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 
 
 CSRF_EXEMPT_PATHS = {

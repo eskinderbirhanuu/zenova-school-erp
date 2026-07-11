@@ -3,6 +3,12 @@ from unittest.mock import MagicMock, patch, ANY
 import pytest
 from datetime import datetime, timezone
 from app.services import nfc_v2_service
+from app.utils.uid_hash import hash_card_uid
+
+HASH_B1 = hash_card_uid("04:A7:12:9C:B1")
+HASH_B2 = hash_card_uid("04:A7:12:9C:B2")
+HASH_B3 = hash_card_uid("04:A7:12:9C:B3")
+HASH_B4 = hash_card_uid("04:A7:12:9C:B4")
 
 
 class TestAssignStudentCard:
@@ -11,14 +17,14 @@ class TestAssignStudentCard:
         db.query.return_value.filter.return_value.first.return_value = None
         card = nfc_v2_service.assign_student_card(db, "stu-1", "04:A7:12:9C:B1", "user-1")
         assert card.student_id == "stu-1"
-        assert card.card_uid == "04:A7:12:9C:B1"
+        assert card.card_uid == HASH_B1
         assert db.add.called
         assert db.commit.called
 
     def test_assign_duplicate_uid_raises(self):
         db = MagicMock()
         existing = MagicMock()
-        existing.card_uid = "04:A7:12:9C:B1"
+        existing.card_uid = HASH_B1
         db.query.return_value.filter.return_value.first.return_value = existing
         with pytest.raises(ValueError, match="already assigned"):
             nfc_v2_service.assign_student_card(db, "stu-2", "04:A7:12:9C:B1")
@@ -30,7 +36,7 @@ class TestAssignStaffCard:
         db.query.return_value.filter.return_value.first.return_value = None
         card = nfc_v2_service.assign_staff_card(db, "sp-1", "04:A7:12:9C:B2", "user-1")
         assert card.staff_profile_id == "sp-1"
-        assert card.card_uid == "04:A7:12:9C:B2"
+        assert card.card_uid == HASH_B2
 
 
 class TestAssignParentCard:
@@ -39,7 +45,7 @@ class TestAssignParentCard:
         db.query.return_value.filter.return_value.first.return_value = None
         card = nfc_v2_service.assign_parent_card(db, "par-1", "04:A7:12:9C:B3", "user-1")
         assert card.parent_id == "par-1"
-        assert card.card_uid == "04:A7:12:9C:B3"
+        assert card.card_uid == HASH_B3
 
 
 class TestAssignEmployeeCard:
@@ -48,14 +54,14 @@ class TestAssignEmployeeCard:
         db.query.return_value.filter.return_value.first.return_value = None
         card = nfc_v2_service.assign_employee_card(db, "emp-1", "04:A7:12:9C:B4", "user-1")
         assert card.employee_id == "emp-1"
-        assert card.card_uid == "04:A7:12:9C:B4"
+        assert card.card_uid == HASH_B4
 
 
 class TestScanNfc:
     def test_scan_active_student_card(self):
         db = MagicMock()
         card = MagicMock()
-        card.card_uid = "04:A7:12:9C:B1"
+        card.card_uid = HASH_B1
         card.status = "active"
         card.expiry_date = None
         card.student_id = "stu-1"
@@ -89,7 +95,7 @@ class TestScanNfc:
     def test_scan_inactive_returns_not_found(self):
         db = MagicMock()
         card = MagicMock()
-        card.card_uid = "XX:XX"
+        card.card_uid = hash_card_uid("XX:XX")
         card.status = "lost"
         card.expiry_date = None
         card.student_id = "stu-x"

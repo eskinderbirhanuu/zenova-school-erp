@@ -15,7 +15,7 @@ pytest==8.3.4
 pytest-asyncio==0.25.0
 email-validator>=2.0.0,<3.0.0
 openpyxl==3.1.5
-python-multipart
+python-multipart==0.0.20
 python-dateutil==2.9.0
 apscheduler>=3.10,<4.0
 psutil>=6.0,<7.0

@@ -9,7 +9,7 @@ from app.core.audit import log_audit
 def create_category(db: Session, school_id: str, data, user_id: str):
     cat = InventoryCategory(name=data.name, description=data.description, school_id=school_id)
     db.add(cat)
-    log_audit(db, user_id, "INVENTORY_CATEGORY_CREATED", "inventory_category", cat.id, f"Category '{data.name}' created")
+    log_audit(db, user_id, "INVENTORY_CATEGORY_CREATED", "inventory_category", cat.id, f"Category '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(cat)
     return cat
@@ -30,7 +30,7 @@ def create_item(db: Session, school_id: str, data, user_id: str):
         unit_price=Decimal(str(data.unit_price)), school_id=school_id,
     )
     db.add(item)
-    log_audit(db, user_id, "INVENTORY_ITEM_CREATED", "inventory_item", item.id, f"Item '{data.name}' (SKU: {data.sku}) created")
+    log_audit(db, user_id, "INVENTORY_ITEM_CREATED", "inventory_item", item.id, f"Item '{data.name}' (SKU: {data.sku}) created", school_id=school_id)
     db.commit()
     db.refresh(item)
     return item
@@ -55,7 +55,7 @@ def update_item(db: Session, item_id: str, data, user_id: str, school_id: str = 
         item.min_quantity = Decimal(str(data.min_quantity))
     if data.unit_price is not None:
         item.unit_price = Decimal(str(data.unit_price))
-    log_audit(db, user_id, "INVENTORY_ITEM_UPDATED", "inventory_item", item_id, f"Item '{item.name}' updated")
+    log_audit(db, user_id, "INVENTORY_ITEM_UPDATED", "inventory_item", item_id, f"Item '{item.name}' updated", school_id=school_id)
     db.commit()
     db.refresh(item)
     return item
@@ -107,7 +107,7 @@ def get_movements(db: Session, school_id: str, item_id: str = None):
 def create_supplier(db: Session, school_id: str, data, user_id: str):
     s = Supplier(name=data.name, contact_person=data.contact_person, phone=data.phone, email=data.email, address=data.address, school_id=school_id)
     db.add(s)
-    log_audit(db, user_id, "SUPPLIER_CREATED", "supplier", s.id, f"Supplier '{data.name}' created")
+    log_audit(db, user_id, "SUPPLIER_CREATED", "supplier", s.id, f"Supplier '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(s)
     return s
@@ -130,7 +130,7 @@ def update_category(db: Session, category_id: str, data, user_id: str, school_id
         cat.name = data.name
     if data.description is not None:
         cat.description = data.description
-    log_audit(db, user_id, "INVENTORY_CATEGORY_UPDATED", "inventory_category", category_id, f"Category updated to '{cat.name}'")
+    log_audit(db, user_id, "INVENTORY_CATEGORY_UPDATED", "inventory_category", category_id, f"Category updated to '{cat.name}'", school_id=school_id)
     db.commit()
     db.refresh(cat)
     return cat
@@ -146,7 +146,7 @@ def delete_category(db: Session, category_id: str, user_id: str, school_id: str 
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")
     cat.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "INVENTORY_CATEGORY_DELETED", "inventory_category", category_id, "Category deleted")
+    log_audit(db, user_id, "INVENTORY_CATEGORY_DELETED", "inventory_category", category_id, "Category deleted", school_id=school_id)
     db.commit()
 
 
@@ -167,7 +167,7 @@ def update_supplier(db: Session, supplier_id: str, data, user_id: str, school_id
         s.email = data.email
     if data.address is not None:
         s.address = data.address
-    log_audit(db, user_id, "SUPPLIER_UPDATED", "supplier", supplier_id, f"Supplier '{s.name}' updated")
+    log_audit(db, user_id, "SUPPLIER_UPDATED", "supplier", supplier_id, f"Supplier '{s.name}' updated", school_id=school_id)
     db.commit()
     db.refresh(s)
     return s
@@ -181,5 +181,5 @@ def delete_supplier(db: Session, supplier_id: str, user_id: str, school_id: str 
     if not s:
         raise HTTPException(status_code=404, detail="Supplier not found")
     s.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "SUPPLIER_DELETED", "supplier", supplier_id, "Supplier deleted")
+    log_audit(db, user_id, "SUPPLIER_DELETED", "supplier", supplier_id, "Supplier deleted", school_id=school_id)
     db.commit()

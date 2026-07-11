@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast"
 interface ReportItem {
   title: string
   description: string
-  icon: React.ElementType
+  icon: React.ComponentType<{ className?: string }>
   value: string | number
   detail: string
   onView: () => void

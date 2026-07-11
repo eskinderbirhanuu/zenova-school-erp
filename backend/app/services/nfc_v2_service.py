@@ -11,6 +11,7 @@ from app.models.staff_profile import StaffProfile
 from app.models.parent import Parent
 from app.models.user import User
 from app.core.audit import log_audit
+from app.utils.uid_hash import hash_card_uid
 
 
 def assign_student_card(
@@ -20,16 +21,19 @@ def assign_student_card(
     assigned_by: str | None = None,
     card_tier: str = "standard",
 ) -> StudentCard:
-    existing = db.query(StudentCard).filter(StudentCard.card_uid == card_uid).first()
+    uid_hash = hash_card_uid(card_uid)
+    existing = db.query(StudentCard).filter(StudentCard.card_uid == uid_hash).first()
     if existing:
         raise ValueError("NFC card UID already assigned to a student")
-    card = StudentCard(student_id=student_id, card_uid=card_uid, card_tier=card_tier)
+    _school_id = db.query(Student.school_id).filter(Student.id == student_id).scalar()
+    card = StudentCard(student_id=student_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
     log_audit(
         db=db, user_id=assigned_by or "system",
         table_name="student_cards", record_id=card.id,
         action="NFC_STUDENT_CARD_ASSIGNED",
         new_data={"student_id": student_id, "card_uid": card_uid},
+        school_id=_school_id,
     )
     db.commit()
     db.refresh(card)
@@ -43,16 +47,19 @@ def assign_staff_card(
     assigned_by: str | None = None,
     card_tier: str = "standard",
 ) -> StaffCard:
-    existing = db.query(StaffCard).filter(StaffCard.card_uid == card_uid).first()
+    uid_hash = hash_card_uid(card_uid)
+    existing = db.query(StaffCard).filter(StaffCard.card_uid == uid_hash).first()
     if existing:
         raise ValueError("NFC card UID already assigned to a staff member")
-    card = StaffCard(staff_profile_id=staff_profile_id, card_uid=card_uid, card_tier=card_tier)
+    _school_id = db.query(StaffProfile.school_id).filter(StaffProfile.id == staff_profile_id).scalar()
+    card = StaffCard(staff_profile_id=staff_profile_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
     log_audit(
         db=db, user_id=assigned_by or "system",
         table_name="staff_cards", record_id=card.id,
         action="NFC_STAFF_CARD_ASSIGNED",
         new_data={"staff_profile_id": staff_profile_id, "card_uid": card_uid},
+        school_id=_school_id,
     )
     db.commit()
     db.refresh(card)
@@ -66,16 +73,19 @@ def assign_parent_card(
     assigned_by: str | None = None,
     card_tier: str = "standard",
 ) -> ParentCard:
-    existing = db.query(ParentCard).filter(ParentCard.card_uid == card_uid).first()
+    uid_hash = hash_card_uid(card_uid)
+    existing = db.query(ParentCard).filter(ParentCard.card_uid == uid_hash).first()
     if existing:
         raise ValueError("NFC card UID already assigned to a parent")
-    card = ParentCard(parent_id=parent_id, card_uid=card_uid, card_tier=card_tier)
+    _school_id = db.query(Parent.school_id).filter(Parent.id == parent_id).scalar()
+    card = ParentCard(parent_id=parent_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
     log_audit(
         db=db, user_id=assigned_by or "system",
         table_name="parent_cards", record_id=card.id,
         action="NFC_PARENT_CARD_ASSIGNED",
         new_data={"parent_id": parent_id, "card_uid": card_uid},
+        school_id=_school_id,
     )
     db.commit()
     db.refresh(card)
@@ -89,10 +99,11 @@ def assign_employee_card(
     assigned_by: str | None = None,
     card_tier: str = "standard",
 ) -> EmployeeCard:
-    existing = db.query(EmployeeCard).filter(EmployeeCard.card_uid == card_uid).first()
+    uid_hash = hash_card_uid(card_uid)
+    existing = db.query(EmployeeCard).filter(EmployeeCard.card_uid == uid_hash).first()
     if existing:
         raise ValueError("NFC card UID already assigned to a corporate employee")
-    card = EmployeeCard(employee_id=employee_id, card_uid=card_uid, card_tier=card_tier)
+    card = EmployeeCard(employee_id=employee_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
     log_audit(
         db=db, user_id=assigned_by or "system",
@@ -111,11 +122,12 @@ def scan_nfc(
     scan_type: str = "verification",
     reader_location: str | None = None,
 ) -> dict:
+    uid_hash = hash_card_uid(card_uid)
     nfcs = [
-        ("student", db.query(StudentCard).filter(StudentCard.card_uid == card_uid).first()),
-        ("staff", db.query(StaffCard).filter(StaffCard.card_uid == card_uid).first()),
-        ("parent", db.query(ParentCard).filter(ParentCard.card_uid == card_uid).first()),
-        ("employee", db.query(EmployeeCard).filter(EmployeeCard.card_uid == card_uid).first()),
+        ("student", db.query(StudentCard).filter(StudentCard.card_uid == uid_hash).first()),
+        ("staff", db.query(StaffCard).filter(StaffCard.card_uid == uid_hash).first()),
+        ("parent", db.query(ParentCard).filter(ParentCard.card_uid == uid_hash).first()),
+        ("employee", db.query(EmployeeCard).filter(EmployeeCard.card_uid == uid_hash).first()),
     ]
 
     ref_type = None
@@ -133,10 +145,10 @@ def scan_nfc(
             break
 
     if not card or card.status != "active":
-        return {"success": False, "card_uid": card_uid, "reference_type": "", "reference_id": "", "person_name": None, "photo_url": None, "message": "Card not found or inactive"}
+        return {"success": False, "card_uid": uid_hash, "reference_type": "", "reference_id": "", "person_name": None, "photo_url": None, "message": "Card not found or inactive"}
 
     if card.expiry_date and card.expiry_date < datetime.now(timezone.utc):
-        return {"success": False, "card_uid": card_uid, "reference_type": ref_type, "reference_id": ref_id, "person_name": None, "photo_url": None, "message": "Card has expired"}
+        return {"success": False, "card_uid": uid_hash, "reference_type": ref_type, "reference_id": ref_id, "person_name": None, "photo_url": None, "message": "Card has expired"}
 
     person_name = None
     photo_url = None
@@ -165,7 +177,7 @@ def scan_nfc(
             photo_url = ce.photo_url
 
     scan = NfcScanLog(
-        card_uid=card_uid,
+        card_uid=uid_hash,
         reference_type=ref_type,
         reference_id=ref_id,
         scan_type=scan_type,
@@ -183,7 +195,7 @@ def scan_nfc(
             loop = asyncio.get_running_loop()
             loop.create_task(scan_event_manager.broadcast("nfc-scans", {
                 "event": "nfc_scan",
-                "card_uid": card_uid,
+                "card_uid": uid_hash,
                 "reference_type": ref_type,
                 "reference_id": ref_id,
                 "scan_type": scan_type,
@@ -199,7 +211,7 @@ def scan_nfc(
 
     return {
         "success": True,
-        "card_uid": card_uid,
+        "card_uid": uid_hash,
         "reference_type": ref_type,
         "reference_id": ref_id,
         "person_name": person_name,
@@ -209,7 +221,7 @@ def scan_nfc(
 
 
 def get_student_by_card(db: Session, card_uid: str, school_id: str | None = None) -> Student | None:
-    card = db.query(StudentCard).filter(StudentCard.card_uid == card_uid).first()
+    card = db.query(StudentCard).filter(StudentCard.card_uid == hash_card_uid(card_uid)).first()
     if not card:
         return None
     q = db.query(Student).filter(Student.id == card.student_id)
@@ -219,7 +231,7 @@ def get_student_by_card(db: Session, card_uid: str, school_id: str | None = None
 
 
 def get_staff_by_card(db: Session, card_uid: str, school_id: str | None = None) -> dict | None:
-    card = db.query(StaffCard).filter(StaffCard.card_uid == card_uid).first()
+    card = db.query(StaffCard).filter(StaffCard.card_uid == hash_card_uid(card_uid)).first()
     if not card:
         return None
     q = db.query(StaffProfile).filter(StaffProfile.id == card.staff_profile_id)
@@ -233,7 +245,7 @@ def get_staff_by_card(db: Session, card_uid: str, school_id: str | None = None) 
 
 
 def get_parent_by_card(db: Session, card_uid: str, school_id: str | None = None) -> Parent | None:
-    card = db.query(ParentCard).filter(ParentCard.card_uid == card_uid).first()
+    card = db.query(ParentCard).filter(ParentCard.card_uid == hash_card_uid(card_uid)).first()
     if not card:
         return None
     q = db.query(Parent).filter(Parent.id == card.parent_id)
@@ -243,7 +255,7 @@ def get_parent_by_card(db: Session, card_uid: str, school_id: str | None = None)
 
 
 def get_employee_by_card(db: Session, card_uid: str, school_id: str | None = None) -> dict | None:
-    card = db.query(EmployeeCard).filter(EmployeeCard.card_uid == card_uid).first()
+    card = db.query(EmployeeCard).filter(EmployeeCard.card_uid == hash_card_uid(card_uid)).first()
     if not card:
         return None
     q = db.query(CorporateEmployee).filter(CorporateEmployee.id == card.employee_id)
@@ -274,12 +286,23 @@ def update_card_status(
         return False
     old_status = card.status
     card.status = status
+    _school_id = None
+    if card_type == "student":
+        s = db.query(Student).filter(Student.id == card.student_id).first()
+        _school_id = s.school_id if s else None
+    elif card_type == "staff":
+        sp = db.query(StaffProfile).filter(StaffProfile.id == card.staff_profile_id).first()
+        _school_id = sp.school_id if sp else None
+    elif card_type == "parent":
+        p = db.query(Parent).filter(Parent.id == card.parent_id).first()
+        _school_id = p.school_id if p else None
     log_audit(
         db=db, user_id=user_id or "system",
         table_name=f"{card_type}_cards", record_id=card.id,
         action="NFC_CARD_STATUS_CHANGED",
         old_data={"status": old_status},
         new_data={"status": status},
+        school_id=_school_id,
     )
     db.commit()
     return True
@@ -291,12 +314,14 @@ def request_card_print(
     reference_id: str,
     requested_by: str | None = None,
     notes: str | None = None,
+    school_id: str | None = None,
 ) -> CardPrintRequest:
     req = CardPrintRequest(
         card_type=card_type,
         reference_id=reference_id,
         requested_by=requested_by,
         notes=notes,
+        school_id=school_id,
     )
     db.add(req)
     log_audit(
@@ -304,6 +329,7 @@ def request_card_print(
         table_name="card_print_requests", record_id=req.id,
         action="CARD_PRINT_REQUESTED",
         new_data={"card_type": card_type, "reference_id": reference_id},
+        school_id=school_id,
     )
     db.commit()
     db.refresh(req)
@@ -319,6 +345,7 @@ def process_print_request(
     req = db.query(CardPrintRequest).filter(CardPrintRequest.id == request_id).first()
     if not req:
         return None
+    old_status = req.status
     if action == "approve":
         req.status = "approved"
         req.approved_by = user_id
@@ -327,6 +354,14 @@ def process_print_request(
         req.printed_by = user_id
     elif action == "reject":
         req.status = "rejected"
+    log_audit(
+        db=db, user_id=user_id or "system",
+        table_name="card_print_requests", record_id=req.id,
+        action=f"CARD_PRINT_{action.upper()}",
+        old_data={"status": old_status},
+        new_data={"status": req.status},
+        school_id=req.school_id,
+    )
     db.commit()
     db.refresh(req)
     return req
@@ -363,8 +398,9 @@ def bulk_assign_cards(
 def _school_lookup(db: Session, card_uid: str) -> str | None:
     """Trace card → person → school. Returns school name + contact message, or None."""
     from app.models.school import School
+    uid_hash = hash_card_uid(card_uid)
 
-    card = db.query(StudentCard).filter(StudentCard.card_uid == card_uid).first()
+    card = db.query(StudentCard).filter(StudentCard.card_uid == uid_hash).first()
     if card:
         student = db.query(Student).filter(Student.id == card.student_id).first()
         if student and student.school_id:
@@ -373,7 +409,7 @@ def _school_lookup(db: Session, card_uid: str) -> str | None:
                 contact = school.email or school.phone or "support@zenova.com"
                 return f"This card belongs to {school.name}. If found, please contact {contact}."
 
-    card = db.query(StaffCard).filter(StaffCard.card_uid == card_uid).first()
+    card = db.query(StaffCard).filter(StaffCard.card_uid == uid_hash).first()
     if card:
         sp = db.query(StaffProfile).filter(StaffProfile.id == card.staff_profile_id).first()
         if sp and sp.school_id:
@@ -382,7 +418,7 @@ def _school_lookup(db: Session, card_uid: str) -> str | None:
                 contact = school.email or school.phone or "support@zenova.com"
                 return f"This card belongs to {school.name}. If found, please contact {contact}."
 
-    card = db.query(ParentCard).filter(ParentCard.card_uid == card_uid).first()
+    card = db.query(ParentCard).filter(ParentCard.card_uid == uid_hash).first()
     if card:
         parent = db.query(Parent).filter(Parent.id == card.parent_id).first()
         if parent and parent.school_id:
@@ -397,8 +433,9 @@ def _school_lookup(db: Session, card_uid: str) -> str | None:
 def public_lookup_card(db: Session, card_uid: str) -> dict:
     """Public endpoint — no auth required. Returns only whether the card belongs
     to ZENOVA, NEVER any personally identifiable information."""
+    uid_hash = hash_card_uid(card_uid)
     for model in (StudentCard, StaffCard, ParentCard, EmployeeCard):
-        if db.query(model).filter(model.card_uid == card_uid).first():
+        if db.query(model).filter(model.card_uid == uid_hash).first():
             school_msg = _school_lookup(db, card_uid)
             if school_msg:
                 message = school_msg
@@ -406,10 +443,10 @@ def public_lookup_card(db: Session, card_uid: str) -> dict:
                 message = "This card belongs to ZENOVA. If found, please contact support@zenova.com or call +251-911-000000."
             return {
                 "found": True,
-                "card_uid": card_uid,
+                "card_uid": uid_hash,
                 "message": message,
             }
-    return {"found": False, "card_uid": card_uid, "message": "Unrecognized card."}
+    return {"found": False, "card_uid": uid_hash, "message": "Unrecognized card."}
 
 
 def list_scan_logs(
@@ -426,9 +463,12 @@ def list_scan_logs(
 def list_print_requests(
     db: Session,
     status: str | None = None,
+    school_id: str | None = None,
     limit: int = 100,
 ) -> list[CardPrintRequest]:
     q = db.query(CardPrintRequest)
     if status:
         q = q.filter(CardPrintRequest.status == status)
+    if school_id:
+        q = q.filter(CardPrintRequest.school_id == school_id)
     return q.order_by(CardPrintRequest.created_at.desc()).limit(limit).all()

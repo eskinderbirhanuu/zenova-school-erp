@@ -64,6 +64,7 @@ def create_student(
             "gender": gender,
         },
         user_id=registered_by,
+        school_id=school_id,
     )
     db.commit()
     db.refresh(student)
@@ -171,6 +172,7 @@ def update_student(db: Session, student_id: str, data: dict, school_id: str = No
         action="STUDENT_UPDATED",
         old_data=old_data,
         new_data=data,
+        school_id=school_id,
     )
     db.commit()
 
@@ -194,6 +196,7 @@ def delete_student(db: Session, student_id: str, school_id: str = None, user_id:
         table_name="students",
         record_id=student.id,
         action="STUDENT_DELETED",
+        school_id=school_id,
     )
     db.commit()
 
@@ -224,6 +227,7 @@ def transfer_student(db: Session, student_id: str, grade_id: str, section_id: st
         action="STUDENT_TRANSFERRED",
         old_data=old_data,
         new_data={"grade_id": grade_id, "section_id": section_id, "reason": reason},
+        school_id=school_id,
     )
     db.commit()
 
@@ -269,6 +273,7 @@ def promote_student(db: Session, student_id: str, to_grade_id: str, academic_yea
         action="STUDENT_PROMOTED",
         old_data=old_data,
         new_data={"to_grade_id": to_grade_id, "academic_year_id": academic_year_id},
+        school_id=school_id,
     )
     db.commit()
 

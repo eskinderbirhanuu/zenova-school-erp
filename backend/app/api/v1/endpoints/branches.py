@@ -110,7 +110,7 @@ def update_branch(
         branch.email = data.email
     if data.is_active is not None:
         branch.is_active = data.is_active
-    log_audit(db, current_user.id, "BRANCH_UPDATED", "branch", branch_id, f"Branch '{branch.name}' updated")
+    log_audit(db, current_user.id, "BRANCH_UPDATED", "branch", branch_id, f"Branch '{branch.name}' updated", school_id=current_user.school_id)
     db.commit()
     db.refresh(branch)
     return BranchResponse.model_validate(branch)
@@ -128,6 +128,6 @@ def delete_branch(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
     from datetime import datetime
     branch.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, current_user.id, "BRANCH_DELETED", "branch", branch_id, f"Branch '{branch.name}' deleted")
+    log_audit(db, current_user.id, "BRANCH_DELETED", "branch", branch_id, f"Branch '{branch.name}' deleted", school_id=current_user.school_id)
     db.commit()
     return {"message": "Branch deleted successfully"}

@@ -3,7 +3,7 @@
 **Analyst:** GLM-5.2 (analysis/documentation mode)
 **Date:** 2026-06-30
 **Scope:** Full repository review (backend FastAPI, frontend Next.js 16, deployment, sync, licensing)
-**Companion files:** `SECURITY_AUDIT.md`, `ARCHITECTURE_REVIEW.md`, `PERFORMANCE_AUDIT.md`, `CODE_IMPROVEMENTS.md`, `TECHNICAL_DEBT.md`, `DEEPSEEK_TASKS.md`, `PRODUCTION_READINESS.md`
+**Companion files:** `SECURITY_AUDIT.md`, `ARCHITECTURE_REVIEW_2026-06-30_GLM.md`, `PERFORMANCE_AUDIT.md`, `CODE_IMPROVEMENTS.md`, `TECHNICAL_DEBT.md`, `DEEPSEEK_TASKS.md`, `PRODUCTION_READINESS.md`
 
 > Code was **read and analyzed**, not modified. Every finding below is documented for DeepSeek V4 Flash to implement from `DEEPSEEK_TASKS.md`.
 
@@ -310,7 +310,7 @@ Every issue below is cross-referenced from a dedicated audit file. Format:
 | Topic | File |
 |-------|------|
 | Vulnerabilities, attack scenarios, fixes | `SECURITY_AUDIT.md` |
-| Multi-tenancy, sync, offline, scalability | `ARCHITECTURE_REVIEW.md` |
+| Multi-tenancy, sync, offline, scalability | `ARCHITECTURE_REVIEW_2026-06-30_GLM.md` |
 | N+1, indexes, caching, payloads | `PERFORMANCE_AUDIT.md` |
 | Refactor opportunities | `CODE_IMPROVEMENTS.md` |
 | Debt register | `TECHNICAL_DEBT.md` |

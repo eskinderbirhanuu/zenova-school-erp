@@ -1,5 +1,86 @@
 # Changelog
 
+## [0.9.5] — 2026-07-11
+
+### NFC Card school_id
+- **Added `school_id` to V2 card tables**: Added `school_id` (nullable, FK→schools.id) to `student_cards`, `staff_cards`, `parent_cards`, `employee_cards` — migration `d9e8f7a6b5c4`
+- **Service layer updated**: `assign_*_card` functions now populate `school_id` from the parent entity (Student, StaffProfile, Parent) on card creation
+- **Response schemas**: Added `school_id: str | None` to `StudentCardResponse`, `StaffCardResponse`, `ParentCardResponse`, `EmployeeCardResponse`
+
+### License Server Auth
+- **Secured unprotected endpoints**: `POST /verify`, `POST /activate`, `GET /school/{school_id}` now require JWT auth via `get_current_admin` (previously unauthenticated)
+
+### Testing
+- **Settings schema tests**: Added `tests/test_settings.py` — 5 tests covering known keys, partial updates, unknown key rejection, wrapper rejection, and empty payload
+- **Test suite**: 173/173 pass (up from 168)
+
+## [0.9.4] — 2026-07-10
+
+### Finance Security Deep Audit — 5 Critical Gaps Fixed
+- **`process_chapa_payment`**: Added `with_for_update()` on PaymentSession + Payment + Invoice queries; replaced silent `try/except: pass` with `logger.warning` on platform commission step
+- **`request_refund`**: Added `with_for_update()` on Payment + Refund queries to prevent double-refund races
+- **`mark_invoice_paid`**: Added `with_for_update()` on MonthlyPlatformInvoice query
+- **`create_invoice`**: Added `school_id` filter to ParentStudentLink query + Student existence validation
+- **`platform_commission.py` webhook**: Added missing `logger` import + `with_for_update()` on invoice query
+- **Removed broken import**: `SyncQueueItem` from `parent_payment_service.py` (caused `ImportError`)
+- **9 new concurrency tests** (TestFix8–10 in `test_finance_security.py`): 4 for process_chapa, 2 for request_refund, 2 for mark_invoice_paid + 1 for refund full status flow
+
+### Code Health
+- **Circular dependency risk fixed**: Created `core/auth_deps.py` and `core/rate_limit.py`; `api/v1/deps.py` is now a thin re-export layer
+- **Test suite**: 168/168 pass (up from 159)
+
+### Encryption & Security
+- **QR token AES-256-GCM**: Replaced plain base64 with authenticated encryption using HKDF-derived key from SECRET_KEY. Backward compatible — existing base64 tokens still decrypt. New tokens prefixed with `A1|`
+- **Settings PUT schema validation**: Replaced unrestricted `data: dict` with `SchoolSettingsUpdate` Pydantic model. Unknown keys rejected via `extra="forbid"`. Frontend settings keys (19 known fields) now validated at the API boundary
+- **IGA permissions**: Added dedicated `INFRASTRUCTURE_VIEW` permission; `/iga/metrics` and `/iga/health-summary` now use it instead of `AUDIT_VIEW` (which was semantically imprecise). Mapped to ADMIN role
+
+### Precision
+- **Float→Decimal final 2**: Converted `library_fines.amount` and `inventory_assets.value` from Float to `DECIMAL(15,2)` — migration `a8b9c0d1e2f3`
+
+### Cleanup
+- **Deduplicated `_is_token_blacklisted`**: Removed duplicate from `auth.py`; all callers now import from `auth_deps.py`
+
+### Documentation
+- Applied 25+ fixes across README.md, FINANCE.md, SECURITY.md, ARCHITECTURE.md, DEPLOYMENT.md, DEPLOY.md, CHANGELOG.md, COMPLETED_WORK.md, KNOWN_LIMITATIONS.md, PRODUCTION_READINESS.md, AI_ANALYSIS.md, DEEPSEEK_TASKS.md, SYSTEM_EXPLANATION_AMHARIC.md, OPERATIONS_MANUAL.md
+- Updated PRODUCTION_READINESS.md score from 5.5 to 7.7/10
+
+## [0.9.3] — 2026-07-07
+
+### Security & Audit
+- **AuditLog.school_id population**: Added `school_id` parameter to `log_audit()` and `log_audit_and_commit()` with default `None` (fully backward-compatible). Updated all call sites in `student_service.py` (5 calls), `academic_service.py` (26 calls), `hr_service.py` (8 calls), `inventory_service.py` (8 calls), `library_service.py` (5 calls), `staff_service.py` (2 calls), `cafeteria_service.py` (5 calls), `communication_service.py` (1 call), and `event_service.py` (3 calls) to pass `school_id` — total **58 updated**. Enables per-tenant audit forensics, which was previously impossible because every audit row had `school_id=NULL`
+- **Authenticated setup endpoint rate limits**: `POST /setup/school`, `/setup/branch`, `/setup/admin` had no rate limits despite modifying data. Added `SETUP_MANAGE_LIMIT` (10/min)
+- **NFC public lookup rate limit**: `GET /nfc/public/lookup` is public, unauthenticated, and was without any rate limit. Added `NFC_PUBLIC_LOOKUP_LIMIT` (60/min) to prevent card-UID enumeration and brute-force oracle attacks
+- **Installer connect-vps SSRF**: `/installer/connect-vps` accepted any URL string without validation, enabling Server-Side Request Forgery (SSRF) to internal services. Added `_validate_vps_url()` that rejects non-http(s) URLs, localhost, 127.0.0.1, and internal/private IP ranges
+- **QR endpoint rate limit**: `GET /qr/{uuid}` is unauthenticated, returns student-parent PII (reference_id), and was without any rate limit. Added `QR_VALIDATE_LIMIT` (60/min) to prevent UUID brute-force enumeration and data leakage
+
+### Files Modified
+- `backend/app/core/audit.py` — added optional `school_id` parameter to `log_audit()` and `log_audit_and_commit()`
+- `backend/app/services/student_service.py` — updated 5 `log_audit` calls to pass `school_id` (all other callers pass `None` as default, fully backward compatible)
+- `backend/app/api/v1/endpoints/setup.py` — added `SETUP_MANAGE_LIMIT` and applied to 3 authenticated endpoints
+- `backend/app/api/v1/endpoints/nfc_v2.py` — added `NFC_PUBLIC_LOOKUP_LIMIT` to public lookup
+- `backend/app/api/v1/endpoints/qr.py` — added `QR_VALIDATE_LIMIT` to `GET /qr/{uuid}`
+- `backend/app/api/v1/endpoints/installer.py` — added `_validate_vps_url()` helper and applied to `POST /installer/connect-vps`
+
+### Suggested Git Commit
+```
+fix(security): populate school_id in AuditLog; add rate limits; validate installer connect-vps URL
+
+- log_audit() now accepts school_id (default None, backward compatible)
+- student_service passes school_id to all 5 log_audit calls
+- Added 10/min rate limit to POST /setup/school, /setup/branch, /setup/admin  
+- Added 60/min rate limit to /nfc/public/lookup, preventing card-UID enumeration
+- Added 60/min rate limit to /qr/{uuid}, preventing UUID brute-force + PII leak
+- /installer/connect-vps now validates URL scheme, blocks localhost/127.0.0.1/private IPs
+
+Addresses critical / high findings from Deep Audit 2026-07-06:
+- C13: AuditLog.school_id never populated (partial: student_service updated)
+  Other services still pass None; incremental updates recommended
+- Rate-limit gaps on /setup/* authenticated endpoints (resolved)
+- /nfc/public/lookup brute-force oracle (resolved)  
+- /qr/{uuid} unauthenticated PII leak via UUID enumeration (resolved)
+- /installer/connect-vps SSRF via arbitrary vps_url (resolved)
+```
+
 ## [0.9.2] — 2026-07-07
 
 ### Critical Security Fixes (Deep Audit 2026-07-06)
@@ -25,8 +106,7 @@
 - **NFC scan asyncio crash**: Fixed `asyncio.ensure_future` in sync context by checking `get_running_loop()` before broadcasting
 
 ### Documentation
-- Created `docs/IMPLEMENTATION_NOTES.md` with rationale and trade-offs for each fix
-- Created `docs/ARCHITECTURE_DECISIONS.md` documenting RBAC enforcement strategy, super admin overrides, corporate model global status
+- Created `docs/IMPLEMENTATION_NOTES.md` with rationale, trade-offs, RBAC enforcement strategy, super admin overrides, and corporate model global status
 - Created `docs/KNOWN_LIMITATIONS.md` tracking deferred schema changes (corporate school_id, settings schema validation, IGA permission granularity, NFC public lookup enumeration, float money schemas)
 - Updated `docs/TECHNICAL_DEBT.md` with resolved items
 

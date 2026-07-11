@@ -137,7 +137,7 @@ class TestTokenBlacklist:
     """Tests for token blacklist — _blacklist_token, _is_token_blacklisted, logout blacklisting."""
 
     def test_blacklist_token_sets_redis_key(self):
-        from app.api.v1.endpoints.auth import _blacklist_token, _is_token_blacklisted
+        from app.api.v1.endpoints.auth import _blacklist_token
 
         redis = MagicMock()
         exp = int(datetime.now(timezone.utc).timestamp()) + 3600
@@ -154,29 +154,40 @@ class TestTokenBlacklist:
         _blacklist_token(redis, "test-jti", exp)  # should not raise
 
     def test_is_token_blacklisted_returns_true_when_exists(self):
-        from app.api.v1.endpoints.auth import _is_token_blacklisted
+        from unittest.mock import patch
+        from app.core.auth_deps import _is_token_blacklisted
 
-        redis = MagicMock()
-        redis.exists.return_value = 1
-        assert _is_token_blacklisted(redis, "test-jti") is True
+        with patch("app.core.auth_deps.get_redis") as mock_get_redis:
+            mock_redis = MagicMock()
+            mock_redis.exists.return_value = 1
+            mock_get_redis.return_value = mock_redis
+            assert _is_token_blacklisted("test-jti") is True
 
     def test_is_token_blacklisted_returns_false_when_missing(self):
-        from app.api.v1.endpoints.auth import _is_token_blacklisted
+        from unittest.mock import patch
+        from app.core.auth_deps import _is_token_blacklisted
 
-        redis = MagicMock()
-        redis.exists.return_value = 0
-        assert _is_token_blacklisted(redis, "test-jti") is False
+        with patch("app.core.auth_deps.get_redis") as mock_get_redis:
+            mock_redis = MagicMock()
+            mock_redis.exists.return_value = 0
+            mock_get_redis.return_value = mock_redis
+            assert _is_token_blacklisted("test-jti") is False
 
     def test_is_token_blacklisted_returns_false_on_error(self):
-        from app.api.v1.endpoints.auth import _is_token_blacklisted
+        from unittest.mock import patch
+        from app.core.auth_deps import _is_token_blacklisted
 
-        redis = MagicMock()
-        redis.exists.side_effect = Exception("Redis down")
-        assert _is_token_blacklisted(redis, "test-jti") is False
+        with patch("app.core.auth_deps.get_redis") as mock_get_redis:
+            mock_redis = MagicMock()
+            mock_redis.exists.side_effect = Exception("Redis down")
+            mock_get_redis.return_value = mock_redis
+            assert _is_token_blacklisted("test-jti") is False
 
     def test_logout_blacklists_both_tokens(self):
-        from app.api.v1.endpoints.auth import _blacklist_token, _is_token_blacklisted
+        from app.api.v1.endpoints.auth import _blacklist_token
+        from app.core.auth_deps import _is_token_blacklisted
         from jose import jwt as jose_jwt
+        from unittest.mock import patch
         import secrets
 
         redis = MagicMock()
@@ -196,5 +207,7 @@ class TestTokenBlacklist:
         redis.setex.assert_any_call(f"token:bl:{refresh_jti}", 3600, "1")
 
         redis.exists.return_value = 1
-        assert _is_token_blacklisted(redis, access_jti) is True
-        assert _is_token_blacklisted(redis, refresh_jti) is True
+        with patch("app.core.auth_deps.get_redis") as mock_get_redis:
+            mock_get_redis.return_value = redis
+            assert _is_token_blacklisted(access_jti) is True
+            assert _is_token_blacklisted(refresh_jti) is True

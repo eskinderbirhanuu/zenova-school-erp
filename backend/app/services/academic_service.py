@@ -23,7 +23,7 @@ def get_academic_years(db: Session, school_id: str, include_deleted: bool = Fals
 def create_academic_year(db: Session, school_id: str, data, user_id: str):
     year = AcademicYear(name=data.name, start_date=data.start_date, end_date=data.end_date, school_id=school_id)
     db.add(year)
-    log_audit(db, user_id, "CREATE", "academic_year", year.id, f"Academic year '{data.name}' created")
+    log_audit(db, user_id, "CREATE", "academic_year", year.id, f"Academic year '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(year)
     return year
@@ -35,7 +35,7 @@ def set_current_academic_year(db: Session, year_id: str, school_id: str, user_id
     if not year:
         raise HTTPException(status_code=404, detail="Academic year not found")
     year.is_current = True
-    log_audit(db, user_id, "UPDATE", "academic_year", year_id, "Set as current academic year")
+    log_audit(db, user_id, "UPDATE", "academic_year", year_id, "Set as current academic year", school_id=school_id)
     db.commit()
     return year
 
@@ -43,7 +43,7 @@ def set_current_academic_year(db: Session, year_id: str, school_id: str, user_id
 def create_semester(db: Session, school_id: str, data, user_id: str):
     semester = Semester(name=data.name, academic_year_id=data.academic_year_id, start_date=data.start_date, end_date=data.end_date)
     db.add(semester)
-    log_audit(db, user_id, "CREATE", "semester", semester.id, f"Semester '{data.name}' created")
+    log_audit(db, user_id, "CREATE", "semester", semester.id, f"Semester '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(semester)
     return semester
@@ -62,7 +62,7 @@ def get_semesters(db: Session, school_id: str, academic_year_id: str, include_de
 def create_class_grade(db: Session, school_id: str, data, user_id: str):
     cls = ClassGrade(name=data.name, code=data.code, school_id=school_id)
     db.add(cls)
-    log_audit(db, user_id, "CREATE", "class", cls.id, f"Class grade '{data.name}' created")
+    log_audit(db, user_id, "CREATE", "class", cls.id, f"Class grade '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(cls)
     return cls
@@ -83,7 +83,7 @@ def update_class_grade(db: Session, class_id: str, data, user_id: str, school_id
         cls.name = data.name
     if data.code is not None:
         cls.code = data.code
-    log_audit(db, user_id, "UPDATE", "class", class_id, f"Class grade updated to '{cls.name}'")
+    log_audit(db, user_id, "UPDATE", "class", class_id, f"Class grade updated to '{cls.name}'", school_id=school_id)
     db.commit()
     db.refresh(cls)
     return cls
@@ -94,14 +94,14 @@ def delete_class_grade(db: Session, class_id: str, user_id: str, school_id: str)
     if not cls:
         raise HTTPException(status_code=404, detail="Class not found")
     cls.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "DELETE", "class", class_id, "Class grade deleted")
+    log_audit(db, user_id, "DELETE", "class", class_id, "Class grade deleted", school_id=school_id)
     db.commit()
 
 
 def create_section(db: Session, school_id: str, data, user_id: str):
     sec = Section(name=data.name, class_id=data.class_id, capacity=data.capacity, school_id=school_id)
     db.add(sec)
-    log_audit(db, user_id, "CREATE", "section", sec.id, f"Section '{data.name}' created")
+    log_audit(db, user_id, "CREATE", "section", sec.id, f"Section '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(sec)
     return sec
@@ -122,7 +122,7 @@ def update_section(db: Session, section_id: str, data, user_id: str, school_id: 
         sec.name = data.name
     if data.capacity is not None:
         sec.capacity = data.capacity
-    log_audit(db, user_id, "UPDATE", "section", section_id, f"Section updated to '{sec.name}'")
+    log_audit(db, user_id, "UPDATE", "section", section_id, f"Section updated to '{sec.name}'", school_id=school_id)
     db.commit()
     db.refresh(sec)
     return sec
@@ -133,14 +133,14 @@ def delete_section(db: Session, section_id: str, user_id: str, school_id: str):
     if not sec:
         raise HTTPException(status_code=404, detail="Section not found")
     sec.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "DELETE", "section", section_id, "Section deleted")
+    log_audit(db, user_id, "DELETE", "section", section_id, "Section deleted", school_id=school_id)
     db.commit()
 
 
 def create_subject(db: Session, school_id: str, data, user_id: str):
     sub = Subject(name=data.name, code=data.code, class_id=data.class_id, is_optional=data.is_optional, school_id=school_id)
     db.add(sub)
-    log_audit(db, user_id, "CREATE", "subject", sub.id, f"Subject '{data.name}' created")
+    log_audit(db, user_id, "CREATE", "subject", sub.id, f"Subject '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(sub)
     return sub
@@ -163,7 +163,7 @@ def update_subject(db: Session, subject_id: str, data, user_id: str, school_id: 
         sub.code = data.code
     if data.is_optional is not None:
         sub.is_optional = data.is_optional
-    log_audit(db, user_id, "UPDATE", "subject", subject_id, f"Subject updated to '{sub.name}'")
+    log_audit(db, user_id, "UPDATE", "subject", subject_id, f"Subject updated to '{sub.name}'", school_id=school_id)
     db.commit()
     db.refresh(sub)
     return sub
@@ -174,14 +174,14 @@ def delete_subject(db: Session, subject_id: str, user_id: str, school_id: str):
     if not sub:
         raise HTTPException(status_code=404, detail="Subject not found")
     sub.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "DELETE", "subject", subject_id, "Subject deleted")
+    log_audit(db, user_id, "DELETE", "subject", subject_id, "Subject deleted", school_id=school_id)
     db.commit()
 
 
 def create_classroom(db: Session, school_id: str, data, user_id: str):
     room = Classroom(name=data.name, capacity=data.capacity, school_id=school_id)
     db.add(room)
-    log_audit(db, user_id, "CREATE", "classroom", room.id, f"Classroom '{data.name}' created")
+    log_audit(db, user_id, "CREATE", "classroom", room.id, f"Classroom '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(room)
     return room
@@ -202,7 +202,7 @@ def update_classroom(db: Session, classroom_id: str, data, user_id: str, school_
         room.name = data.name
     if data.capacity is not None:
         room.capacity = data.capacity
-    log_audit(db, user_id, "UPDATE", "classroom", classroom_id, f"Classroom updated to '{room.name}'")
+    log_audit(db, user_id, "UPDATE", "classroom", classroom_id, f"Classroom updated to '{room.name}'", school_id=school_id)
     db.commit()
     db.refresh(room)
     return room
@@ -213,7 +213,7 @@ def delete_classroom(db: Session, classroom_id: str, user_id: str, school_id: st
     if not room:
         raise HTTPException(status_code=404, detail="Classroom not found")
     room.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "DELETE", "classroom", classroom_id, "Classroom deleted")
+    log_audit(db, user_id, "DELETE", "classroom", classroom_id, "Classroom deleted", school_id=school_id)
     db.commit()
 
 
@@ -260,7 +260,7 @@ def create_timetable_entry(db: Session, school_id: str, data, user_id: str):
         school_id=school_id,
     )
     db.add(entry)
-    log_audit(db, user_id, "CREATE", "timetable_entry", entry.id, "Timetable entry created")
+    log_audit(db, user_id, "CREATE", "timetable_entry", entry.id, "Timetable entry created", school_id=school_id)
     db.commit()
     db.refresh(entry)
     return entry
@@ -289,7 +289,7 @@ def update_timetable_entry(db: Session, entry_id: str, data, user_id: str, schoo
         entry.teacher_id = data.teacher_id
     if data.classroom_id is not None:
         entry.classroom_id = data.classroom_id
-    log_audit(db, user_id, "UPDATE", "timetable_entry", entry_id, "Timetable entry updated")
+    log_audit(db, user_id, "UPDATE", "timetable_entry", entry_id, "Timetable entry updated", school_id=school_id)
     db.commit()
     db.refresh(entry)
     return entry
@@ -300,7 +300,7 @@ def delete_timetable_entry(db: Session, entry_id: str, user_id: str, school_id: 
     if not entry:
         raise HTTPException(status_code=404, detail="Timetable entry not found")
     entry.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "DELETE", "timetable_entry", entry_id, "Timetable entry deleted")
+    log_audit(db, user_id, "DELETE", "timetable_entry", entry_id, "Timetable entry deleted", school_id=school_id)
     db.commit()
 
 
@@ -314,7 +314,7 @@ def get_timetable(db: Session, school_id: str, section_id: str, include_deleted:
 def create_exam_type(db: Session, school_id: str, data, user_id: str):
     et = ExamType(name=data.name, weight=data.weight, school_id=school_id)
     db.add(et)
-    log_audit(db, user_id, "CREATE", "exam_type", et.id, f"Exam type '{data.name}' created")
+    log_audit(db, user_id, "CREATE", "exam_type", et.id, f"Exam type '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(et)
     return et
@@ -335,7 +335,7 @@ def create_exam(db: Session, school_id: str, data, user_id: str):
         max_score=data.max_score, school_id=school_id,
     )
     db.add(exam)
-    log_audit(db, user_id, "CREATE", "exam", exam.id, f"Exam '{data.name}' created")
+    log_audit(db, user_id, "CREATE", "exam", exam.id, f"Exam '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(exam)
     return exam
@@ -351,7 +351,7 @@ def update_exam(db: Session, exam_id: str, data, user_id: str, school_id: str):
         exam.exam_date = data.exam_date
     if data.max_score is not None:
         exam.max_score = data.max_score
-    log_audit(db, user_id, "UPDATE", "exam", exam_id, f"Exam updated to '{exam.name}'")
+    log_audit(db, user_id, "UPDATE", "exam", exam_id, f"Exam updated to '{exam.name}'", school_id=school_id)
     db.commit()
     db.refresh(exam)
     return exam
@@ -373,7 +373,7 @@ def get_exams(db: Session, school_id: str, class_id: str = None, subject_id: str
 def create_exam_result(db: Session, school_id: str, data, user_id: str):
     result = ExamResult(exam_id=data.exam_id, student_id=data.student_id, score=data.score, remarks=data.remarks, entered_by=user_id, school_id=school_id)
     db.add(result)
-    log_audit(db, user_id, "CREATE", "exam_result", result.id, f"Result recorded for exam {data.exam_id}")
+    log_audit(db, user_id, "CREATE", "exam_result", result.id, f"Result recorded for exam {data.exam_id}", school_id=school_id)
     db.commit()
     db.refresh(result)
     return result
@@ -387,7 +387,7 @@ def bulk_create_exam_results(db: Session, school_id: str, results_list: list, us
         db.add(r)
         created.append(r)
         student_ids.add(data.student_id)
-    log_audit(db, user_id, "BULK_CREATE", "exam_result", ",".join(r.id for r in created[:10]), f"{len(created)} results recorded")
+    log_audit(db, user_id, "BULK_CREATE", "exam_result", ",".join(r.id for r in created[:10]), f"{len(created)} results recorded", school_id=school_id)
     db.commit()
     for r in created:
         db.refresh(r)
@@ -424,7 +424,7 @@ def update_exam_result(db: Session, result_id: str, data, user_id: str, school_i
         result.score = data.score
     if data.remarks is not None:
         result.remarks = data.remarks
-    log_audit(db, user_id, "UPDATE", "exam_result", result_id, "Exam result updated")
+    log_audit(db, user_id, "UPDATE", "exam_result", result_id, "Exam result updated", school_id=school_id)
     db.commit()
     db.refresh(result)
     return result
@@ -447,7 +447,7 @@ def promote_student(db: Session, school_id: str, student_id: str, to_class_id: s
     pr = PromotionRecord(student_id=student_id, from_class_id=from_class_id, to_class_id=to_class_id, academic_year_id=academic_year_id, promoted_by=user_id, school_id=school_id)
     student.current_class_id = to_class_id
     db.add(pr)
-    log_audit(db, user_id, "CREATE", "promotion", pr.id, f"Student {student_id} promoted from {from_class_id} to {to_class_id}")
+    log_audit(db, user_id, "CREATE", "promotion", pr.id, f"Student {student_id} promoted from {from_class_id} to {to_class_id}", school_id=school_id)
     db.commit()
     db.refresh(pr)
     return pr
@@ -470,7 +470,7 @@ def bulk_promote_students(db: Session, student_ids: list[str], to_class_id: str,
         student.current_class_id = to_class_id
         db.add(pr)
         promoted.append(pr)
-    log_audit(db, user_id, "BULK_PROMOTE", "promotion", f"{len(promoted)} students", f"Promoted {len(promoted)} students to class {to_class_id}")
+    log_audit(db, user_id, "BULK_PROMOTE", "promotion", f"{len(promoted)} students", f"Promoted {len(promoted)} students to class {to_class_id}", school_id=school_id)
     db.commit()
     for pr in promoted:
         db.refresh(pr)

@@ -1,0 +1,75 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zenova-default-deny
+  namespace: zenova
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zenova-backend
+  namespace: zenova
+spec:
+  podSelector:
+    matchLabels:
+      app: zenova-backend
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: zenova-frontend
+        - podSelector:
+            matchLabels:
+              app: zenova-nginx
+      ports:
+        - port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zenova-db
+        - podSelector:
+            matchLabels:
+              app: zenova-redis
+      ports:
+        - port: 5432
+        - port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zenova-redis
+  namespace: zenova
+spec:
+  podSelector:
+    matchLabels:
+      app: zenova-redis
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: zenova-backend
+      ports:
+        - port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zenova-db
+  namespace: zenova
+spec:
+  podSelector:
+    matchLabels:
+      app: zenova-db
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: zenova-backend
+      ports:
+        - port: 5432

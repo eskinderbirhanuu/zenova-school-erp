@@ -70,7 +70,7 @@ def create_account(db: Session, school_id: str, data, user_id: str):
         parent_id=data.parent_id, school_id=school_id, description=data.description,
     )
     db.add(acct)
-    log_audit(db, user_id, "ACCOUNT_CREATED", "account", acct.id, f"Account '{data.name}' ({data.account_number}) created")
+    log_audit(db, user_id, "ACCOUNT_CREATED", "account", acct.id, f"Account '{data.name}' ({data.account_number}) created", school_id=school_id)
     db.commit()
     db.refresh(acct)
     return acct
@@ -86,7 +86,7 @@ def update_account(db: Session, account_id: str, data, user_id: str, school_id: 
         acct.is_active = data.is_active
     if data.description is not None:
         acct.description = data.description
-    log_audit(db, user_id, "ACCOUNT_UPDATED", "account", account_id, f"Account '{acct.account_number}' updated")
+    log_audit(db, user_id, "ACCOUNT_UPDATED", "account", account_id, f"Account '{acct.account_number}' updated", school_id=school_id)
     db.commit()
     db.refresh(acct)
     return acct
@@ -140,7 +140,7 @@ def create_journal_entry(db: Session, school_id: str, data, user_id: str):
         )
         db.add(jl)
     log_audit(db, user_id, "JOURNAL_POSTED", "journal_entry", entry.id,
-              f"Entry {entry.entry_number}: Debit {total_debit}, Credit {total_credit}")
+              f"Entry {entry.entry_number}: Debit {total_debit}, Credit {total_credit}", school_id=school_id)
     db.commit()
     db.refresh(entry)
     enqueue_sync(db, "journal_entries", entry.id, "CREATE",
@@ -163,7 +163,7 @@ def reverse_journal_entry(db: Session, entry_id: str, reason: str, user_id: str,
     rev_entry = create_journal_entry(db, original.school_id, rev_data, user_id)
     original.is_reversed = True
     original.reversed_entry_id = rev_entry.id
-    log_audit(db, user_id, "JOURNAL_REVERSED", "journal_entry", entry_id, f"Reversed by {rev_entry.entry_number}: {reason}")
+    log_audit(db, user_id, "JOURNAL_REVERSED", "journal_entry", entry_id, f"Reversed by {rev_entry.entry_number}: {reason}", school_id=school_id)
     db.commit()
     return original
 
@@ -188,7 +188,7 @@ def get_journal_lines(db: Session, entry_id: str, school_id: str, include_delete
 def create_fee_type(db: Session, school_id: str, data, user_id: str):
     ft = FeeType(name=data.name, frequency=data.frequency, school_id=school_id, account_id=data.account_id)
     db.add(ft)
-    log_audit(db, user_id, "FEE_TYPE_CREATED", "fee_type", ft.id, f"Fee type '{data.name}' created")
+    log_audit(db, user_id, "FEE_TYPE_CREATED", "fee_type", ft.id, f"Fee type '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(ft)
     return ft
@@ -211,7 +211,7 @@ def update_fee_type(db: Session, fee_type_id: str, data, user_id: str, school_id
         ft.frequency = data.frequency
     if data.account_id is not None:
         ft.account_id = data.account_id
-    log_audit(db, user_id, "FEE_TYPE_UPDATED", "fee_type", ft.id, f"Fee type '{ft.name}' updated")
+    log_audit(db, user_id, "FEE_TYPE_UPDATED", "fee_type", ft.id, f"Fee type '{ft.name}' updated", school_id=school_id)
     db.commit()
     db.refresh(ft)
     return ft
@@ -222,7 +222,7 @@ def delete_fee_type(db: Session, fee_type_id: str, user_id: str, school_id: str)
     if not ft:
         raise HTTPException(status_code=404, detail="Fee type not found")
     ft.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "FEE_TYPE_DELETED", "fee_type", fee_type_id, "Fee type deleted")
+    log_audit(db, user_id, "FEE_TYPE_DELETED", "fee_type", fee_type_id, "Fee type deleted", school_id=school_id)
     db.commit()
 
 
@@ -232,7 +232,7 @@ def create_fee_structure(db: Session, data, user_id: str, school_id: str):
         raise HTTPException(status_code=404, detail="Fee type not found")
     fs = FeeStructure(fee_type_id=data.fee_type_id, school_id=school_id, class_id=data.class_id, amount=Decimal(str(data.amount)), due_date=data.due_date)
     db.add(fs)
-    log_audit(db, user_id, "FEE_STRUCTURE_CREATED", "fee_structure", fs.id, "Fee structure created")
+    log_audit(db, user_id, "FEE_STRUCTURE_CREATED", "fee_structure", fs.id, "Fee structure created", school_id=school_id)
     db.commit()
     db.refresh(fs)
     return fs
@@ -259,7 +259,7 @@ def assign_fee(db: Session, data, user_id: str, school_id: str):
         school_id=school_id, is_waived=data.is_waived,
     )
     db.add(fa)
-    log_audit(db, user_id, "FEE_ASSIGNED", "fee_assignment", fa.id, f"Fee assigned to student {data.student_id}")
+    log_audit(db, user_id, "FEE_ASSIGNED", "fee_assignment", fa.id, f"Fee assigned to student {data.student_id}", school_id=school_id)
     db.commit()
     db.refresh(fa)
     return fa
@@ -299,14 +299,21 @@ def create_invoice(db: Session, school_id: str, data, user_id: str):
             description=line["description"], amount=Decimal(str(line["amount"])),
         )
         db.add(il)
-    log_audit(db, user_id, "INVOICE_CREATED", "invoice", invoice.id, f"Invoice {invoice.invoice_number} created for student {data.student_id}")
+    log_audit(db, user_id, "INVOICE_CREATED", "invoice", invoice.id, f"Invoice {invoice.invoice_number} created for student {data.student_id}", school_id=school_id)
     db.commit()
     db.refresh(invoice)
 
     from app.services.communication_service import send_notification
     from app.models.parent_student_link import ParentStudentLink
     from app.models.parent import Parent
-    links = db.query(ParentStudentLink).filter(ParentStudentLink.student_id == data.student_id).all()
+    from app.models.student import Student
+    student = db.query(Student).filter(Student.id == data.student_id, Student.school_id == school_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    links = db.query(ParentStudentLink).filter(
+        ParentStudentLink.student_id == data.student_id,
+        ParentStudentLink.school_id == school_id,
+    ).all()
     for link in links:
         parent = db.query(Parent).filter(Parent.id == link.parent_id, Parent.user_id != None).first()
         if parent:
@@ -369,7 +376,7 @@ def record_payment(db: Session, school_id: str, data, user_id: str):
     je = _create_payment_journal_entry(db, school_id, payment, user_id)
     payment.journal_entry_id = je.id
     log_audit(db, user_id, "PAYMENT_RECEIVED", "payment", payment.id,
-              f"Payment {payment.payment_number}: {data.amount} via {data.payment_method}")
+              f"Payment {payment.payment_number}: {data.amount} via {data.payment_method}", school_id=school_id)
     db.commit()
     db.refresh(payment)
     enqueue_sync(db, "payments", payment.id, "CREATE",
@@ -465,7 +472,7 @@ def wallet_transaction(db: Session, student_id: str, school_id: str, data, user_
     je = _create_wallet_journal_entry(db, w, wt, user_id)
     wt.journal_entry_id = je.id
     log_audit(db, user_id, "WALLET_TRANSACTION", "wallet_transaction", wt.id,
-              f"Wallet {data.transaction_type}: {data.amount}")
+              f"Wallet {data.transaction_type}: {data.amount}", school_id=school_id)
     db.commit()
     db.refresh(wt)
     return wt
@@ -526,7 +533,7 @@ def create_scholarship(db: Session, data, user_id: str, school_id: str, approved
         school_id=school_id, approved_by=approved_by,
     )
     db.add(s)
-    log_audit(db, user_id, "SCHOLARSHIP_CREATED", "scholarship", s.id, f"Scholarship for student {data.student_id}")
+    log_audit(db, user_id, "SCHOLARSHIP_CREATED", "scholarship", s.id, f"Scholarship for student {data.student_id}", school_id=school_id)
     db.commit()
     db.refresh(s)
     return s
@@ -546,7 +553,7 @@ def get_scholarships(db: Session, school_id: str, student_id: str = None, academ
 def create_period(db: Session, school_id: str, data, user_id: str):
     p = AccountingPeriod(name=data.name, start_date=data.start_date, end_date=data.end_date, school_id=school_id)
     db.add(p)
-    log_audit(db, user_id, "PERIOD_CREATED", "accounting_period", p.id, f"Period '{data.name}' created")
+    log_audit(db, user_id, "PERIOD_CREATED", "accounting_period", p.id, f"Period '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(p)
     return p
@@ -559,7 +566,7 @@ def lock_period(db: Session, period_id: str, user_id: str, school_id: str):
     p.is_locked = True
     p.locked_by = user_id
     p.locked_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "PERIOD_LOCKED", "accounting_period", period_id, "Period locked")
+    log_audit(db, user_id, "PERIOD_LOCKED", "accounting_period", period_id, "Period locked", school_id=school_id)
     db.commit()
     return p
 
@@ -576,7 +583,7 @@ def unlock_period(db: Session, period_id: str, user_id: str, reason: str, school
     p.is_locked = False
     p.locked_by = None
     p.locked_at = None
-    log_audit(db, user_id, "PERIOD_UNLOCKED", "accounting_period", period_id, f"Unlocked: {reason}")
+    log_audit(db, user_id, "PERIOD_UNLOCKED", "accounting_period", period_id, f"Unlocked: {reason}", school_id=school_id)
     db.commit()
     return p
 
@@ -591,7 +598,7 @@ def get_periods(db: Session, school_id: str, include_deleted: bool = False):
 def create_payroll_run(db: Session, school_id: str, data, user_id: str):
     pr = PayrollRun(name=data.name, period_start=data.period_start, period_end=data.period_end, school_id=school_id, created_by=user_id)
     db.add(pr)
-    log_audit(db, user_id, "PAYROLL_CREATED", "payroll_run", pr.id, f"Payroll '{data.name}' created")
+    log_audit(db, user_id, "PAYROLL_CREATED", "payroll_run", pr.id, f"Payroll '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(pr)
     return pr
@@ -610,7 +617,7 @@ def approve_payroll(db: Session, run_id: str, user_id: str, school_id: str):
         raise HTTPException(status_code=404, detail="Payroll run not found")
     pr.status = "approved"
     pr.approved_by = user_id
-    log_audit(db, user_id, "PAYROLL_APPROVED", "payroll_run", run_id, "Payroll approved")
+    log_audit(db, user_id, "PAYROLL_APPROVED", "payroll_run", run_id, "Payroll approved", school_id=school_id)
     db.commit()
     return pr
 
@@ -618,7 +625,7 @@ def approve_payroll(db: Session, run_id: str, user_id: str, school_id: str):
 def create_budget(db: Session, school_id: str, data, user_id: str):
     b = Budget(name=data.name, academic_year_id=data.academic_year_id, school_id=school_id, created_by=user_id)
     db.add(b)
-    log_audit(db, user_id, "BUDGET_CREATED", "budget", b.id, f"Budget '{data.name}' created")
+    log_audit(db, user_id, "BUDGET_CREATED", "budget", b.id, f"Budget '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(b)
     return b
@@ -638,7 +645,7 @@ def create_budget_item(db: Session, budget_id: str, data, user_id: str, school_i
     bi = BudgetItem(budget_id=budget_id, school_id=school_id, account_id=data.account_id, description=data.description, planned_amount=Decimal(str(data.planned_amount)))
     db.add(bi)
     budget.total_amount = Decimal(str(budget.total_amount)) + Decimal(str(data.planned_amount))
-    log_audit(db, user_id, "BUDGET_ITEM_CREATED", "budget_item", bi.id, "Budget item created")
+    log_audit(db, user_id, "BUDGET_ITEM_CREATED", "budget_item", bi.id, "Budget item created", school_id=school_id)
     db.commit()
     db.refresh(bi)
     return bi
@@ -662,7 +669,7 @@ def create_purchase_request(db: Session, school_id: str, data, user_id: str):
         school_id=school_id,
     )
     db.add(pr)
-    log_audit(db, user_id, "PURCHASE_REQUEST_CREATED", "purchase_request", pr.id, f"PR {pr.pr_number} created")
+    log_audit(db, user_id, "PURCHASE_REQUEST_CREATED", "purchase_request", pr.id, f"PR {pr.pr_number} created", school_id=school_id)
     db.commit()
     db.refresh(pr)
     return pr
@@ -681,7 +688,7 @@ def approve_purchase_request(db: Session, pr_id: str, user_id: str, school_id: s
         raise HTTPException(status_code=404, detail="Purchase request not found")
     pr.status = "approved"
     pr.approved_by = user_id
-    log_audit(db, user_id, "PURCHASE_REQUEST_APPROVED", "purchase_request", pr_id, "PR approved")
+    log_audit(db, user_id, "PURCHASE_REQUEST_APPROVED", "purchase_request", pr_id, "PR approved", school_id=school_id)
     db.commit()
     return pr
 
@@ -695,7 +702,7 @@ def create_purchase_order(db: Session, school_id: str, data, user_id: str):
         school_id=school_id, created_by=user_id,
     )
     db.add(po)
-    log_audit(db, user_id, "PURCHASE_ORDER_CREATED", "purchase_order", po.id, f"PO {po.po_number} created")
+    log_audit(db, user_id, "PURCHASE_ORDER_CREATED", "purchase_order", po.id, f"PO {po.po_number} created", school_id=school_id)
     db.commit()
     db.refresh(po)
     return po

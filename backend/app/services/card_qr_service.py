@@ -6,6 +6,7 @@ from app.models.student_card import StudentCard
 from app.models.staff_card import StaffCard
 from app.models.parent_card import ParentCard
 from app.models.employee_card import EmployeeCard
+from app.utils.uid_hash import hash_card_uid
 
 
 def generate_card_qr_png(card_uid: str) -> bytes:
@@ -22,12 +23,13 @@ def generate_card_qr_png(card_uid: str) -> bytes:
 
 def resolve_card_type(card_uid: str, db: Session) -> str | None:
     """Check which table a card UID belongs to."""
-    if db.query(StudentCard).filter(StudentCard.card_uid == card_uid).first():
+    uid_hash = hash_card_uid(card_uid)
+    if db.query(StudentCard).filter(StudentCard.card_uid == uid_hash).first():
         return "student"
-    if db.query(StaffCard).filter(StaffCard.card_uid == card_uid).first():
+    if db.query(StaffCard).filter(StaffCard.card_uid == uid_hash).first():
         return "staff"
-    if db.query(ParentCard).filter(ParentCard.card_uid == card_uid).first():
+    if db.query(ParentCard).filter(ParentCard.card_uid == uid_hash).first():
         return "parent"
-    if db.query(EmployeeCard).filter(EmployeeCard.card_uid == card_uid).first():
+    if db.query(EmployeeCard).filter(EmployeeCard.card_uid == uid_hash).first():
         return "employee"
     return None

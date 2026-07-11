@@ -10,7 +10,7 @@ def create_event(db: Session, data, school_id: str, user_id: str):
                event_date=data.event_date, end_date=data.end_date, location=data.location,
                school_id=school_id, created_by=user_id)
     db.add(ev)
-    log_audit(db, user_id, "CREATE", "event", ev.id, f"Event '{data.title}'")
+    log_audit(db, user_id, "CREATE", "event", ev.id, f"Event '{data.title}'", school_id=school_id)
     db.commit()
     db.refresh(ev)
     return ev
@@ -27,7 +27,7 @@ def update_event(db: Session, event_id: str, data, user_id: str, school_id: str 
     for field in ["title", "description", "event_type", "event_date", "end_date", "location"]:
         if getattr(data, field, None) is not None:
             setattr(ev, field, getattr(data, field))
-    log_audit(db, user_id, "UPDATE", "event", ev.id, f"Event '{ev.title}' updated")
+    log_audit(db, user_id, "UPDATE", "event", ev.id, f"Event '{ev.title}' updated", school_id=school_id)
     db.commit()
     db.refresh(ev)
     return ev
@@ -50,5 +50,5 @@ def delete_event(db: Session, event_id: str, user_id: str, school_id: str = None
     ev = q.first()
     if not ev: raise HTTPException(404, "Event not found")
     ev.deleted_at = datetime.now(timezone.utc)
-    log_audit(db, user_id, "DELETE", "event", ev.id, f"Event '{ev.title}' deleted")
+    log_audit(db, user_id, "DELETE", "event", ev.id, f"Event '{ev.title}' deleted", school_id=school_id)
     db.commit()

@@ -131,7 +131,9 @@ def mark_invoice_paid(
     payment_reference: str,
     user_id: str,
 ) -> MonthlyPlatformInvoice:
-    inv = db.query(MonthlyPlatformInvoice).filter(MonthlyPlatformInvoice.id == invoice_id).first()
+    # Concurrency safety: lock the invoice row so two concurrent webhook
+    # callbacks cannot both see "pending" and double-pay the same invoice.
+    inv = db.query(MonthlyPlatformInvoice).filter(MonthlyPlatformInvoice.id == invoice_id).with_for_update().first()
     if not inv:
         raise PlatformCommissionError("Invoice not found")
     if inv.status == "paid":
@@ -156,7 +158,8 @@ def mark_invoice_paid(
     log_audit(
         db, user_id, "PLATFORM_INVOICE_PAID",
         "monthly_platform_invoices", inv.id,
-        f"Invoice {inv.invoice_number} paid: {inv.total_amount} ETB, {inv.transaction_count} transactions"
+        f"Invoice {inv.invoice_number} paid: {inv.total_amount} ETB, {inv.transaction_count} transactions",
+        school_id=inv.school_id,
     )
     return inv
 

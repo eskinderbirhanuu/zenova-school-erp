@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.api.v1.deps import API_RATE_LIMIT
+from app.core.rate_limit import API_RATE_LIMIT
 
 RATE_LIMIT_EXEMPT_PATHS = {
     "/api/v1/auth/login",
@@ -27,6 +27,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             API_RATE_LIMIT(request)
         except HTTPException:
             raise
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Rate limit check failed: %s", e)
         return await call_next(request)

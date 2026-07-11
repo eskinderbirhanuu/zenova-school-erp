@@ -26,7 +26,10 @@ def create_teacher(
     created_by: str | None = None,
 ) -> dict:
     """Create teacher (User + TeacherProfile)"""
-    existing = db.query(User).filter(User.email == email).first()
+    q = db.query(User).filter(User.email == email)
+    if school_id:
+        q = q.filter(User.school_id == school_id)
+    existing = q.first()
     if existing:
         raise ValueError("Email already exists")
 
@@ -64,6 +67,7 @@ def create_teacher(
         action="TEACHER_CREATED",
         new_data={"email": email, "full_name": full_name, "teacher_id": teacher_id},
         user_id=created_by,
+        school_id=school_id,
     )
     db.commit()
     db.refresh(user)
@@ -106,11 +110,14 @@ def assign_section(db: Session, teacher_id: str, section_id: str, school_id: str
     return assignment
 
 
-def remove_grade_assignment(db: Session, teacher_id: str, grade_id: str) -> bool:
-    assignment = db.query(TeacherGradeAssignment).filter(
+def remove_grade_assignment(db: Session, teacher_id: str, grade_id: str, school_id: str = None) -> bool:
+    q = db.query(TeacherGradeAssignment).filter(
         TeacherGradeAssignment.teacher_id == teacher_id,
         TeacherGradeAssignment.grade_id == grade_id,
-    ).first()
+    )
+    if school_id:
+        q = q.filter(TeacherGradeAssignment.school_id == school_id)
+    assignment = q.first()
     if not assignment:
         return False
     assignment.deleted_at = datetime.now(timezone.utc)
@@ -118,11 +125,14 @@ def remove_grade_assignment(db: Session, teacher_id: str, grade_id: str) -> bool
     return True
 
 
-def remove_section_assignment(db: Session, teacher_id: str, section_id: str) -> bool:
-    assignment = db.query(TeacherSectionAssignment).filter(
+def remove_section_assignment(db: Session, teacher_id: str, section_id: str, school_id: str = None) -> bool:
+    q = db.query(TeacherSectionAssignment).filter(
         TeacherSectionAssignment.teacher_id == teacher_id,
         TeacherSectionAssignment.section_id == section_id,
-    ).first()
+    )
+    if school_id:
+        q = q.filter(TeacherSectionAssignment.school_id == school_id)
+    assignment = q.first()
     if not assignment:
         return False
     assignment.deleted_at = datetime.now(timezone.utc)
@@ -179,7 +189,10 @@ def update_teacher_profile(
     if full_name is not None:
         user.full_name = full_name
     if email is not None:
-        existing = db.query(User).filter(User.email == email, User.id != user.id).first()
+        existing_q = db.query(User).filter(User.email == email, User.id != user.id)
+        if school_id:
+            existing_q = existing_q.filter(User.school_id == school_id)
+        existing = existing_q.first()
         if existing:
             raise ValueError("Email already in use")
         user.email = email
@@ -197,6 +210,7 @@ def update_teacher_profile(
         action="TEACHER_UPDATED",
         new_data={"teacher_id": teacher_id},
         user_id=profile.user_id,
+        school_id=school_id,
     )
     db.commit()
     db.refresh(user)

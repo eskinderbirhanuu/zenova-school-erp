@@ -10,7 +10,7 @@ JWT-based authentication with HttpOnly cookies:
 - Rate limiting on login endpoint via Redis
 
 ### Known Issues
-- Token blacklist called on creation (tokens invalidated immediately) — **CRITICAL BUG** in `auth.py`
+- Token blacklist only used on logout (tokens not invalidated on creation — design choice)
 - No MFA/2FA for financial or super-admin access
 - No SSO / OAuth integration
 - No device/IP binding on sessions
@@ -60,7 +60,7 @@ Checks `X-Forwarded-For` header first, falls back to `request.client.host`. Priv
 
 ## CORS Configuration
 
-Two CORSMiddleware layers exist in `main.py` — one strict, one wildcard (`"*"`). The wildcard overrides the strict config. **Must fix for production** — restrict to specific origins.
+Single CORSMiddleware using `ALLOWED_ORIGINS` from environment. Restricted to configured origins in production; see `main.py`.
 
 ## Data Protection
 
@@ -88,10 +88,7 @@ Without valid license:
 
 ## Recommendations
 
-1. Remove wildcard CORS (fix contradictory double middleware)
-2. Fix token blacklist-on-creation bug
-3. Implement MFA for financial/super-admin accounts
-4. Add rate limiting on refresh endpoint
-5. Enable HSTS headers
-6. Configure SSL/TLS for production
-7. Unify the two permission systems (`require_role` vs `PermissionChecker`)
+1. Implement MFA for financial/super-admin accounts
+2. Unify the two permission systems (`require_role` vs `PermissionChecker`)
+3. Enable HSTS headers (already sent; needs HTTPS to take effect)
+4. Configure SSL/TLS for production

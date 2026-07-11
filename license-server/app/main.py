@@ -14,10 +14,11 @@ app = FastAPI(
     description="Cloud license management for ZENOVA School ERP",
 )
 
+origins = settings.cors_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=False if "*" in origins else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

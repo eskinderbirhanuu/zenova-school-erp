@@ -62,7 +62,7 @@ Add a rate limit and a CAPTCHA or HMAC token requirement for the public lookup e
 ### Description
 `/parent-payments/create-session` and other payment endpoints accept `amount: float` in the query/path params, even though the database uses `DECIMAL(15,2)`. This can cause precision issues.
 
-### Why It** It Cannot Be Solved Now
+### Why It Cannot Be Solved Now
 The audit prioritized cross-tenant IDOR and permission issues over the float-vs-Decimal contract breach. Updating these endpoints to use `Decimal` in the FastAPI signature requires updating the Pydantic schemas and potentially the frontend integration.
 
 ### Recommended Future Solution

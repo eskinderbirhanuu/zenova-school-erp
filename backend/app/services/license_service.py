@@ -151,6 +151,7 @@ def activate_license(db: Session, key: str, school_id: str, user_id: str = None)
         record_id=license_record.id,
         action="LICENSE_ACTIVATED",
         new_data={"key": key, "school_id": school_id},
+        school_id=school_id,
     )
     db.commit()
 
@@ -205,6 +206,7 @@ def update_license_status(db: Session, license_id: str, status: str, user_id: st
         action="LICENSE_STATUS_CHANGED",
         old_data={"status": old_status},
         new_data={"status": status},
+        school_id=license_record.school_id,
     )
     db.commit()
 
@@ -243,6 +245,7 @@ def create_school(db: Session, name: str, code: str, address: str | None = None,
         record_id=school.id,
         action="SCHOOL_CREATED",
         new_data={"name": name, "code": code},
+        school_id=school.id,
     )
     db.commit()
     db.refresh(school)
@@ -274,6 +277,7 @@ def create_branch(db: Session, school_id: str, name: str, code: str,
         record_id=branch.id,
         action="BRANCH_CREATED",
         new_data={"name": name, "code": code, "school_id": school_id},
+        school_id=school_id,
     )
     db.commit()
     db.refresh(branch)
@@ -317,6 +321,7 @@ def create_setup_admin(db: Session, school_id: str, branch_id: str,
         record_id=admin.id,
         action="SETUP_ADMIN_CREATED",
         new_data={"email": email, "full_name": full_name, "school_id": school_id},
+        school_id=school_id,
     )
     db.commit()
     db.refresh(admin)

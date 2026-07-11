@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class StudentCardResponse(BaseModel):
     id: str
     student_id: str
+    school_id: str | None = None
     card_uid: str
     card_tier: str = "standard"
     status: str
@@ -18,6 +19,7 @@ class StudentCardResponse(BaseModel):
 class StaffCardResponse(BaseModel):
     id: str
     staff_profile_id: str
+    school_id: str | None = None
     card_uid: str
     card_tier: str = "standard"
     status: str
@@ -31,6 +33,7 @@ class StaffCardResponse(BaseModel):
 class ParentCardResponse(BaseModel):
     id: str
     parent_id: str
+    school_id: str | None = None
     card_uid: str
     card_tier: str = "standard"
     status: str
@@ -44,6 +47,7 @@ class ParentCardResponse(BaseModel):
 class EmployeeCardResponse(BaseModel):
     id: str
     employee_id: str
+    school_id: str | None = None
     card_uid: str
     card_tier: str = "standard"
     status: str
@@ -99,6 +103,7 @@ class CardPrintRequestResponse(BaseModel):
     id: str
     card_type: str
     reference_id: str
+    school_id: str | None = None
     status: str
     requested_by: str | None
     approved_by: str | None

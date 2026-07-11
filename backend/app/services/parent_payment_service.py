@@ -4,6 +4,7 @@ import json
 import secrets
 import hashlib
 import hmac
+import logging
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
@@ -11,9 +12,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException, status
 
+logger = logging.getLogger(__name__)
+
 from app.database import get_db
 from app.models.invoice import Invoice, InvoiceLine
-from app.models.sync_queue import SyncQueueItem
 from app.models.payment import Payment
 from app.models.receipt import Receipt, ReceiptLine
 from app.models.payment_session import PaymentSession
@@ -70,7 +72,10 @@ def get_parent_children_invoices(db: Session, parent_id: str, school_id: str) ->
 
     result = []
     for inv in invoices:
-        student = db.query(Student).filter(Student.id == inv.student_id).first()
+        student = db.query(Student).filter(
+            Student.id == inv.student_id,
+            Student.school_id == school_id
+        ).first()
         lines = db.query(InvoiceLine).filter(InvoiceLine.invoice_id == inv.id).all()
         result.append({
             "id": inv.id,
@@ -100,7 +105,10 @@ def get_parent_dashboard(db: Session, parent_id: str, school_id: str) -> Dict:
     total_paid = Decimal("0")
 
     for sid in student_ids:
-        student = db.query(Student).filter(Student.id == sid).first()
+        student = db.query(Student).filter(
+            Student.id == sid,
+            Student.school_id == school_id
+        ).first()
         if not student:
             continue
 
@@ -224,21 +232,26 @@ def process_chapa_payment(
     chapa_response: Dict[str, Any]
 ) -> Payment:
     """Process Chapa payment callback."""
+    # Concurrency safety: lock the payment session row so two concurrent
+    # webhook callbacks cannot both see "pending" and create duplicate payments.
     session = db.query(PaymentSession).filter(
         PaymentSession.session_id == session_id
-    ).first()
+    ).with_for_update().first()
     if not session:
         raise PaymentError("Payment session not found")
 
     if session.status != "pending":
         raise PaymentError(f"Payment session is already {session.status}")
 
-    # Verify Chapa signature
-    if not _verify_chapa_signature(chapa_response):
+    # Validate Chapa response fields
+    if not _validate_chapa_response(chapa_response):
         raise PaymentError("Invalid Chapa signature")
 
-    # Idempotency: check if payment already exists for this session
-    existing = db.query(Payment).filter(Payment.reference == chapa_response.get("reference")).first()
+    # Idempotency: check if payment already exists for this Chapa reference
+    existing = db.query(Payment).filter(
+        Payment.reference == chapa_response.get("reference"),
+        Payment.school_id == session.school_id
+    ).with_for_update().first()
     if existing:
         raise PaymentError(f"Payment already processed: {existing.payment_number}")
 
@@ -263,10 +276,14 @@ def process_chapa_payment(
         received_by="system",  # Webhook is system-initiated
     )
     db.add(payment)
+    db.flush()
 
-    # Update invoice
+    # Update invoice with concurrency lock
     if session.invoice_id:
-        invoice = db.query(Invoice).filter(Invoice.id == session.invoice_id).first()
+        invoice = db.query(Invoice).filter(
+            Invoice.id == session.invoice_id,
+            Invoice.school_id == session.school_id
+        ).with_for_update().first()
         if invoice:
             invoice.paid_amount += session.amount
             if invoice.paid_amount >= invoice.total_amount:
@@ -280,9 +297,7 @@ def process_chapa_payment(
     # Create journal entry
     _create_payment_journal_entry(db, payment, session.school_id)
 
-    db.commit()
-
-    # Record platform commission
+    # Record platform commission (log but don't fail the payment on error)
     try:
         from app.services.platform_commission_service import record_transaction, record_platform_fee
         txn = record_transaction(
@@ -296,8 +311,10 @@ def process_chapa_payment(
             transaction_reference=payment.reference,
         )
         record_platform_fee(db, txn)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Platform commission recording failed for payment %s: %s", payment.id, exc)
+
+    db.commit()
 
     # Log audit
     log_audit(
@@ -306,14 +323,15 @@ def process_chapa_payment(
         "PAYMENT_RECEIVED",
         "payment",
         payment.id,
-        f"Payment {payment.payment_number} received via Chapa: {payment.amount} ETB"
+        f"Payment {payment.payment_number} received via Chapa: {payment.amount} ETB",
+        school_id=payment.school_id,
     )
 
     return payment
 
 
-def _verify_chapa_signature(payload: Dict[str, Any]) -> bool:
-    """Verify Chapa transaction data has expected fields."""
+def _validate_chapa_response(payload: Dict[str, Any]) -> bool:
+    """Validate Chapa response has required fields and a known status (HMAC verified upstream)."""
     required = ["tx_ref", "status", "reference"]
     if not all(k in payload for k in required):
         return False
@@ -415,18 +433,24 @@ def request_refund(
     payment_id: str,
     amount: Decimal,
     reason: str,
-    requested_by: str
+    requested_by: str,
+    school_id: str | None = None,
 ) -> Refund:
     """Request a refund for a payment."""
-    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    # Concurrency safety: lock the payment row so two concurrent refund
+    # requests cannot both pass the "existing refund" check.
+    payment = db.query(Payment).filter(Payment.id == payment_id)
+    if school_id is not None:
+        payment = payment.filter(Payment.school_id == school_id)
+    payment = payment.with_for_update().first()
     if not payment:
         raise PaymentError("Payment not found")
 
-    # Check if refund already exists
+    # Check if refund already exists (locked row prevents race)
     existing = db.query(Refund).filter(
         Refund.payment_id == payment_id,
         Refund.status.in_(['pending', 'approved'])
-    ).first()
+    ).with_for_update().first()
     if existing:
         raise PaymentError("Refund already requested for this payment")
 
@@ -452,12 +476,12 @@ def request_refund(
     return refund
 
 
-def approve_refund(db: Session, refund_id: str, approved_by: str, school_id: str | None = None) -> Refund:
+def approve_refund(db: Session, refund_id: str, approved_by: str, school_id: str) -> Refund:
     """Approve a refund request."""
-    refund = db.query(Refund).filter(Refund.id == refund_id)
-    if school_id is not None:
-        refund = refund.filter(Refund.school_id == school_id)
-    refund = refund.first()
+    refund = db.query(Refund).filter(
+        Refund.id == refund_id,
+        Refund.school_id == school_id
+    ).first()
     if not refund:
         raise PaymentError("Refund not found")
     if refund.status != "pending":
@@ -472,12 +496,12 @@ def approve_refund(db: Session, refund_id: str, approved_by: str, school_id: str
     return refund
 
 
-def process_refund(db: Session, refund_id: str, processed_by: str, school_id: str | None = None) -> Refund:
+def process_refund(db: Session, refund_id: str, processed_by: str, school_id: str) -> Refund:
     """Process an approved refund."""
-    refund = db.query(Refund).filter(Refund.id == refund_id)
-    if school_id is not None:
-        refund = refund.filter(Refund.school_id == school_id)
-    refund = refund.first()
+    refund = db.query(Refund).filter(
+        Refund.id == refund_id,
+        Refund.school_id == school_id
+    ).first()
     if not refund:
         raise PaymentError("Refund not found")
     if refund.status != "approved":
@@ -490,7 +514,8 @@ def process_refund(db: Session, refund_id: str, processed_by: str, school_id: st
     # Cancel associated receipt
     receipt = db.query(Receipt).filter(
         Receipt.payment_id == refund.payment_id,
-        Receipt.status == "active"
+        Receipt.status == "active",
+        Receipt.school_id == school_id
     ).first()
     if receipt:
         receipt.status = "cancelled"
@@ -498,7 +523,10 @@ def process_refund(db: Session, refund_id: str, processed_by: str, school_id: st
 
     # Update invoice if applicable
     if refund.invoice_id:
-        invoice = db.query(Invoice).filter(Invoice.id == refund.invoice_id).first()
+        invoice = db.query(Invoice).filter(
+            Invoice.id == refund.invoice_id,
+            Invoice.school_id == school_id
+        ).first()
         if invoice:
             invoice.paid_amount -= refund.amount
             if invoice.paid_amount <= 0:
@@ -521,6 +549,9 @@ def get_receipt_by_id(db: Session, receipt_id: str, parent_id: str) -> Optional[
     return receipt
 
 
-def get_payment_receipts(db: Session, payment_id: str) -> List[Receipt]:
+def get_payment_receipts(db: Session, payment_id: str, school_id: str) -> List[Receipt]:
     """Get all receipts for a payment."""
-    return db.query(Receipt).filter(Receipt.payment_id == payment_id).all()
+    return db.query(Receipt).filter(
+        Receipt.payment_id == payment_id,
+        Receipt.school_id == school_id
+    ).all()

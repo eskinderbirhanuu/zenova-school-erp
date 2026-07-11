@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import api from "@/services/api";
 import {
   CreditCard,
   Receipt,
@@ -44,6 +44,7 @@ interface PaymentHistory {
 
 interface Invoice {
   id: string;
+  student_id: string;
   invoice_number: string;
   student_name: string;
   total_amount: number;
@@ -80,7 +81,7 @@ export default function ParentPaymentsPage() {
       const response = await api.get("/parent-payments/dashboard");
       setDashboard(response.data);
     } catch (error) {
-      toast.error("Failed to load payment dashboard");
+      toast({ title: "Failed to load payment dashboard", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -106,7 +107,7 @@ export default function ParentPaymentsPage() {
         window.location.href = checkout_url;
       }
     } catch (error) {
-      toast.error("Failed to create payment session");
+      toast({ title: "Failed to create payment session", variant: "destructive" });
     }
   };
 
@@ -302,9 +303,9 @@ export default function ParentPaymentsPage() {
                             try {
                               const res = await api.get(`/parent-payments/receipts/${payment.receipt_id}/download`);
                               const receipt = res.data;
-                              toast.success(`Receipt: ${receipt.receipt_number} - ETB ${receipt.amount}`);
+                              toast({ title: `Receipt: ${receipt.receipt_number} - ETB ${receipt.amount}` });
                             } catch {
-                              toast.error("Failed to download receipt");
+                              toast({ title: "Failed to download receipt", variant: "destructive" });
                             }
                           }}
                         >

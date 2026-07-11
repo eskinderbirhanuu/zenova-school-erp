@@ -30,8 +30,21 @@ spec:
           image: redis:7-alpine
           ports:
             - containerPort: 6379
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zenova-secrets
+                  key: REDIS_PASSWORD
+          command:
+            - /bin/sh
+            - -c
+            - exec redis-server --requirepass "$REDIS_PASSWORD" --appendonly yes
           readinessProbe:
             exec:
-              command: ["redis-cli", "ping"]
+              command:
+                - sh
+                - -c
+                - redis-cli -a "$REDIS_PASSWORD" ping
             initialDelaySeconds: 5
             periodSeconds: 5

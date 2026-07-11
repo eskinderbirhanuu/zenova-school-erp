@@ -9,7 +9,7 @@ from app.core.audit import log_audit
 def create_category(db: Session, school_id: str, data, user_id: str):
     c = BookCategory(name=data.name, school_id=school_id)
     db.add(c)
-    log_audit(db, user_id, "BOOK_CATEGORY_CREATED", "book_category", c.id, f"Category '{data.name}'")
+    log_audit(db, user_id, "BOOK_CATEGORY_CREATED", "book_category", c.id, f"Category '{data.name}'", school_id=school_id)
     db.commit()
     db.refresh(c)
     return c
@@ -27,7 +27,7 @@ def create_book(db: Session, school_id: str, data, user_id: str):
              year=data.year, category_id=data.category_id, total_quantity=data.total_quantity,
              available_quantity=data.total_quantity, shelf_location=data.shelf_location, school_id=school_id)
     db.add(b)
-    log_audit(db, user_id, "BOOK_CREATED", "book", b.id, f"Book '{data.title}'")
+    log_audit(db, user_id, "BOOK_CREATED", "book", b.id, f"Book '{data.title}'", school_id=school_id)
     db.commit()
     db.refresh(b)
     return b
@@ -43,7 +43,7 @@ def update_book(db: Session, book_id: str, data, user_id: str, school_id: str = 
     if data.author is not None: b.author = data.author
     if data.total_quantity is not None: b.total_quantity = data.total_quantity
     if data.shelf_location is not None: b.shelf_location = data.shelf_location
-    log_audit(db, user_id, "BOOK_UPDATED", "book", book_id, f"Book '{b.title}'")
+    log_audit(db, user_id, "BOOK_UPDATED", "book", book_id, f"Book '{b.title}'", school_id=school_id)
     db.commit()
     db.refresh(b)
     return b
@@ -65,7 +65,7 @@ def borrow_book(db: Session, school_id: str, data, user_id: str):
                        due_date=data.due_date, status="borrowed", school_id=school_id, created_by=user_id)
     book.available_quantity -= 1
     db.add(br)
-    log_audit(db, user_id, "BOOK_BORROWED", "book_borrowing", br.id, f"Book '{book.title}' borrowed")
+    log_audit(db, user_id, "BOOK_BORROWED", "book_borrowing", br.id, f"Book '{book.title}' borrowed", school_id=school_id)
     db.commit()
     db.refresh(br)
     return br
@@ -85,7 +85,7 @@ def return_book(db: Session, borrowing_id: str, user_id: str, school_id: str = N
         q_book = q_book.filter(Book.school_id == school_id)
     book = q_book.first()
     if book: book.available_quantity += 1
-    log_audit(db, user_id, "BOOK_RETURNED", "book_borrowing", borrowing_id, "Book returned")
+    log_audit(db, user_id, "BOOK_RETURNED", "book_borrowing", borrowing_id, "Book returned", school_id=school_id)
     db.commit()
     return br
 

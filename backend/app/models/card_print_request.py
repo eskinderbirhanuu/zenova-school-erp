@@ -10,6 +10,7 @@ class CardPrintRequest(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     card_type = Column(String(20), nullable=False)
     reference_id = Column(String(36), nullable=False)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=True, index=True)
     status = Column(String(20), default="pending")
     requested_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)

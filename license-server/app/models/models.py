@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, Float, Integer, Text
+from sqlalchemy import Column, String, Boolean, DateTime, Float, Integer, Text, Numeric
 from app.database import Base
 import enum
 
@@ -25,6 +25,7 @@ class School(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
     address = Column(Text, nullable=True)
     city = Column(String(100), nullable=True)
@@ -74,7 +75,7 @@ class Subscription(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     school_id = Column(String(36), nullable=False, index=True)
     tier = Column(String(50), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(15, 2), nullable=False)
     currency = Column(String(3), default="ETB")
     interval = Column(String(20), default="monthly")
     start_date = Column(DateTime, nullable=False)

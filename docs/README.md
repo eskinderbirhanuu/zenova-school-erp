@@ -12,7 +12,7 @@ cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 cd frontend && npm run dev
 
 # Seed demo data (after backend is up)
-cd backend && python seed_demo.py
+cd backend && python scripts/seed_demo.py
 ```
 
 ## URLs
@@ -29,19 +29,12 @@ cd backend && python seed_demo.py
 
 | Role | Email | Password |
 |------|-------|----------|
-| Super Admin | super@zenova.app | admin123 |
-| Admin | admin@zenova.app | demo123 |
-| Director | director@zenova.app | demo123 |
-| Registrar | registrar@zenova.app | demo123 |
-| Teacher | teacher@zenova.app | demo123 |
-| Finance | finance@zenova.app | demo123 |
-| HR | hr@zenova.app | demo123 |
-| Inventory | inventory@zenova.app | demo123 |
-| Library | library@zenova.app | demo123 |
-| Cafeteria | cafe@zenova.app | demo123 |
-| Parent | parent@zenova.app | demo123 |
-| Student | student@zenova.app | demo123 |
-| Auditor | auditor@zenova.app | demo123 |
+| Super Admin | eskinderbirhanuu@gmail.com | Zenova@2026Admin! |
+| Demo Teachers | firstname.lastname@zenova.demo | test1234 |
+| Demo Staff | position.name@zenova.demo | test1234 |
+| Demo Parents | parent.lastnameN@zenova.demo | test1234 |
+
+Run `python scripts/seed_demo.py` to create all demo accounts (dynamic per-role emails).
 
 ## Demo Licenses
 
@@ -60,10 +53,10 @@ cd backend && python seed_demo.py
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python FastAPI 0.111.0 |
-| ORM | SQLAlchemy 2.0.31 |
+| Backend | Python FastAPI 0.115.6 |
+| ORM | SQLAlchemy 2.0.36 |
 | Database | PostgreSQL 16 (psycopg2) |
-| Migrations | Alembic 1.13.2 |
+| Migrations | Alembic 1.14.1 |
 | Auth | JWT (python-jose) + bcrypt (passlib) |
 | Cache | Redis 7 |
 | Frontend | Next.js 16.2.9 (webpack WASM fallback) |
@@ -100,12 +93,12 @@ Analysis-only documentation produced for DeepSeek V4 Flash to implement. No code
 |-----|-------------|
 | [AI_ANALYSIS.md](AI_ANALYSIS.md) | Master analysis: 18 prioritized issues with severity, complexity, impact |
 | [SECURITY_AUDIT.md](SECURITY_AUDIT.md) | Vulnerabilities, attack scenarios, fixes (Critical → Low) |
-| [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) | Tenancy, sync, offline-first, scalability, RLS recommendation |
+| [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW_2026-06-30_GLM.md) | Tenancy, sync, offline-first, scalability, RLS recommendation |
 | [PERFORMANCE_AUDIT.md](PERFORMANCE_AUDIT.md) | 12 bottlenecks: N+1, COUNT-based numbers, single worker, indexes |
 | [CODE_IMPROVEMENTS.md](CODE_IMPROVEMENTS.md) | 15 refactoring opportunities with risks |
 | [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) | 20-item debt register |
 | [DEEPSEEK_TASKS.md](DEEPSEEK_TASKS.md) | 26 step-by-step tasks (P0→P3) for implementation |
-| [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) | Go/no-go: score 5.5/10, blockers, deploy checklist |
+| [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) | Go/no-go: score 7.7/10, blockers resolved, deploy checklist |
 
 ## Security Documentation (2026-07-05)
 
@@ -138,6 +131,6 @@ Anti-piracy and source protection architecture across 18 defense layers.
 ## Known Issues
 
 - SWC binary (`@next/swc-win32-x64-msvc`) incompatible; falls back to WASM
-- Docker Desktop unavailable; using direct PostgreSQL 16 + uvicorn
 - Next.js compilation slow on first request (WASM fallback)
-- Windows Firewall blocks external access on Public networks
+- No automated PII encryption at rest
+- No DB-level Row-Level Security (tenancy enforced in app code only)

@@ -118,4 +118,4 @@ alembic upgrade head
 alembic current  # Verify head
 ```
 
-Current head: `775f276ecad9` (add_archive_tables)
+Current head: `c5d6e7f8a0b1` (add_school_id_to_card_print_requests)

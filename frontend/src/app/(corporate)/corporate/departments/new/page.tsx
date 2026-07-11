@@ -53,7 +53,7 @@ export default function NewDepartmentPage() {
           </div>
           <div className="space-y-1.5">
             <Label>Description</Label>
-            <Textarea value={form.description} onChange={e => handleChange("description", e.target.value)} placeholder="Department description..." />
+            <Textarea value={form.description} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange("description", e.target.value)} placeholder="Department description..." />
           </div>
           <div className="flex gap-4 pt-4">
             <Button onClick={doSave} disabled={saving}>{saving ? "Saving..." : "Create Department"}</Button>

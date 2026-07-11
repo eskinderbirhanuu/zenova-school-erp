@@ -1,12 +1,12 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.deps import get_current_user
 from app.models.user import User
 from app.models.school_settings import SchoolSettings
 from app.core.permissions import require_permission, Permission
+from app.schemas.settings import SchoolSettingsUpdate
 
 router = APIRouter(tags=["settings"])
 
@@ -25,7 +25,7 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(get
 
 @router.put("/settings")
 def update_settings(
-    data: dict,
+    data: SchoolSettingsUpdate,
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
@@ -37,7 +37,7 @@ def update_settings(
     if not settings:
         settings = SchoolSettings(school_id=current_user.school_id)
         db.add(settings)
-    settings.settings_json = json.dumps(data.get("settings", data))
+    settings.settings_json = json.dumps(data.settings.model_dump(exclude_none=True))
     db.commit()
     db.refresh(settings)
     return {"message": "Settings saved", "settings": json.loads(settings.settings_json)}

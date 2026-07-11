@@ -79,6 +79,7 @@ def create_staff(
         action="STAFF_CREATED",
         new_data={"email": email, "full_name": full_name, "staff_id": staff_id, "role": role_name},
         user_id=created_by,
+        school_id=school_id,
     )
     db.commit()
     db.refresh(user)
@@ -175,7 +176,7 @@ def update_staff(db: Session, profile_id: str, school_id: str, data, user_id: st
         profile.department = data.department
     if data.employment_date is not None:
         profile.employment_date = data.employment_date
-    log_audit(db, user_id, "STAFF_UPDATED", "staff_profiles", profile.id, f"Updated {user.full_name}")
+    log_audit(db, user_id, "STAFF_UPDATED", "staff_profiles", profile.id, f"Updated {user.full_name}", school_id=school_id)
     db.commit()
     db.refresh(user)
     db.refresh(profile)
@@ -207,6 +208,6 @@ def deactivate_staff(db: Session, profile_id: str, school_id: str, user_id: str,
     if not user:
         raise HTTPException(404, "Staff not found in this school")
     user.is_active = False
-    log_audit(db, user_id, "STAFF_DEACTIVATED", "users", user.id, f"Deactivated {user.full_name}")
+    log_audit(db, user_id, "STAFF_DEACTIVATED", "users", user.id, f"Deactivated {user.full_name}", school_id=school_id)
     db.commit()
     return {"ok": True}

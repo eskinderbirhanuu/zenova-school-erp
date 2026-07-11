@@ -15,7 +15,7 @@ router = APIRouter(tags=["iga"])
 @router.get("/iga/metrics")
 def iga_metrics(
     db: Session = Depends(get_db),
-    current_user: User = require_permission(Permission.AUDIT_VIEW),
+    current_user: User = require_permission(Permission.INFRASTRUCTURE_VIEW),
 ):
     summary = get_iga_summary(db)
     return summary
@@ -24,7 +24,7 @@ def iga_metrics(
 @router.get("/iga/health-summary")
 def iga_health_summary(
     db: Session = Depends(get_db),
-    current_user: User = require_permission(Permission.AUDIT_VIEW),
+    current_user: User = require_permission(Permission.INFRASTRUCTURE_VIEW),
 ):
     from app.core import server_identity
 

@@ -59,7 +59,7 @@ ZENOVA/
 │   │   └── utils/               # Grading, helpers
 │   ├── requirements.txt
 │   ├── alembic.ini
-│   └── seed_demo.py
+│   └── scripts/seed_demo.py
 ├── frontend/
 │   ├── src/app/
 │   │   ├── (public)/            # Login, activate, about

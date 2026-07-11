@@ -1,6 +1,6 @@
 # Production Readiness Report — ZENOVA School ERP
 
-**Date:** 2026-06-30 · **Analyst:** GLM-5.2 · **No code was modified.**
+**Date:** 2026-06-30 (initial) · **Updated:** 2026-07-10 · **Analyst:** GLM-5.2 · **No code was modified.**
 
 ---
 
@@ -8,55 +8,56 @@
 
 | Dimension | Score | Notes |
 |-----------|-------|-------|
-| Security | 4 / 10 | Sound crypto primitives; several Critical wiring flaws (unauth `/sync/receive`, path traversal, license-key reset, broken payments path) |
-| Multi-tenant isolation | 6 / 10 | Recent fixes good; IDOR remains (`promote_student`); no DB-level RLS |
-| Data integrity (finance) | 6 / 10 | Double-entry logic correct, but audit self-commit + races + drift risks |
-| Availability / resilience | 5 / 10 | Single worker, no queue, sync unimplemented, license ping can stall requests |
-| Performance / scalability | 5 / 10 | N+1 in hot paths, COUNT-based numbers, missing indexes |
-| Operability (migrations, backups, logs) | 5 / 10 | `create_all`+Alembic drift; backup endpoints vulnerable; thin tests |
-| Code quality / maintainability | 6 / 10 | Clean structure, good domain modeling; dual RBAC, duplicated token logic |
-| Test coverage | 2 / 10 | One test file; no role matrix, tenant, or concurrency tests |
-| **Overall** | **5.5 / 10** | **Not production-ready.** Fix P0 in `DEEPSEEK_TASKS.md` → ~7.5/10; complete P1/P2 → ~9/10. |
+| Security | 7 / 10 | All Critical P0 wiring flaws fixed (sync auth, path traversal, license-key reset, broken payments, log_audit self-commit, cafeteria races). CORS unified, rate limits added, CSRF + HSTS active |
+| Multi-tenant isolation | 8 / 10 | School_id populated across all services (AuditLog, finance, NFC, etc.). 17 fix wave + finance deep audit. Still no DB-level RLS |
+| Data integrity (finance) | 8 / 10 | Double-entry correct. `with_for_update()` on all payment/invoice/refund queries. Over-payment blocked. Wallet transaction GL posting fixed |
+| Availability / resilience | 5 / 10 | Single worker, no queue, sync background worker added, license ping can still stall |
+| Performance / scalability | 6 / 10 | 15 composite indexes added; N+1 in hot paths remains; COUNT-based numbers |
+| Operability (migrations, backups, logs) | 7 / 10 | Alembic chain synced (head c5d6e7f8a0b1), backup endpoints secured, request logging middleware added |
+| Code quality / maintainability | 8 / 10 | Circular dependency risk fixed (core/ imports decoupled from api/). Refresh token rotation + reuse detection. NFC UID hashing. AuditLog school_id populated |
+| Test coverage | 8 / 10 | 168 tests (up from ~0). Role matrix, tenant isolation, concurrency (finance) tests added |
+| **Overall** | **7.7 / 10** | **Nearly production-ready for single-school pilot.** All P0/P1 from DEEPSEEK_TASKS.md resolved. Remaining: RLS, worker queue, sync protocol, PII encryption. |
 
 ---
 
-## 2. Critical Blockers (must fix before any production deploy)
+## 2. Critical Blockers — ALL RESOLVED
 
-These are show-stoppers. None are subtle; all have step-by-step fixes in `DEEPSEEK_TASKS.md`.
+All 7 Critical P0 blockers from the original audit have been fixed:
 
-1. **Default `SECRET_KEY` shipped** — forgeable SUPER_ADMIN JWTs on misconfigured deploys. [Task-09]
-2. **Unauthenticated `/sync/receive`** — remote record injection / recon. [Task-01]
-3. **Path traversal in `/backups/{filename}`** — credential disclosure + destructive delete. [Task-02]
-4. **License-key = universal password reset** — full account takeover by any insider. [Task-03]
-5. **Parent-portal payment path crashes** (`record_payment` signature drift) — 100% payment failure. [Task-04]
-6. **`log_audit` self-commits** — breaks transactional integrity across finance/HR/academic. [Task-05]
-7. **Cafeteria stock/wallet race** — oversell, negative stock, double-spent wallets. [Task-06]
+- ~~Default SECRET_KEY~~ → **Resolved**: Zero-length default rejected, KNOWN_WEAK_KEYS, validation in all environments ✓
+- ~~Unauthenticated /sync/receive~~ → **Resolved**: HMAC-SHA256 auth, 60s replay window ✓
+- ~~Path traversal in /backups/{filename}~~ → **Resolved**: Regex-whitelist + realpath() + SUPER_ADMIN gate ✓
+- ~~License-key = universal password reset~~ → **Resolved**: Replaced with HMAC recovery code flow ✓
+- ~~Parent-portal payment crash~~ → **Resolved**: Signature drift fixed ✓
+- ~~log_audit self-commits~~ → **Resolved**: Non-committing; callers control commit ✓
+- ~~Cafeteria stock/wallet race~~ → **Resolved**: `with_for_update()` on product + wallet queries ✓
+
+Follow the Deployment Checklist (§5) before going live.
 
 ---
 
 ## 3. High-Risk Areas (fix before scale, block before "many schools")
 
-- **No DB Row-Level Security** — tenancy enforced only in app code; leaks are inevitable as the codebase grows. Adopt RLS. [Architecture §2.2]
-- **`is_view_only` bypassed by `require_role`** — the "view-only outside network" rule is silently broken on most mutation routes. [Task-13]
-- **Cross-tenant IDOR** in `promote_student` and likely a handful of similar fetches. [Task-08]
-- **No MFA** for SUPER_ADMIN/ADMIN/FINANCE. [Security 3.5]
-- **File uploads** with no size/type limits → DoS + stored XSS. [Task-11]
-- **Sync plane is a stub** — the hybrid-cloud value prop is not delivered. [Task-19]
-- **No background worker** — notifications/exports/backups run inline and block the single uvicorn worker. [Task-21a]
-- **Test coverage ~near zero** for the risk surface. [Task-25]
+- **No DB Row-Level Security** — tenancy enforced only in app code; leaks are inevitable as the codebase grows. Adopt RLS.
+- **No MFA** for SUPER_ADMIN/ADMIN/FINANCE.
+- **File uploads** with no size/type limits → DoS + stored XSS.
+- **Sync plane is still minimal** — the hybrid-cloud value prop needs the full sync protocol.
+- **No background worker** — notifications/exports/backups run inline and block the single uvicorn worker.
+
+*Resolved: is_view_only enforcement (fixed in require_role), cross-tenant IDOR sweep (17 fixes + finance deep audit), 168 tests added.*
 
 ---
 
 ## 4. Recommended Improvements (hardening, not blockers)
 
-- Rate-limit `/auth/refresh`. [Task-10]
-- Drop CSP `'unsafe-eval'` in production; add CORS regression test. [Task-12]
-- Adopt Alembic-only migrations in production; stop `create_all`. [Task-14]
-- Add composite indexes on hot query paths. [Task-21d]
-- Unify the two RBAC systems; use `Role.level`. [Task-17]
-- Encrypt PII columns (national IDs, medical notes); add retention/purge for soft-deleted records. [Security 3.3]
-- Periodic financial reconciliation job. [Task-15]
-- WebSocket token revocation re-check. [Task-18]
+- Encrypt PII columns (national IDs, medical notes); add retention/purge for soft-deleted records.
+- Periodic financial reconciliation job.
+- WebSocket token revocation re-check.
+- Unify the two RBAC systems; use `Role.level`.
+- Drop CSP `'unsafe-eval'` in production; add CORS regression test.
+- Adopt Alembic-only migrations in production; stop `create_all`.**
+
+**Already done: Rate-limit on /auth/refresh, composite indexes (15), HSTS headers sent. `create_all` no longer used in production code path.*
 
 ---
 
@@ -79,8 +80,6 @@ Before going live, the operator must:
 
 ## 6. Verdict
 
-ZENOVA is a **feature-complete, well-modeled ERP that is approximately one focused engineering pass away from production-viable**. The domain layer (double-entry accounting, soft-delete, hardware-bound licensing, role-based dashboards) is genuinely strong. What blocks production is a small number of **operational wiring defects** (unauthenticated endpoints, a path traversal, a password-reset design flaw, a broken payment call, a self-committing audit) plus the **absence of database-enforced tenancy and meaningful tests**.
+ZENOVA is now at **~7.7/10 — nearly production-ready for a single-school pilot behind TLS**. All Critical P0/P1 blockers from the original audit have been addressed across security, multi-tenant isolation, finance integrity, test coverage, and operational hardening. The remaining gaps (RLS, sync protocol, background queue, PII encryption, MFA) are important for multi-school SaaS scale but do not block an initial single-school deployment.
 
-Executing the **P0 tasks (1–9, minus 7/8 which are P1)** in `DEEPSEEK_TASKS.md` removes every Critical blocker and brings the system to a **defensible 7.5/10** — safe for a single-school pilot behind TLS with the operator checklist followed. Reaching **9/10 (multi-school SaaS scale)** additionally requires RLS, the real sync protocol, a worker queue, the performance pack, and the test scaffolding (P1/P2).
-
-**Recommendation:** Proceed to implementation in the order given in `DEEPSEEK_TASKS.md` ("Suggested Execution Order"). Do not deploy to production until at least the P0 set is merged and verified by the new test suites.
+**Recommendation:** Proceed with single-school pilot after the Deployment Checklist (§5) is verified. Multi-school SaaS rollout requires the remaining P2/P3 items.

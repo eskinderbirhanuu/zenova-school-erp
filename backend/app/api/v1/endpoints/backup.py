@@ -56,7 +56,8 @@ def download_backup(
     if not os.path.exists(filepath):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Backup file not found")
     log_audit(db, current_user.id, "BACKUP_DOWNLOADED", "backup", filename,
-              ip_address=get_client_ip(request), user_agent=request.headers.get("user-agent"))
+              ip_address=get_client_ip(request), user_agent=request.headers.get("user-agent"),
+              school_id=current_user.school_id)
     db.commit()
     return FileResponse(filepath, filename=filename, media_type="application/octet-stream")
 
@@ -71,6 +72,7 @@ def delete_backup(
     _safe_path(filename)
     backup_service.delete_backup(filename)
     log_audit(db, current_user.id, "BACKUP_DELETED", "backup", filename,
-              ip_address=get_client_ip(request), user_agent=request.headers.get("user-agent"))
+              ip_address=get_client_ip(request), user_agent=request.headers.get("user-agent"),
+              school_id=current_user.school_id)
     db.commit()
     return {"success": True}

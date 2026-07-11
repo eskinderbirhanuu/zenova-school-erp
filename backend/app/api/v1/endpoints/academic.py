@@ -31,9 +31,15 @@ DIRECTOR_ONLY = [require_permission(Permission.TEACHER_CREATE)]
 
 
 @router.get("/academic-years", response_model=list[AcademicYearResponse])
-def list_academic_years(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_academic_years(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
-    return academic_service.get_academic_years(db, current_user.school_id, include_deleted=include_deleted)
+    result = academic_service.get_academic_years(db, current_user.school_id, include_deleted=include_deleted)
+    return result[skip:skip + limit]
 
 
 @router.post("/academic-years", response_model=AcademicYearResponse, dependencies=DIRECTOR_CREATE)
@@ -52,9 +58,16 @@ def create_semester(data: SemesterCreate, db: Session = Depends(get_db), current
 
 
 @router.get("/semesters", response_model=list[SemesterResponse])
-def list_semesters(academic_year_id: str = Query(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_semesters(
+    academic_year_id: str = Query(...),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
-    return academic_service.get_semesters(db, current_user.school_id, academic_year_id, include_deleted=include_deleted)
+    result = academic_service.get_semesters(db, current_user.school_id, academic_year_id, include_deleted=include_deleted)
+    return result[skip:skip + limit]
 
 
 @router.post("/classes", response_model=ClassGradeResponse, dependencies=DIRECTOR_CREATE)
@@ -63,9 +76,15 @@ def create_class(data: ClassGradeCreate, db: Session = Depends(get_db), current_
 
 
 @router.get("/classes", response_model=list[ClassGradeResponse])
-def list_classes(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_classes(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
-    return academic_service.get_classes(db, current_user.school_id, include_deleted=include_deleted)
+    result = academic_service.get_classes(db, current_user.school_id, include_deleted=include_deleted)
+    return result[skip:skip + limit]
 
 
 @router.patch("/classes/{class_id}", response_model=ClassGradeResponse, dependencies=DIRECTOR_CREATE)
@@ -85,9 +104,16 @@ def create_section(data: SectionCreate, db: Session = Depends(get_db), current_u
 
 
 @router.get("/sections", response_model=list[SectionResponse])
-def list_sections(class_id: str = Query(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_sections(
+    class_id: str = Query(...),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
-    return academic_service.get_sections(db, current_user.school_id, class_id, include_deleted=include_deleted)
+    result = academic_service.get_sections(db, current_user.school_id, class_id, include_deleted=include_deleted)
+    return result[skip:skip + limit]
 
 
 @router.patch("/sections/{section_id}", response_model=SectionResponse, dependencies=DIRECTOR_CREATE)
@@ -107,9 +133,16 @@ def create_subject(data: SubjectCreate, db: Session = Depends(get_db), current_u
 
 
 @router.get("/subjects", response_model=list[SubjectResponse])
-def list_subjects(class_id: str = Query(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_subjects(
+    class_id: str = Query(...),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
-    return academic_service.get_subjects(db, current_user.school_id, class_id, include_deleted=include_deleted)
+    result = academic_service.get_subjects(db, current_user.school_id, class_id, include_deleted=include_deleted)
+    return result[skip:skip + limit]
 
 
 @router.patch("/subjects/{subject_id}", response_model=SubjectResponse, dependencies=DIRECTOR_CREATE)
@@ -129,9 +162,15 @@ def create_classroom(data: ClassroomCreate, db: Session = Depends(get_db), curre
 
 
 @router.get("/classrooms", response_model=list[ClassroomResponse])
-def list_classrooms(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_classrooms(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
-    return academic_service.get_classrooms(db, current_user.school_id, include_deleted=include_deleted)
+    result = academic_service.get_classrooms(db, current_user.school_id, include_deleted=include_deleted)
+    return result[skip:skip + limit]
 
 
 @router.patch("/classrooms/{classroom_id}", response_model=ClassroomResponse, dependencies=DIRECTOR_CREATE)
@@ -162,9 +201,16 @@ def delete_timetable_entry(entry_id: str, db: Session = Depends(get_db), current
 
 
 @router.get("/timetable", response_model=list[TimetableEntryResponse])
-def get_timetable(section_id: str = Query(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def get_timetable(
+    section_id: str = Query(...),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
-    return academic_service.get_timetable(db, current_user.school_id, section_id, include_deleted=include_deleted)
+    result = academic_service.get_timetable(db, current_user.school_id, section_id, include_deleted=include_deleted)
+    return result[skip:skip + limit]
 
 
 @router.get("/timetable/by-teacher", response_model=list[TimetableEntryResponse])

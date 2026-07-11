@@ -388,7 +388,7 @@ TPM ካለ → የፍቃድ መረጃ በTPM ይታሸጋል። TPM ከሌለ �
 2. PostgreSQL 16, Redis 7, Python 3.14, Node.js 22 ያጫኑ
 3. `pip install -r requirements.txt`
 4. `alembic upgrade head`
-5. `python seed_demo.py`
+5. `python scripts/seed_demo.py`
 6. Backend: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
 7. Frontend: `npm install && npm run build && npm start`
 
