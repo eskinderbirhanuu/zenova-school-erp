@@ -10,6 +10,12 @@
 ### License Server Auth
 - **Secured unprotected endpoints**: `POST /verify`, `POST /activate`, `GET /school/{school_id}` now require JWT auth via `get_current_admin` (previously unauthenticated)
 
+### MFA Enforcement
+- **Login flow**: FINANCE and SUPER_ADMIN users without MFA enabled are now rejected at login with `403 — MFA is required for your role`. This enforces enrollment before access
+
+### RBAC
+- **Bulk NFC assign**: Added `require_permission(Permission.CARD_PRINT_ASSIGN)` — previously any authenticated user could call `/nfc/bulk-assign`
+
 ### Testing
 - **Settings schema tests**: Added `tests/test_settings.py` — 5 tests covering known keys, partial updates, unknown key rejection, wrapper rejection, and empty payload
 - **Test suite**: 173/173 pass (up from 168)

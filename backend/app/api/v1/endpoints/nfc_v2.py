@@ -78,7 +78,7 @@ def assign_employee_card(
 def bulk_assign_cards(
     items: list[BulkAssignItem],
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.CARD_PRINT_ASSIGN),
     _: None = Depends(require_licensed_feature("nfc")),
 ):
     result = nfc_v2_service.bulk_assign_cards(
