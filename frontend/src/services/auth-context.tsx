@@ -31,20 +31,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-function setCookie(name: string, value: string, days = 7) {
-  if (typeof document === "undefined") return
-  const expires = new Date(Date.now() + days * 864e5).toUTCString()
-  const secure = window.location.protocol === "https:" ? "Secure" : ""
-  const attrs = [
-    `${name}=${encodeURIComponent(value)}`,
-    `expires=${expires}`,
-    "path=/",
-    "SameSite=Strict",
-    secure,
-  ].filter(Boolean)
-  document.cookie = attrs.join("; ")
-}
-
 function eraseCookie(name: string) {
   if (typeof document === "undefined") return
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Strict`
@@ -73,7 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const normalized = normalizeUser(meRes.data)
     setUser(normalized)
     const role = getRole(meRes.data)
-    setCookie("user_role", role, 7)
     const dashboard = ROLE_DASHBOARD[role]
     if (dashboard && typeof window !== "undefined") {
       window.location.href = dashboard

@@ -174,7 +174,7 @@ def login(
     response.set_cookie(
         key="user_role",
         value=role_name,
-        httponly=False,
+        httponly=True,
         secure=_COOKIE_SECURE,
         samesite="strict",
         path="/",
@@ -336,7 +336,7 @@ def refresh_token(request: Request, response: Response, data: RefreshRequest, db
     response.set_cookie(
         key="user_role",
         value=role_name,
-        httponly=False,
+        httponly=True,
         secure=_COOKIE_SECURE,
         samesite="strict",
         path="/",
