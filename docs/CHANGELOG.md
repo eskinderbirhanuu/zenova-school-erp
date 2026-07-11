@@ -22,6 +22,9 @@
 ### Precision
 - **API float→Decimal cleanup**: Removed `float()` casts from `parent_payments.py`, `parent_portal.py`, `platform_commission.py` endpoints. Changed `chapa_service.initialize_payment` to accept `Decimal` instead of `float`. The API now returns `Decimal` amounts where the DB stores them as DECIMAL
 
+### Anti-Enumeration
+- **Public NFC lookup oracle removed**: Response no longer contains `found` field; unknown cards return same generic message as known cards — preventing UID enumeration (H7)
+
 ### Testing
 - **Settings schema tests**: Added `tests/test_settings.py` — 5 tests covering known keys, partial updates, unknown key rejection, wrapper rejection, and empty payload
 - **Test suite**: 173/173 pass (up from 168)
