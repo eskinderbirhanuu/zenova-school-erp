@@ -68,7 +68,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 - ✅ `user_role` cookie made HttpOnly; redundant frontend cookie set removed
 - ✅ Pagination applied to purchase-requests, purchase-orders endpoints
 
-**Still Open**: H3 (frontend caching), H5 (API integration tests), H6 (E2E tests), and M2–M3, M5–M7, M9–M14 medium items
+**Still Open**: H3 (frontend caching), H5 (API integration tests), H6 (E2E tests), and M3, M5–M7, M10–M14 medium items
 
 ---
 
@@ -99,14 +99,14 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 | # | Issue |
 |---|-------|
 | M1 | N+1 query risk — no eager loading | ✅ Fixed |
-| M2 | ~10 audit calls still missing school_id |
+| M2 | ~10 audit calls still missing school_id | ⚡ Verified — only 1 was missing, now fixed |
 | M3 | No React Hook Form for form management |
 | M4 | No CI/CD pipeline defined | ✅ Fixed |
 | M5 | No monitoring/Observability stack |
 | M6 | No developer onboarding guide |
 | M7 | No operator/SRE runbook |
 | M8 | `user_role` in non-HttpOnly cookie (UX integrity) | ✅ Fixed |
-| M9 | No API response caching |
+| M9 | No API response caching | ✅ Fixed — Cache-Control set by SecurityHeadersMiddleware |
 | M10 | license-server uses SQLite |
 | M11 | Employee cards no school_id (inherited from global corporate) |
 | M12 | No payment gateway abstraction |
