@@ -16,6 +16,12 @@
 ### RBAC
 - **Bulk NFC assign**: Added `require_permission(Permission.CARD_PRINT_ASSIGN)` — previously any authenticated user could call `/nfc/bulk-assign`
 
+### Card UID Uniqueness
+- **Cross-table UID dedup**: Added `_ensure_unique_card_uid()` helper that checks all 4 card tables before assignment — prevents the same UID from being registered on different card types
+
+### Precision
+- **API float→Decimal cleanup**: Removed `float()` casts from `parent_payments.py`, `parent_portal.py`, `platform_commission.py` endpoints. Changed `chapa_service.initialize_payment` to accept `Decimal` instead of `float`. The API now returns `Decimal` amounts where the DB stores them as DECIMAL
+
 ### Testing
 - **Settings schema tests**: Added `tests/test_settings.py` — 5 tests covering known keys, partial updates, unknown key rejection, wrapper rejection, and empty payload
 - **Test suite**: 173/173 pass (up from 168)

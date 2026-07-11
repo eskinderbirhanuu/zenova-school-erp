@@ -75,7 +75,7 @@ def parent_invoices(
 @router.post("/parent-payments/create-session")
 def create_payment_session_endpoint(
     student_id: str,
-    amount: float,
+    amount: Decimal,
     payment_method: str,
     invoice_id: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -91,13 +91,13 @@ def create_payment_session_endpoint(
             parent_id=current_user.parent_id,
             student_id=student_id,
             invoice_id=invoice_id,
-            amount=Decimal(str(amount)),
+            amount=amount,
             payment_method=payment_method,
             school_id=current_user.school_id,
         )
         return {
             "session_id": session.session_id,
-            "amount": float(session.amount),
+            "amount": session.amount,
             "currency": session.currency,
             "status": session.status,
             "expires_at": session.expires_at.isoformat(),
@@ -130,7 +130,7 @@ def initialize_chapa_payment(
 
     try:
         chapa_response = chapa_initialize(
-            amount=float(session.amount),
+            amount=session.amount,
             currency=session.currency,
             email=parent.phone_1 + "@placeholder.com" if parent else "parent@zenova.com",
             first_name=student.first_name if student else "Parent",
@@ -212,11 +212,11 @@ def get_receipts(
         Receipt.school_id == current_user.school_id,
     ).order_by(Receipt.created_at.desc()).all()
 
-    return [
+        return [
         {
             "id": r.id,
             "receipt_number": r.receipt_number,
-            "amount_paid": float(r.amount_paid),
+            "amount_paid": r.amount_paid,
             "payment_method": r.payment_method,
             "payment_date": r.payment_date.isoformat(),
             "status": r.status,
@@ -252,7 +252,7 @@ def download_receipt(
 
 class RefundRequestInput(BaseModel):
     payment_id: str
-    amount: float = Field(gt=0)
+    amount: Decimal = Field(gt=0)
     reason: str = Field(min_length=1, max_length=500)
 
 
@@ -291,7 +291,7 @@ def request_refund_endpoint(
             "refund_id": refund.id,
             "refund_number": refund.refund_number,
             "status": refund.status,
-            "amount": float(refund.amount),
+            "amount": refund.amount,
         }
     except PaymentError as e:
         raise HTTPException(status_code=400, detail=str(e))

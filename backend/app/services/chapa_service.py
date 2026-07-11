@@ -3,6 +3,7 @@ import os
 import json
 import hashlib
 import hmac
+from decimal import Decimal
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 import httpx
@@ -42,7 +43,7 @@ def _get_headers(secret_key: str) -> Dict[str, str]:
 
 
 def initialize_payment(
-    amount: float,
+    amount: Decimal,
     currency: str,
     email: str,
     first_name: str,

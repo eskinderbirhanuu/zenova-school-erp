@@ -133,8 +133,8 @@ def parent_invoices(
             "id": inv.id,
             "invoice_number": inv.invoice_number,
             "student_id": inv.student_id,
-            "total_amount": float(inv.total_amount),
-            "paid_amount": float(inv.paid_amount),
+            "total_amount": inv.total_amount,
+            "paid_amount": inv.paid_amount,
             "due_date": inv.due_date.isoformat() if inv.due_date else None,
             "status": inv.status,
         }
@@ -170,7 +170,7 @@ def parent_make_payment(
     return {
         "id": payment.id,
         "payment_number": payment.payment_number,
-        "amount": float(payment.amount),
+        "amount": payment.amount,
         "payment_method": payment.payment_method,
         "payment_date": payment.payment_date.isoformat() if payment.payment_date else None,
         "status": "completed",

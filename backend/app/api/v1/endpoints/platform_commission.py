@@ -79,7 +79,7 @@ def pay_platform_invoice(
 
     try:
         chapa_response = chapa_initialize(
-            amount=float(inv.total_amount),
+            amount=inv.total_amount,
             currency="ETB",
             email=current_user.email or "platform@zenova.com",
             first_name=school.name if school else "School",
@@ -95,7 +95,7 @@ def pay_platform_invoice(
             "checkout_url": chapa_response.get("data", {}).get("checkout_url"),
             "reference": chapa_response.get("data", {}).get("reference"),
             "invoice_number": inv.invoice_number,
-            "amount": float(inv.total_amount),
+            "amount": inv.total_amount,
         }
     except ChapaError as e:
         raise HTTPException(status_code=500, detail=str(e))

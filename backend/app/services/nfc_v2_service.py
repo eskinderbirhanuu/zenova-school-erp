@@ -13,6 +13,14 @@ from app.models.user import User
 from app.core.audit import log_audit
 from app.utils.uid_hash import hash_card_uid
 
+_ALL_CARD_MODELS = [StudentCard, StaffCard, ParentCard, EmployeeCard]
+
+
+def _ensure_unique_card_uid(db: Session, uid_hash: str) -> None:
+    for model in _ALL_CARD_MODELS:
+        if db.query(model).filter(model.card_uid == uid_hash).first():
+            raise ValueError("NFC card UID is already assigned to another card")
+
 
 def assign_student_card(
     db: Session,
@@ -25,6 +33,7 @@ def assign_student_card(
     existing = db.query(StudentCard).filter(StudentCard.card_uid == uid_hash).first()
     if existing:
         raise ValueError("NFC card UID already assigned to a student")
+    _ensure_unique_card_uid(db, uid_hash)
     _school_id = db.query(Student.school_id).filter(Student.id == student_id).scalar()
     card = StudentCard(student_id=student_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
@@ -51,6 +60,7 @@ def assign_staff_card(
     existing = db.query(StaffCard).filter(StaffCard.card_uid == uid_hash).first()
     if existing:
         raise ValueError("NFC card UID already assigned to a staff member")
+    _ensure_unique_card_uid(db, uid_hash)
     _school_id = db.query(StaffProfile.school_id).filter(StaffProfile.id == staff_profile_id).scalar()
     card = StaffCard(staff_profile_id=staff_profile_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
@@ -77,6 +87,7 @@ def assign_parent_card(
     existing = db.query(ParentCard).filter(ParentCard.card_uid == uid_hash).first()
     if existing:
         raise ValueError("NFC card UID already assigned to a parent")
+    _ensure_unique_card_uid(db, uid_hash)
     _school_id = db.query(Parent.school_id).filter(Parent.id == parent_id).scalar()
     card = ParentCard(parent_id=parent_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
@@ -103,6 +114,7 @@ def assign_employee_card(
     existing = db.query(EmployeeCard).filter(EmployeeCard.card_uid == uid_hash).first()
     if existing:
         raise ValueError("NFC card UID already assigned to a corporate employee")
+    _ensure_unique_card_uid(db, uid_hash)
     card = EmployeeCard(employee_id=employee_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
     log_audit(
