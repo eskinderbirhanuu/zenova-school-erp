@@ -295,32 +295,43 @@ def student_transcript(
     for e in all_exams:
         exams_by_semester.setdefault(e.semester_id, []).append(e)
 
+    all_exam_ids = []
+    for exams in exams_by_semester.values():
+        all_exam_ids.extend(e.id for e in exams)
+    all_results = db.query(ExamResult).filter(
+        ExamResult.student_id == student_id,
+        ExamResult.exam_id.in_(all_exam_ids),
+    ).all() if all_exam_ids else []
+    results_by_exam = {}
+    for r in all_results:
+        results_by_exam.setdefault(r.exam_id, []).append(r)
+
+    all_subject_ids = set()
+    for sem in all_semesters:
+        for e in exams_by_semester.get(sem.id, []):
+            if e.subject_id:
+                all_subject_ids.add(e.subject_id)
+    all_subjects = db.query(Subject).filter(Subject.id.in_(list(all_subject_ids))).all() if all_subject_ids else []
+    subject_name_map = {s.id: s.name for s in all_subjects}
+
     for sem in all_semesters:
         exams = exams_by_semester.get(sem.id, [])
-        exam_ids = [e.id for e in exams]
-        results = db.query(ExamResult).filter(
-            ExamResult.student_id == student_id,
-            ExamResult.exam_id.in_(exam_ids),
-        ).all() if exam_ids else []
-
-        if not results:
+        if not exams:
             continue
 
         result_map = {}
-        for r in results:
-            exam = next((e for e in exams if e.id == r.exam_id), None)
-            if exam and exam.subject_id:
-                if exam.subject_id not in result_map:
-                    result_map[exam.subject_id] = []
-                result_map[exam.subject_id].append({
-                    "exam_name": exam.name,
-                    "score": float(r.score) if r.score else 0,
-                    "max_score": float(exam.max_score) if exam.max_score else 100,
-                    "grade": r.grade,
-                })
+        for e in exams:
+            for r in results_by_exam.get(e.id, []):
+                if e.subject_id:
+                    result_map.setdefault(e.subject_id, []).append({
+                        "exam_name": e.name,
+                        "score": float(r.score) if r.score else 0,
+                        "max_score": float(e.max_score) if e.max_score else 100,
+                        "grade": r.grade,
+                    })
 
-        subjects = db.query(Subject).filter(Subject.id.in_(list(result_map.keys()))).all() if result_map else []
-        subject_map = {s.id: s.name for s in subjects}
+        if not result_map:
+            continue
 
         subject_grades = []
         sem_total = 0
@@ -331,7 +342,7 @@ def student_transcript(
             pct = round((avg / max_avg) * 100, 1) if max_avg > 0 else 0
             letter = _compute_grade(pct)
             subject_grades.append({
-                "subject": subject_map.get(subj_id, "Unknown"),
+                "subject": subject_name_map.get(subj_id, "Unknown"),
                 "average": round(avg, 1),
                 "percentage": pct,
                 "grade": letter,

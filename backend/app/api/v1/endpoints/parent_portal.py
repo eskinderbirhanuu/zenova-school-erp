@@ -35,57 +35,70 @@ def parent_portal_dashboard(
     links = db.query(ParentStudentLink).filter(ParentStudentLink.parent_id == parent.id).all()
     student_ids = [l.student_id for l in links]
 
-    # Batch-load students to avoid N+1 queries
-    students = db.query(Student).filter(Student.id.in_(student_ids)).all() if student_ids else []
+    if not student_ids:
+        return {
+            "parent": {"id": parent.id, "full_name": parent.full_name, "phone": parent.phone_1},
+            "children": [],
+        }
+
+    students = db.query(Student).filter(Student.id.in_(student_ids)).all()
     student_map = {s.id: s for s in students}
+    link_map = {l.student_id: l for l in links}
 
-    now = datetime.now(timezone.utc)
+    class_ids = [s.class_id for s in students if s.class_id]
+    class_map = {}
+    if class_ids:
+        for c in db.query(ClassGrade).filter(ClassGrade.id.in_(class_ids)).all():
+            class_map[c.id] = c
+
+    att_rows = db.query(Attendance.student_id, Attendance.status, func.count(Attendance.id)).filter(
+        Attendance.student_id.in_(student_ids)
+    ).group_by(Attendance.student_id, Attendance.status).all()
+    att_by_student = {}
+    for sid, status, cnt in att_rows:
+        a = att_by_student.setdefault(sid, {})
+        a[status] = cnt
+        a["_total"] = a.get("_total", 0) + cnt
+
+    exam_results = db.query(ExamResult, Exam, Subject).join(Exam, ExamResult.exam_id == Exam.id).join(Subject, Exam.subject_id == Subject.id).filter(
+        ExamResult.student_id.in_(student_ids)
+    ).all()
+    grades_by_student = {}
+    for er, ex, sub in exam_results:
+        row = {
+            "subject": sub.name,
+            "exam": ex.name,
+            "score": float(er.score) if er.score else 0,
+            "grade": er.grade,
+            "max_score": float(ex.max_score) if ex.max_score else 100,
+        }
+        grades_by_student.setdefault(er.student_id, []).append(row)
+
+    invoices = db.query(Invoice).filter(
+        Invoice.student_id.in_(student_ids)
+    ).order_by(Invoice.due_date.desc()).all()
+    fees_by_student = {}
+    for inv in invoices:
+        row = {
+            "label": f"Invoice {inv.invoice_number}",
+            "amount": str(inv.total_amount),
+            "paid": str(inv.paid_amount),
+            "due": inv.due_date.isoformat() if inv.due_date else None,
+            "status": inv.status,
+        }
+        fees_by_student.setdefault(inv.student_id, []).append(row)
+
     children_data = []
-
     for sid in student_ids:
         student = student_map.get(sid)
         if not student:
             continue
-
-        total_attendance = db.query(func.count(Attendance.id)).filter(
-            Attendance.student_id == sid
-        ).scalar() or 0
-        present_attendance = db.query(func.count(Attendance.id)).filter(
-            Attendance.student_id == sid, Attendance.status == "present"
-        ).scalar() or 0
-        attendance_pct = round((present_attendance / total_attendance * 100)) if total_attendance > 0 else 0
-
-        link = next((l for l in links if l.student_id == sid), None)
-
-        parent_class = db.query(ClassGrade).filter(ClassGrade.id == student.class_id).first() if student.class_id else None
-
-        exam_results = db.query(ExamResult, Exam, Subject).join(Exam, ExamResult.exam_id == Exam.id).join(Subject, Exam.subject_id == Subject.id).filter(
-            ExamResult.student_id == sid
-        ).order_by(Exam.created_at.desc()).limit(20).all()
-
-        grades = []
-        for er, ex, sub in exam_results:
-            grades.append({
-                "subject": sub.name,
-                "exam": ex.name,
-                "score": float(er.score) if er.score else 0,
-                "grade": er.grade,
-                "max_score": float(ex.max_score) if ex.max_score else 100,
-            })
-
-        invoices = db.query(Invoice).filter(
-            Invoice.student_id == sid
-        ).order_by(Invoice.due_date.desc()).limit(10).all()
-
-        fees = []
-        for inv in invoices:
-            fees.append({
-                "label": f"Invoice {inv.invoice_number}",
-                "amount": f"${float(inv.total_amount):,.2f}",
-                "paid": f"${float(inv.paid_amount):,.2f}",
-                "due": inv.due_date.isoformat() if inv.due_date else None,
-                "status": inv.status,
-            })
+        link = link_map.get(sid)
+        parent_class = class_map.get(student.class_id) if student.class_id else None
+        a = att_by_student.get(sid, {})
+        total = a.get("_total", 0)
+        present = a.get("present", 0)
+        attendance_pct = round((present / total * 100)) if total > 0 else 0
 
         children_data.append({
             "id": student.id,
@@ -96,8 +109,8 @@ def parent_portal_dashboard(
             "relationship": link.relationship if link else "—",
             "attendance_pct": attendance_pct,
             "photo_url": student.photo_url,
-            "grades": grades,
-            "fees": fees,
+            "grades": grades_by_student.get(sid, [])[:20],
+            "fees": fees_by_student.get(sid, [])[:10],
         })
 
     return {
