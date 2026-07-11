@@ -18,6 +18,7 @@ openpyxl==3.1.5
 python-multipart==0.0.20
 python-dateutil==2.9.0
 apscheduler>=3.10,<4.0
+prometheus-client>=0.25,<1.0
 psutil>=6.0,<7.0
 pyotp==2.10.0
 qrcode==8.2
