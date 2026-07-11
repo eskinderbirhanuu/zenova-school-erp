@@ -11,22 +11,22 @@
 | Category | Score | Verdict |
 |----------|-------|---------|
 | Architecture / Structure | 7.5/10 | Well-organized monolith, minor cleanup needed |
-| Backend | 8.0/10 | Mature, well-structured, most prior issues resolved |
+| Backend | 8.5/10 | Mature, well-structured, gaps closed |
 | Frontend | 7.5/10 | Modern stack, missing data caching layer |
-| Database | 7.5/10 | Comprehensive schema, 2 Float outliers, card table gap |
+| Database | 8.0/10 | All Float→Decimal, school_id added, NFC UID dedup |
 | API Design | 8.5/10 | RESTful, well-protected, minor inconsistencies |
-| Security (OWASP) | 8.0/10 | Core protections solid, QR token gap remains |
-| Authentication | 9.0/10 | Industry best practices, MFA, rotation, brute-force |
+| Security (OWASP) | 9.0/10 | QR encrypted, NFC oracle removed, MFA enforced, strong |
+| Authentication | 9.5/10 | MFA enforced for sensitive roles, rotation, brute-force |
 | RBAC | 8.5/10 | 32 permissions + 14 roles, consistently applied |
-| Finance | 8.0/10 | Double-entry accounting, DECIMAL precision, idempotency |
-| License System | 8.0/10 | RSA-2048, HW fingerprinting, sophisticated anti-tamper |
-| NFC & QR | 6.5/10 | NFC hashing resolved, QR not encrypted, card tables lack school_id |
+| Finance | 8.5/10 | DECIMAL precision, no float in API layer, idempotency |
+| License System | 8.5/10 | RSA-2048, HW fingerprinting, endpoints now authenticated |
+| NFC & QR | 8.5/10 | school_id added, AES-256-GCM QR, cross-table UID dedup |
 | Deployment | 8.0/10 | Docker + K8s + Ubuntu, missing CI/CD + monitoring |
-| Performance | 6.5/10 | Adequate for small scale, missing caching + pagination |
-| Testing | 5.0/10 | Critical paths covered, no API/Frontend/E2E tests |
-| Documentation | 7.5/10 | Extensive, missing dev onboarding + operator runbook |
+| Performance | 7.0/10 | Pagination utility created, still needs broader rollout |
+| Testing | 5.5/10 | 173 unit tests, settings schema tests added, no API/E2E |
+| Documentation | 8.0/10 | Audit report updated, CHANGELOG maintained |
 
-### **Enterprise Readiness Score: 75/100**
+### **Enterprise Readiness Score: 82/100**
 
 ---
 
@@ -34,7 +34,7 @@
 
 ZENOVA is a well-architected hybrid school ERP platform nearing production readiness. The 2026-07-06 deep audit identified numerous Critical/High issues — as of 2026-07-11, most have been resolved:
 
-**Resolved (15 items)**:
+**Resolved (21 items)**:
 - ✅ Telegram webhook HMAC signature verification
 - ✅ Sync HMAC now signs body hash
 - ✅ NFC by-card endpoints filter by current_user.school_id
@@ -52,38 +52,43 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 - ✅ Platform invoice webhook uses with_for_update() row lock
 - ✅ Chapa webhook signature verified, exception sanitized
 - ✅ License-server CORS credentials hardened
-- ✅ Alembic multi-head resolved (single head: c5d6e7f8a0b1)
+- ✅ Alembic multi-head resolved (single head: d9e8f7a6b5c4)
+- ✅ QR token AES-256-GCM encrypted (was base64 plaintext)
+- ✅ Float→Decimal migration for library_fines.amount + inventory_assets.value
+- ✅ school_id added to 4 NFC V2 card tables (student_cards, staff_cards, parent_cards, employee_cards)
+- ✅ Cross-table NFC UID uniqueness enforced via _ensure_unique_card_uid()
+- ✅ License-server /verify, /activate, /school/{id} now require JWT auth
+- ✅ API float→Decimal cleanup: parent_payments, parent_portal, platform_commission, chapa_service
+- ✅ MFA enrollment enforced for FINANCE/SUPER_ADMIN roles at login
+- ✅ Bulk NFC assign requires CARD_PRINT_ASSIGN permission
+- ✅ Public NFC lookup oracle removed (consistent response hides card existence)
+- ✅ Pagination utility created + applied to audit-logs endpoint
 
-**Still Open (5 significant items)**:
-- ❌ QR encrypted_token is base64(JSON) — not encrypted, not signed
-- ❌ 2 Float money columns: library_fine.amount, inventory_asset.value
-- ❌ 4 NFC card tables missing school_id column
-- ❌ NFC card UID uniqueness is per-table only (cross-table collisions possible)
-- ❌ License-server /verify and /activate have no auth
+**Still Open**: H3 (frontend caching), H5 (API integration tests), H6 (E2E tests), and M1–M14 medium items
 
 ---
 
-## Critical Issues (Must Fix Before Multi-Tenant Production)
+## Critical Issues (All Resolved)
 
-| # | Severity | Issue | Impact | Estimated Fix |
-|---|----------|-------|--------|---------------|
-| C1 | CRITICAL | NFC card tables lack school_id | Cross-tenant card collisions at DB level. Data leakage. | Migration + backfill |
-| C2 | CRITICAL | QR token is plaintext base64 | Reference IDs in cleartext. Can be forged. PII exposure. | HMAC-signed token |
-| C3 | HIGH | License-server /verify /activate no auth | Anyone can abuse verification endpoint. | Add API key middleware |
-| C4 | HIGH | Float money in 2 model columns | Rounding errors in financial data. | ALTER COLUMN to DECIMAL |
-| C5 | HIGH | amount: float in parent_payments endpoint | Precision loss before Decimal conversion. | Change to Decimal |
+| # | Severity | Issue | Status |
+|---|----------|-------|--------|
+| C1 | CRITICAL | NFC card tables lack school_id | ✅ Resolved — migration `d9e8f7a6b5c4` |
+| C2 | CRITICAL | QR token is plaintext base64 | ✅ Resolved — AES-256-GCM |
+| C3 | HIGH | License-server /verify /activate no auth | ✅ Resolved — JWT required |
+| C4 | HIGH | Float money in 2 model columns | ✅ Resolved — migration `a8b9c0d1e2f3` |
+| C5 | HIGH | amount: float in parent_payments endpoint | ✅ Resolved — Decimal throughout |
 
-## High Issues (Fix Before Production)
+## High Issues
 
-| # | Issue | Impact |
-|---|-------|--------|
-| H1 | Card UID uniqueness per-table only | Same UID can be student+staff. Ambiguous scan results. |
-| H2 | Bulk NFC assign lacks RBAC | Any authenticated user can bulk-assign cards. |
-| H3 | No frontend data caching (React Query) | Redundant API calls, slow UX. |
-| H4 | Unpaginated list endpoints | Can return thousands of records. |
-| H5 | No API integration tests | Cannot verify HTTP-layer correctness. |
-| H6 | No E2E tests | Critical user journeys not validated. |
-| H7 | public NFC lookup reveals card existence | User enumeration possible. |
+| # | Issue | Impact | Status |
+|---|-------|--------|--------|
+| H1 | Card UID uniqueness per-table only | Same UID can be student+staff | ✅ Resolved — cross-table check |
+| H2 | Bulk NFC assign lacks RBAC | Any authenticated user can assign | ✅ Resolved — CARD_PRINT_ASSIGN |
+| H3 | No frontend data caching | Redundant API calls, slow UX | ❌ Open |
+| H4 | Unpaginated list endpoints | Can return thousands of records | ⚡ Partially — utility created, audit-logs done |
+| H5 | No API integration tests | Cannot verify HTTP-layer correctness | ❌ Open |
+| H6 | No E2E tests | Critical journeys not validated | ❌ Open |
+| H7 | public NFC lookup oracle | User enumeration possible | ✅ Resolved — uniform response |
 
 ## Medium Issues (Fix Soon After Production)
 
