@@ -443,8 +443,10 @@ def _school_lookup(db: Session, card_uid: str) -> str | None:
 
 
 def public_lookup_card(db: Session, card_uid: str) -> dict:
-    """Public endpoint — no auth required. Returns only whether the card belongs
-    to ZENOVA, NEVER any personally identifiable information."""
+    """Public endpoint — no auth required. Returns contact information for a
+    found card if recognised. NEVER returns any personally identifiable
+    information about the card holder. Response does NOT reveal whether the
+    card UID exists in the system (anti-enumeration)."""
     uid_hash = hash_card_uid(card_uid)
     for model in (StudentCard, StaffCard, ParentCard, EmployeeCard):
         if db.query(model).filter(model.card_uid == uid_hash).first():
@@ -452,13 +454,9 @@ def public_lookup_card(db: Session, card_uid: str) -> dict:
             if school_msg:
                 message = school_msg
             else:
-                message = "This card belongs to ZENOVA. If found, please contact support@zenova.com or call +251-911-000000."
-            return {
-                "found": True,
-                "card_uid": uid_hash,
-                "message": message,
-            }
-    return {"found": False, "card_uid": uid_hash, "message": "Unrecognized card."}
+                message = "If found, please contact support@zenova.com or call +251-911-000000."
+            return {"card_uid": uid_hash, "message": message}
+    return {"card_uid": uid_hash, "message": "If found, please contact support@zenova.com or call +251-911-000000."}
 
 
 def list_scan_logs(
