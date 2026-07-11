@@ -21,12 +21,12 @@
 | Finance | 8.5/10 | DECIMAL precision, no float in API layer, idempotency |
 | License System | 8.5/10 | RSA-2048, HW fingerprinting, endpoints now authenticated |
 | NFC & QR | 8.5/10 | school_id added, AES-256-GCM QR, cross-table UID dedup |
-| Deployment | 8.0/10 | Docker + K8s + Ubuntu, missing CI/CD + monitoring |
-| Performance | 7.0/10 | Pagination utility created, still needs broader rollout |
+| Deployment | 8.5/10 | Docker + K8s + Ubuntu, CI/CD added, missing monitoring |
+| Performance | 7.5/10 | N+1 hotspots fixed, pagination utility + 3 endpoints |
 | Testing | 5.5/10 | 173 unit tests, settings schema tests added, no API/E2E |
 | Documentation | 8.0/10 | Audit report updated, CHANGELOG maintained |
 
-### **Enterprise Readiness Score: 82/100**
+### **Enterprise Readiness Score: 85/100**
 
 ---
 
@@ -63,8 +63,12 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 - ✅ Bulk NFC assign requires CARD_PRINT_ASSIGN permission
 - ✅ Public NFC lookup oracle removed (consistent response hides card existence)
 - ✅ Pagination utility created + applied to audit-logs endpoint
+- ✅ N+1 queries fixed: parent_portal, student_portal, student transcript
+- ✅ CI/CD pipelines configured (backend + license-server)
+- ✅ `user_role` cookie made HttpOnly; redundant frontend cookie set removed
+- ✅ Pagination applied to purchase-requests, purchase-orders endpoints
 
-**Still Open**: H3 (frontend caching), H5 (API integration tests), H6 (E2E tests), and M1–M14 medium items
+**Still Open**: H3 (frontend caching), H5 (API integration tests), H6 (E2E tests), and M2–M3, M5–M7, M9–M14 medium items
 
 ---
 
@@ -94,14 +98,14 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 
 | # | Issue |
 |---|-------|
-| M1 | N+1 query risk — no eager loading |
+| M1 | N+1 query risk — no eager loading | ✅ Fixed |
 | M2 | ~10 audit calls still missing school_id |
 | M3 | No React Hook Form for form management |
-| M4 | No CI/CD pipeline defined |
+| M4 | No CI/CD pipeline defined | ✅ Fixed |
 | M5 | No monitoring/Observability stack |
 | M6 | No developer onboarding guide |
 | M7 | No operator/SRE runbook |
-| M8 | `user_role` in non-HttpOnly cookie (UX integrity) |
+| M8 | `user_role` in non-HttpOnly cookie (UX integrity) | ✅ Fixed |
 | M9 | No API response caching |
 | M10 | license-server uses SQLite |
 | M11 | Employee cards no school_id (inherited from global corporate) |
