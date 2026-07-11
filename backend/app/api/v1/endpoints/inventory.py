@@ -8,7 +8,10 @@ from app.schemas.inventory import (
     StockMovementCreate, StockMovementResponse,
     SupplierCreate, SupplierUpdate, SupplierResponse,
 )
+from app.schemas.pagination import PaginatedResponse
+from app.core.pagination import paginate, build_paginated_response
 from app.services import inventory_service
+from app.models.inventory import InventoryItem
 
 from app.models.inventory_asset import InventoryAsset
 
@@ -49,12 +52,24 @@ def update_item(item_id: str, data: InventoryItemUpdate, db: Session = Depends(g
     return inventory_service.update_item(db, item_id, data, current_user.id, current_user.school_id)
 
 
-@router.get("/inventory/items", response_model=list[InventoryItemResponse], dependencies=VIEW_INVENTORY)
+@router.get("/inventory/items", dependencies=VIEW_INVENTORY)
 def list_items(
     category_id: str = Query(None), low_stock: bool = Query(False),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    return inventory_service.get_items(db, current_user.school_id, category_id, low_stock)
+    q = db.query(InventoryItem).filter(InventoryItem.school_id == current_user.school_id)
+    if category_id:
+        q = q.filter(InventoryItem.category_id == category_id)
+    if low_stock:
+        q = q.filter(InventoryItem.quantity <= InventoryItem.reorder_level)
+    q = q.order_by(InventoryItem.name)
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[InventoryItemResponse.model_validate(i) for i in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/inventory/stock-movements", response_model=StockMovementResponse, dependencies=INVENTORY)
@@ -62,9 +77,23 @@ def record_movement(data: StockMovementCreate, db: Session = Depends(get_db), cu
     return inventory_service.record_movement(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/inventory/stock-movements", response_model=list[StockMovementResponse], dependencies=VIEW_INVENTORY)
-def list_movements(item_id: str = Query(None), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return inventory_service.get_movements(db, current_user.school_id, item_id)
+@router.get("/inventory/stock-movements", dependencies=VIEW_INVENTORY)
+def list_movements(
+    item_id: str = Query(None),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    from app.models.inventory import StockMovement
+    q = db.query(StockMovement).filter(StockMovement.school_id == current_user.school_id)
+    if item_id:
+        q = q.filter(StockMovement.item_id == item_id)
+    q = q.order_by(StockMovement.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[StockMovementResponse.model_validate(m) for m in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/inventory/suppliers", response_model=SupplierResponse, dependencies=INVENTORY)
@@ -89,9 +118,17 @@ def delete_supplier(supplier_id: str, db: Session = Depends(get_db), current_use
 
 
 @router.get("/inventory/assets", dependencies=VIEW_INVENTORY)
-def list_assets(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
-                db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_assets(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     q = db.query(InventoryAsset).filter(InventoryAsset.school_id == current_user.school_id)
     if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
         q = q.execution_options(include_deleted=True)
-    return q.order_by(InventoryAsset.created_at.desc()).offset(skip).limit(limit).all()
+    q = q.order_by(InventoryAsset.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[{"id": str(a.id), "name": a.name, "value": str(a.value), "status": a.status, "created_at": a.created_at.isoformat() if a.created_at else None} for a in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )

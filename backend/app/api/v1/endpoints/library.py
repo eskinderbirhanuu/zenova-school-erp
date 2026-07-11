@@ -3,7 +3,10 @@ from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
 from app.core.permissions import require_permission, Permission
 from app.schemas.library import BookCategoryCreate, BookCategoryResponse, BookCreate, BookUpdate, BookResponse, BorrowingCreate, BorrowingResponse
+from app.schemas.pagination import PaginatedResponse
+from app.core.pagination import paginate, build_paginated_response
 from app.services import library_service
+from app.models.library import Book
 
 from app.models.library_member import LibraryMember
 from app.models.library_fine import LibraryFine
@@ -34,9 +37,24 @@ def update_book(book_id: str, data: BookUpdate, db: Session = Depends(get_db), c
     return library_service.update_book(db, book_id, data, current_user.id, current_user.school_id)
 
 
-@router.get("/library/books", response_model=list[BookResponse], dependencies=VIEW_LIBRARY)
-def list_books(category_id: str = Query(None), search: str = Query(None), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return library_service.get_books(db, current_user.school_id, category_id, search)
+@router.get("/library/books", dependencies=VIEW_LIBRARY)
+def list_books(
+    category_id: str = Query(None), search: str = Query(None),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    q = db.query(Book).filter(Book.school_id == current_user.school_id)
+    if category_id:
+        q = q.filter(Book.category_id == category_id)
+    if search:
+        q = q.filter(Book.title.ilike(f"%{search}%") | Book.author.ilike(f"%{search}%"))
+    q = q.order_by(Book.title)
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[BookResponse.model_validate(b) for b in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/library/borrowings", response_model=BorrowingResponse, dependencies=LIBRARY)
@@ -50,28 +68,54 @@ def return_book(borrowing_id: str, db: Session = Depends(get_db), current_user=D
     return {"message": "Book returned"}
 
 
-@router.get("/library/borrowings", response_model=list[BorrowingResponse], dependencies=VIEW_LIBRARY)
-def list_borrowings(status: str = Query(None), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return library_service.get_borrowings(db, current_user.school_id, status)
+@router.get("/library/borrowings", dependencies=VIEW_LIBRARY)
+def list_borrowings(
+    status: str = Query(None),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    from app.models.library import BookBorrowing
+    q = db.query(BookBorrowing).filter(BookBorrowing.school_id == current_user.school_id)
+    if status:
+        q = q.filter(BookBorrowing.status == status)
+    q = q.order_by(BookBorrowing.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[BorrowingResponse.model_validate(b) for b in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
-@router.get("/library/members", response_model=dict, dependencies=VIEW_LIBRARY)
-def list_members(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
-                 db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/library/members", dependencies=VIEW_LIBRARY)
+def list_members(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     q = db.query(LibraryMember).filter(LibraryMember.school_id == current_user.school_id)
     if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
         q = q.execution_options(include_deleted=True)
-    total = q.count()
-    members = q.order_by(LibraryMember.created_at.desc()).offset(skip).limit(limit).all()
-    return {"total": total, "data": members, "skip": skip, "limit": limit}
+    q = q.order_by(LibraryMember.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[{"id": str(m.id), "name": m.name, "email": m.email, "phone": m.phone, "status": m.status, "created_at": m.created_at.isoformat() if m.created_at else None} for m in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
-@router.get("/library/fines", response_model=dict, dependencies=VIEW_LIBRARY)
-def list_fines(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
-               db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/library/fines", dependencies=VIEW_LIBRARY)
+def list_fines(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     q = db.query(LibraryFine).filter(LibraryFine.school_id == current_user.school_id)
     if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
         q = q.execution_options(include_deleted=True)
-    total = q.count()
-    fines = q.order_by(LibraryFine.created_at.desc()).offset(skip).limit(limit).all()
-    return {"total": total, "data": fines, "skip": skip, "limit": limit}
+    q = q.order_by(LibraryFine.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[{"id": str(f.id), "member_id": str(f.member_id), "amount": str(f.amount), "status": f.status, "created_at": f.created_at.isoformat() if f.created_at else None} for f in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )

@@ -6,10 +6,13 @@ from app.schemas.corporate import (
     CorporateEmployeeCreate, CorporateEmployeeUpdate, CorporateEmployeeResponse,
     CorporateDashboardResponse,
 )
+from app.schemas.pagination import PaginatedResponse
+from app.core.pagination import paginate, build_paginated_response
 from app.services import corporate_service
 from app.api.v1.deps import get_current_user
 from app.core.permissions import require_permission, Permission
 from app.models.user import User
+from app.models.corporate_employee import CorporateEmployee
 
 router = APIRouter(tags=["corporate"])
 
@@ -50,24 +53,30 @@ def update_department(
     return CorporateDepartmentResponse.model_validate(dept)
 
 
-@router.get("/corporate/employees", response_model=list[CorporateEmployeeResponse])
+@router.get("/corporate/employees")
 def list_employees(
     department_id: str | None = None,
     status: str | None = None,
-    limit: int = Query(default=100, le=500),
-    offset: int = Query(default=0, ge=0),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.CORPORATE_EMPLOYEE_VIEW),
 ):
-    emps = corporate_service.list_employees(db, department_id, status, limit, offset)
+    q = db.query(CorporateEmployee)
+    if department_id:
+        q = q.filter(CorporateEmployee.department_id == department_id)
+    if status:
+        q = q.filter(CorporateEmployee.status == status)
+    q = q.order_by(CorporateEmployee.full_name)
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
     result = []
-    for emp in emps:
+    for emp in items:
         d = emp.department.name if emp.department else None
-        result.append(CorporateEmployeeResponse(
-            **emp.__dict__,
-            department_name=d,
-        ))
-    return result
+        result.append(CorporateEmployeeResponse(**emp.__dict__, department_name=d))
+    return build_paginated_response(
+        items=result,
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/corporate/employees", response_model=CorporateEmployeeResponse, status_code=status.HTTP_201_CREATED)
