@@ -57,7 +57,7 @@ def get_accounts(db: Session, school_id: str, include_deleted: bool = False):
     q = db.query(Account).filter(Account.school_id == school_id, Account.is_active == True)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
-    return q.all()
+    return q.order_by(Account.created_at.desc()).all()
 
 
 def create_account(db: Session, school_id: str, data, user_id: str):
@@ -198,7 +198,7 @@ def get_fee_types(db: Session, school_id: str, include_deleted: bool = False):
     q = db.query(FeeType).filter(FeeType.school_id == school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
-    return q.all()
+    return q.order_by(FeeType.created_at.desc()).limit(200).all()
 
 
 def update_fee_type(db: Session, fee_type_id: str, data, user_id: str, school_id: str):
@@ -675,11 +675,11 @@ def create_purchase_request(db: Session, school_id: str, data, user_id: str):
     return pr
 
 
-def get_purchase_requests(db: Session, school_id: str, include_deleted: bool = False):
+def get_purchase_requests(db: Session, school_id: str, include_deleted: bool = False, skip: int = 0, limit: int = 200):
     q = db.query(PurchaseRequest).filter(PurchaseRequest.school_id == school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
-    return q.order_by(PurchaseRequest.created_at.desc()).all()
+    return q.order_by(PurchaseRequest.created_at.desc()).offset(skip).limit(limit).all()
 
 
 def approve_purchase_request(db: Session, pr_id: str, user_id: str, school_id: str):
@@ -708,11 +708,11 @@ def create_purchase_order(db: Session, school_id: str, data, user_id: str):
     return po
 
 
-def get_purchase_orders(db: Session, school_id: str, include_deleted: bool = False):
+def get_purchase_orders(db: Session, school_id: str, include_deleted: bool = False, skip: int = 0, limit: int = 200):
     q = db.query(PurchaseOrder).filter(PurchaseOrder.school_id == school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
-    return q.order_by(PurchaseOrder.created_at.desc()).all()
+    return q.order_by(PurchaseOrder.created_at.desc()).offset(skip).limit(limit).all()
 
 
 def trial_balance(db: Session, school_id: str):

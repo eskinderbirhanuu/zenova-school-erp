@@ -251,9 +251,12 @@ def create_purchase_request(data: PurchaseRequestCreate, db: Session = Depends(g
 
 
 @router.get("/purchase-requests", response_model=list[PurchaseRequestResponse], dependencies=VIEW_FINANCE)
-def list_purchase_requests(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_purchase_requests(
+    skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_purchase_requests(db, current_user.school_id, include_deleted=include_deleted)
+    return finance_service.get_purchase_requests(db, current_user.school_id, include_deleted=include_deleted, skip=skip, limit=limit)
 
 
 @router.post("/purchase-requests/{pr_id}/approve", dependencies=FINANCE_DIRECTOR)
@@ -268,9 +271,12 @@ def create_purchase_order(data: PurchaseOrderCreate, db: Session = Depends(get_d
 
 
 @router.get("/purchase-orders", response_model=list[PurchaseOrderResponse], dependencies=VIEW_FINANCE)
-def list_purchase_orders(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_purchase_orders(
+    skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_purchase_orders(db, current_user.school_id, include_deleted=include_deleted)
+    return finance_service.get_purchase_orders(db, current_user.school_id, include_deleted=include_deleted, skip=skip, limit=limit)
 
 
 @router.get("/reports/trial-balance", response_model=TrialBalanceResponse, dependencies=VIEW_FINANCE)
