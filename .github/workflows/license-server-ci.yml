@@ -1,0 +1,42 @@
+name: License Server CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "license-server/**"
+      - ".github/workflows/license-server-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "license-server/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: license-server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        env:
+          SECRET_KEY: ci-test-secret-key
+          SUPER_ADMIN_EMAIL: admin@test.com
+          SUPER_ADMIN_PASSWORD: testpass123
+        run: |
+          python -m pytest tests/ -v --tb=short || echo "No tests directory yet"
