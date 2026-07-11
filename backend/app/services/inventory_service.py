@@ -91,7 +91,7 @@ def record_movement(db: Session, school_id: str, data, user_id: str):
         item.quantity -= qty
     db.add(movement)
     log_audit(db, user_id, "STOCK_MOVEMENT", "stock_movement", movement.id,
-              f"{data.movement_type}: {qty} of item {data.item_id}")
+              f"{data.movement_type}: {qty} of item {data.item_id}", school_id=school_id)
     db.commit()
     db.refresh(movement)
     return movement
