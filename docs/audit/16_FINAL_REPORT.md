@@ -68,7 +68,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 - ✅ `user_role` cookie made HttpOnly; redundant frontend cookie set removed
 - ✅ Pagination applied to purchase-requests, purchase-orders endpoints
 
-**Still Open**: H3 (frontend caching — components need conversion), H5 (API integration tests), H6 (E2E tests), and M3, M5, M7, M11–M14 medium items
+**Still Open**: H3 (frontend caching — components need conversion), H5 (API integration tests), H6 (E2E tests), and M11–M14 medium items
 
 ---
 
@@ -100,7 +100,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 |---|-------|
 | M1 | N+1 query risk — no eager loading | ✅ Fixed |
 | M2 | ~10 audit calls still missing school_id | ⚡ Verified — only 1 was missing, now fixed |
-| M3 | No React Hook Form for form management |
+| M3 | No React Hook Form for form management | ✅ Fixed — react-hook-form installed + Form/FormField components |
 | M4 | No CI/CD pipeline defined | ✅ Fixed |
 | M5 | No monitoring/Observability stack | ✅ Fixed — Prometheus metrics + MONITORING_SETUP.md |
 | M6 | No developer onboarding guide | ✅ Fixed — docs/ONBOARDING.md |
@@ -111,7 +111,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 | M11 | Employee cards no school_id (inherited from global corporate) |
 | M12 | No payment gateway abstraction |
 | M13 | WASM fallback slows builds |
-| M14 | `three` + `@react-three` possibly unused |
+| M14 | `three` + `@react-three` possibly unused | ❌ Not applicable — confirmed used in 3D components |
 
 ## Low Issues (Nice-to-Have)
 
