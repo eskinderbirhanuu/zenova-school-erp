@@ -12,7 +12,7 @@
 |----------|-------|---------|
 | Architecture / Structure | 7.5/10 | Well-organized monolith, minor cleanup needed |
 | Backend | 8.5/10 | Mature, well-structured, gaps closed |
-| Frontend | 7.5/10 | Modern stack, missing data caching layer |
+| Frontend | 8.0/10 | Modern stack, React Query infrastructure installed, partial conversion |
 | Database | 8.0/10 | All Float→Decimal, school_id added, NFC UID dedup |
 | API Design | 8.5/10 | RESTful, well-protected, minor inconsistencies |
 | Security (OWASP) | 9.0/10 | QR encrypted, NFC oracle removed, MFA enforced, strong |
@@ -22,11 +22,11 @@
 | License System | 8.5/10 | RSA-2048, HW fingerprinting, endpoints now authenticated |
 | NFC & QR | 8.5/10 | school_id added, AES-256-GCM QR, cross-table UID dedup |
 | Deployment | 8.5/10 | Docker + K8s + Ubuntu, CI/CD added, missing monitoring |
-| Performance | 7.5/10 | N+1 hotspots fixed, pagination utility + 3 endpoints |
+| Performance | 8.0/10 | N+1 hotspots fixed, pagination on all ~30 list endpoints |
 | Testing | 5.5/10 | 173 unit tests, settings schema tests added, no API/E2E |
 | Documentation | 8.0/10 | Audit report updated, CHANGELOG maintained |
 
-### **Enterprise Readiness Score: 85/100**
+### **Enterprise Readiness Score: 87/100**
 
 ---
 
@@ -68,7 +68,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 - ✅ `user_role` cookie made HttpOnly; redundant frontend cookie set removed
 - ✅ Pagination applied to purchase-requests, purchase-orders endpoints
 
-**Still Open**: H3 (frontend caching — components need conversion), H5 (API integration tests), H6 (E2E tests), and M11–M14 medium items
+**Still Open**: H3 (frontend caching — ~100 components still need conversion), H5 (API integration tests), H6 (E2E tests), and M11–M12 medium items
 
 ---
 
@@ -88,7 +88,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 |---|-------|--------|--------|
 | H1 | Card UID uniqueness per-table only | Same UID can be student+staff | ✅ Resolved — cross-table check |
 | H2 | Bulk NFC assign lacks RBAC | Any authenticated user can assign | ✅ Resolved — CARD_PRINT_ASSIGN |
-| H3 | No frontend data caching | Redundant API calls, slow UX | ❌ Open |
+| H3 | No frontend data caching | Redundant API calls, slow UX | ⚡ Mitigated — infrastructure in place, 3/100+ components converted |
 | H4 | Unpaginated list endpoints | Can return thousands of records | ✅ Resolved — all list endpoints now use paginate() |
 | H5 | No API integration tests | Cannot verify HTTP-layer correctness | ❌ Open |
 | H6 | No E2E tests | Critical journeys not validated | ❌ Open |
@@ -137,43 +137,44 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 
 ## Prioritized Fix Plan
 
-### P0 — Immediate (Blockers for Multi-Tenant Production)
-
-| Task | Effort | Risk | Module |
-|------|--------|------|--------|
-| Add school_id to 4 NFC card tables | Medium | Low | DB migration + model |
-| Replace QR base64 with HMAC-signed token | Medium | Medium | qr_service.py |
-| License-server /verify /activate auth | Low | Low | license-server licenses.py |
-| Float money → DECIMAL migration | Low | Low | DB migration |
-| Fix amount: float → Decimal in endpoint | Low | Low | parent_payments.py:78 |
-
-### P1 — Next Week (Production Hardening)
-
-| Task | Effort | Risk | Module |
-|------|--------|------|--------|
-| Cross-table NFC card UID uniqueness check | Low | Low | nfc_v2_service.py |
-| Bulk NFC assign RBAC permission check | Low | Low | nfc_v2.py |
-| Add React Query to frontend | Medium | Low | frontend |
-| Standardize pagination on all list endpoints | Medium | Low | all list endpoints |
-| Create API integration tests (auth + finance + NFC) | High | Low | tests/ |
-| Create developer onboarding guide | Medium | Low | docs/ |
-| Create operator runbook | Medium | Low | docs/ |
-| Add coverage tracking + CI pipeline | Medium | Low | CI config |
-
-### P2 — Next Sprint (Quality Improvements)
+### P0 — Immediate (Blocker — All Done ✅)
 
 | Task | Effort | Risk |
 |------|--------|------|
-| Eager loading audit + fix N+1 queries | Medium | Low |
-| Add React Hook Form + Zod validation | Medium | Low |
-| Add Redis API response caching | Low | Low |
-| Frontend component tests | Medium | Low |
-| E2E smoke tests (Playwright) | Medium | Low |
+| Add school_id to 4 NFC card tables | Medium | Low |
+| Replace QR base64 with AES-256-GCM token | Medium | Medium |
+| License-server /verify /activate auth | Low | Low |
+| Float money → DECIMAL migration | Low | Low |
+| Fix amount: float → Decimal in endpoint | Low | Low |
+| Cross-table NFC card UID uniqueness check | Low | Low |
+| Bulk NFC assign RBAC permission check | Low | Low |
 | Public NFC lookup anti-enumeration | Low | Low |
-| Payment gateway abstraction | Medium | Medium |
-| License-server PostgreSQL migration | Medium | Low |
-| Monitoring stack (Prometheus + Grafana + Loki) | Medium | Low |
-| Add API examples to documentation | Medium | Low |
+
+### P1 — Next Sprint (In Progress)
+
+| Task | Effort | Risk |
+|------|--------|------|
+| Convert remaining ~100 frontend components to React Query (H3) | High | Low |
+| Create API integration tests (auth + finance + NFC) (H5) | High | Low |
+| E2E smoke tests (Playwright) (H6) | Medium | Low |
+| Frontend component tests | Medium | Low |
+| Payment gateway abstraction (M12) | Medium | Medium |
+
+### P2 — Within Month
+
+| Task | Effort | Risk |
+|------|--------|------|
+| Add Redis API response caching | Low | Low |
+| Password history | Low | Low |
+| Concurrent session tracking | Medium | Low |
+| Cross-platform VM detection (license) | Medium | Low |
+| DR procedure documentation | Low | Low |
+| PostgreSQL HA for VPS deployment | High | Medium |
+| Frontend API URL runtime-configurable | Medium | Medium |
+| certbot auto-renewal | Low | Low |
+| Remove deprecated `require_role()` / `PermissionChecker` | Low | Low |
+| Architecture Decision Records | Low | Low |
+| Glossary of terms | Low | Low |
 
 ### P3 — Within Month (Polish)
 
