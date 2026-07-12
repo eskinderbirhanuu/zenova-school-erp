@@ -7,6 +7,8 @@ from app.schemas.communication import (
     MessageCreate, MessageResponse,
 )
 from app.schemas.notification import NotificationPreferenceResponse, NotificationPreferenceUpdate
+from app.core.pagination import paginate, build_paginated_response
+from app.models.communication import Notification, Message
 from app.services import communication_service
 from app.models.user import User
 from app.models.notification_preference import NotificationPreference
@@ -52,9 +54,22 @@ def communication_list_announcements(
     return {"total": total, "data": items, "skip": skip, "limit": limit}
 
 
-@router.get("/notifications", response_model=list[NotificationResponse], dependencies=ALL)
-def list_notifications(unread_only: bool = Query(False), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return communication_service.get_notifications(db, current_user.id, unread_only)
+@router.get("/notifications", dependencies=ALL)
+def list_notifications(
+    unread_only: bool = Query(False),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    q = db.query(Notification).filter(Notification.user_id == current_user.id)
+    if unread_only:
+        q = q.filter(Notification.is_read == False)
+    q = q.order_by(Notification.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[NotificationResponse.model_validate(n) for n in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/notifications/{notification_id}/read", dependencies=ALL)
@@ -88,9 +103,34 @@ def send_message(data: MessageCreate, db: Session = Depends(get_db), current_use
     )
 
 
-@router.get("/messages", response_model=list[MessageResponse], dependencies=MESSAGING)
-def list_messages(include_sent: bool = Query(False), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return communication_service.get_messages(db, current_user.id, include_sent)
+@router.get("/messages", dependencies=MESSAGING)
+def list_messages(
+    include_sent: bool = Query(False),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    q = db.query(Message).filter(
+        (Message.recipient_id == current_user.id) | (Message.sender_id == current_user.id) if include_sent else (Message.recipient_id == current_user.id)
+    ).order_by(Message.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    messages = paginated_q.all()
+    sender_ids = {m.sender_id for m in messages}
+    users_map = {}
+    if sender_ids:
+        users = db.query(User).filter(User.id.in_(sender_ids)).all()
+        users_map = {u.id: u.full_name for u in users}
+    return build_paginated_response(
+        items=[
+            MessageResponse(
+                id=m.id, sender_id=m.sender_id, recipient_id=m.recipient_id,
+                subject=m.subject, message=m.message, is_read=m.is_read,
+                read_at=m.read_at, sender_name=users_map.get(m.sender_id),
+                created_at=m.created_at,
+            )
+            for m in messages
+        ],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/messages/{message_id}/read", dependencies=MESSAGING)

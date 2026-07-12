@@ -2,7 +2,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
 from app.core.permissions import require_permission, Permission
+from app.core.pagination import paginate, build_paginated_response
 from app.models.recruitment import JobPosting
+from app.models.contract import EmployeeContract
+from app.models.leave import LeaveRequest
+from app.models.performance import PerformanceReview
 from app.schemas.hr import (
     ContractCreate, ContractResponse,
     LeaveTypeCreate, LeaveTypeResponse,
@@ -25,10 +29,25 @@ def create_contract(data: ContractCreate, db: Session = Depends(get_db), current
     return hr_service.create_contract(db, data, current_user.id, current_user.school_id)
 
 
-@router.get("/contracts", response_model=list[ContractResponse], dependencies=VIEW_HR)
-def list_contracts(staff_profile_id: str = Query(None), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/contracts", dependencies=VIEW_HR)
+def list_contracts(
+    staff_profile_id: str = Query(None),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return hr_service.get_contracts(db, current_user.school_id, staff_profile_id, include_deleted=include_deleted)
+    q = db.query(EmployeeContract).filter(EmployeeContract.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if staff_profile_id:
+        q = q.filter(EmployeeContract.staff_profile_id == staff_profile_id)
+    q = q.order_by(EmployeeContract.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[ContractResponse.model_validate(c) for c in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/contracts/{contract_id}/terminate", dependencies=HR_ADMIN)
@@ -54,13 +73,30 @@ def request_leave(data: LeaveRequestCreate, db: Session = Depends(get_db), curre
     return hr_service.request_leave(db, data, current_user.id, current_user.school_id, include_deleted=True)
 
 
-@router.get("/leave-requests", response_model=list[LeaveRequestResponse], dependencies=VIEW_HR)
+@router.get("/leave-requests", dependencies=VIEW_HR)
 def list_leave_requests(
     staff_profile_id: str = Query(None), status: str = Query(None),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return hr_service.get_leave_requests(db, current_user.school_id, staff_profile_id, status, include_deleted=include_deleted)
+    from app.models.staff_profile import StaffProfile
+    q = db.query(LeaveRequest).join(
+        StaffProfile, LeaveRequest.staff_profile_id == StaffProfile.id
+    ).filter(StaffProfile.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if staff_profile_id:
+        q = q.filter(LeaveRequest.staff_profile_id == staff_profile_id)
+    if status:
+        q = q.filter(LeaveRequest.status == status)
+    q = q.order_by(LeaveRequest.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[LeaveRequestResponse.model_validate(lr) for lr in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/leave-requests/{request_id}/approve", dependencies=HR_ADMIN)
@@ -89,10 +125,25 @@ def create_review(data: PerformanceReviewCreate, db: Session = Depends(get_db), 
     return hr_service.create_performance_review(db, data, current_user.id, current_user.school_id)
 
 
-@router.get("/performance-reviews", response_model=list[PerformanceReviewResponse], dependencies=VIEW_HR)
-def list_reviews(staff_profile_id: str = Query(None), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/performance-reviews", dependencies=VIEW_HR)
+def list_reviews(
+    staff_profile_id: str = Query(None),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return hr_service.get_performance_reviews(db, current_user.school_id, staff_profile_id, include_deleted=include_deleted)
+    q = db.query(PerformanceReview).filter(PerformanceReview.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if staff_profile_id:
+        q = q.filter(PerformanceReview.staff_profile_id == staff_profile_id)
+    q = q.order_by(PerformanceReview.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[PerformanceReviewResponse.model_validate(r) for r in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.get("/recruitment", response_model=list[JobPostingResponse], dependencies=VIEW_HR)

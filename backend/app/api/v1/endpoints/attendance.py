@@ -104,18 +104,19 @@ def mark_attendance_bulk(
     return AttendanceBulkResponse(created=created, errors=errors)
 
 
-@router.get("/attendance", response_model=list[AttendanceResponse])
+@router.get("/attendance")
 def query_attendance(
     date_filter: str | None = Query(None, alias="date"),
     student_id: str | None = Query(None),
     staff_profile_id: str | None = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """List attendance records with optional filters.
     Accessible by TEACHER, HR, ADMIN, DIRECTOR roles."""
+    from app.core.pagination import paginate, build_paginated_response
     school_id = current_user.school_id
     if not school_id:
         raise HTTPException(status_code=400, detail="User has no school association")
@@ -134,16 +135,21 @@ def query_attendance(
     if staff_profile_id:
         q = q.filter(Attendance.staff_profile_id == staff_profile_id)
 
-    records = q.order_by(Attendance.date.desc(), Attendance.created_at.desc()).offset(skip).limit(limit).all()
-    return [
-        AttendanceResponse(
-            id=r.id, staff_profile_id=r.staff_profile_id, student_id=r.student_id,
-            date=r.date, check_in=r.check_in, check_out=r.check_out,
-            status=r.status, reason=r.reason, school_id=r.school_id,
-            marked_by=r.marked_by, created_at=r.created_at,
-        )
-        for r in records
-    ]
+    q = q.order_by(Attendance.date.desc(), Attendance.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    records = paginated_q.all()
+    return build_paginated_response(
+        items=[
+            AttendanceResponse(
+                id=r.id, staff_profile_id=r.staff_profile_id, student_id=r.student_id,
+                date=r.date, check_in=r.check_in, check_out=r.check_out,
+                status=r.status, reason=r.reason, school_id=r.school_id,
+                marked_by=r.marked_by, created_at=r.created_at,
+            )
+            for r in records
+        ],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.patch("/attendance/{attendance_id}", response_model=AttendanceResponse)

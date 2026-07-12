@@ -21,6 +21,8 @@ from app.schemas.academic import (
     BulkExamResultCreate, BulkPromotionCreate,
 )
 from app.models.academic_year import AcademicYear
+from app.models.exam import ExamType
+from app.core.pagination import paginate, build_paginated_response
 from app.services import academic_service
 from app.utils.excel import parse_excel, excel_response
 
@@ -247,10 +249,22 @@ def create_exam_type(data: ExamTypeCreate, db: Session = Depends(get_db), curren
     return academic_service.create_exam_type(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/exam-types", response_model=list[ExamTypeResponse])
-def list_exam_types(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/exam-types")
+def list_exam_types(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
-    return academic_service.get_exam_types(db, current_user.school_id, include_deleted=include_deleted)
+    q = db.query(ExamType).filter(ExamType.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    q = q.order_by(ExamType.name)
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[ExamTypeResponse.model_validate(et) for et in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/exams", response_model=ExamResponse, dependencies=DIRECTOR_ONLY)

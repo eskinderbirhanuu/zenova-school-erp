@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
 from app.core.permissions import require_permission, Permission
+from app.core.pagination import paginate, build_paginated_response
 from app.schemas.cafeteria import ProductCreate, ProductUpdate, ProductResponse, OrderCreate, OrderResponse, OrderStatusUpdate
+from app.models.cafeteria import CafeteriaProduct, CafeteriaOrder
 from app.services import cafeteria_service
 
 router = APIRouter()
@@ -15,9 +17,18 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db), current_u
     return cafeteria_service.create_product(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/cafeteria/products", response_model=list[ProductResponse], dependencies=VIEW_CAFE)
-def list_products(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return cafeteria_service.get_products(db, current_user.school_id)
+@router.get("/cafeteria/products", dependencies=VIEW_CAFE)
+def list_products(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    q = db.query(CafeteriaProduct).filter(CafeteriaProduct.school_id == current_user.school_id).order_by(CafeteriaProduct.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[ProductResponse.model_validate(p) for p in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/cafeteria/orders", response_model=OrderResponse, dependencies=CAFETERIA)
@@ -25,9 +36,18 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db), current_user=
     return cafeteria_service.create_order(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/cafeteria/orders", response_model=list[OrderResponse], dependencies=VIEW_CAFE)
-def list_orders(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return cafeteria_service.get_orders(db, current_user.school_id)
+@router.get("/cafeteria/orders", dependencies=VIEW_CAFE)
+def list_orders(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    q = db.query(CafeteriaOrder).filter(CafeteriaOrder.school_id == current_user.school_id).order_by(CafeteriaOrder.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[OrderResponse.model_validate(o) for o in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.patch("/cafeteria/products/{product_id}", response_model=ProductResponse, dependencies=CAFETERIA)

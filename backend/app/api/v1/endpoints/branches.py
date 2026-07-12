@@ -9,6 +9,7 @@ from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.branch import Branch
 from app.core.audit import log_audit
+from app.core.pagination import paginate, build_paginated_response
 
 router = APIRouter(tags=["branches"])
 
@@ -17,6 +18,8 @@ router = APIRouter(tags=["branches"])
 def list_branches(
     school_id: str = Query(None),
     search: str = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -30,16 +33,21 @@ def list_branches(
     if search:
         s = f"%{search}%"
         q = q.filter(Branch.name.ilike(s) | Branch.code.ilike(s))
-    branches = q.order_by(Branch.created_at.desc()).all()
-    return [
-        {
-            "id": b.id, "name": b.name, "code": b.code,
-            "address": b.address, "phone": b.phone, "email": b.email,
-            "school_id": b.school_id, "is_active": b.is_active,
-            "created_at": b.created_at.isoformat() if b.created_at else None,
-        }
-        for b in branches
-    ]
+    q = q.order_by(Branch.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    branches = paginated_q.all()
+    return build_paginated_response(
+        items=[
+            {
+                "id": b.id, "name": b.name, "code": b.code,
+                "address": b.address, "phone": b.phone, "email": b.email,
+                "school_id": b.school_id, "is_active": b.is_active,
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            }
+            for b in branches
+        ],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/branches", response_model=BranchResponse, status_code=status.HTTP_201_CREATED)

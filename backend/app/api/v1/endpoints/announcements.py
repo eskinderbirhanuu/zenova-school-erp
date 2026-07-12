@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.deps import get_current_user
 from app.core.permissions import require_permission, Permission
+from app.core.pagination import paginate, build_paginated_response
 from app.models.user import User
 from app.models.announcement import Announcement
 from app.schemas.announcement import AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse
@@ -30,16 +31,22 @@ def create_announcement(
     return announcement
 
 
-@router.get("/announcements", response_model=list[AnnouncementResponse])
+@router.get("/announcements")
 def list_announcements(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     q = db.query(Announcement).filter(
         Announcement.school_id == current_user.school_id,
         Announcement.is_published == True,
-    ).order_by(Announcement.created_at.desc()).limit(50).all()
-    return q
+    ).order_by(Announcement.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[AnnouncementResponse.model_validate(a) for a in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.get("/announcements/{announcement_id}", response_model=AnnouncementResponse)

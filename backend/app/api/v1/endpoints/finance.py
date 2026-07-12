@@ -20,6 +20,13 @@ from app.schemas.finance import (
     PurchaseOrderCreate, PurchaseOrderResponse,
     TrialBalanceResponse,
 )
+from app.core.pagination import paginate, build_paginated_response
+from app.models.account import Account
+from app.models.fee import FeeType, FeeStructure, FeeAssignment
+from app.models.scholarship import Scholarship
+from app.models.period import AccountingPeriod
+from app.models.budget import Budget, BudgetItem
+from app.models.payroll import PayrollRun
 from app.services import finance_service
 from app.utils.excel import parse_excel, excel_response
 
@@ -36,10 +43,22 @@ def create_account(data: AccountCreate, db: Session = Depends(get_db), current_u
     return finance_service.create_account(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/accounts", response_model=list[AccountResponse], dependencies=VIEW_FINANCE)
-def list_accounts(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/accounts", dependencies=VIEW_FINANCE)
+def list_accounts(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_accounts(db, current_user.school_id, include_deleted=include_deleted)
+    q = db.query(Account).filter(Account.school_id == current_user.school_id, Account.is_active == True)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    q = q.order_by(Account.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[AccountResponse.model_validate(a) for a in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.patch("/accounts/{account_id}", response_model=AccountResponse, dependencies=FINANCE)
@@ -78,10 +97,22 @@ def create_fee_type(data: FeeTypeCreate, db: Session = Depends(get_db), current_
     return finance_service.create_fee_type(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/fee-types", response_model=list[FeeTypeResponse], dependencies=VIEW_FINANCE)
-def list_fee_types(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/fee-types", dependencies=VIEW_FINANCE)
+def list_fee_types(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_fee_types(db, current_user.school_id, include_deleted=include_deleted)
+    q = db.query(FeeType).filter(FeeType.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    q = q.order_by(FeeType.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[FeeTypeResponse.model_validate(ft) for ft in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.patch("/fee-types/{fee_type_id}", response_model=FeeTypeResponse, dependencies=FINANCE)
@@ -100,10 +131,25 @@ def create_fee_structure(data: FeeStructureCreate, db: Session = Depends(get_db)
     return finance_service.create_fee_structure(db, data, current_user.id, current_user.school_id)
 
 
-@router.get("/fee-structures", response_model=list[FeeStructureResponse], dependencies=VIEW_FINANCE)
-def list_fee_structures(fee_type_id: str = Query(None), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/fee-structures", dependencies=VIEW_FINANCE)
+def list_fee_structures(
+    fee_type_id: str = Query(None),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_fee_structures(db, current_user.school_id, fee_type_id, include_deleted=include_deleted)
+    q = db.query(FeeStructure).join(FeeType).filter(FeeType.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if fee_type_id:
+        q = q.filter(FeeStructure.fee_type_id == fee_type_id)
+    q = q.order_by(FeeStructure.id)
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[FeeStructureResponse.model_validate(fs) for fs in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/fee-assignments", response_model=FeeAssignmentResponse, dependencies=FINANCE)
@@ -111,13 +157,27 @@ def assign_fee(data: FeeAssignmentCreate, db: Session = Depends(get_db), current
     return finance_service.assign_fee(db, data, current_user.id, current_user.school_id)
 
 
-@router.get("/fee-assignments", response_model=list[FeeAssignmentResponse], dependencies=VIEW_FINANCE)
+@router.get("/fee-assignments", dependencies=VIEW_FINANCE)
 def list_fee_assignments(
     student_id: str = Query(None), academic_year_id: str = Query(None),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_fee_assignments(db, current_user.school_id, student_id, academic_year_id, include_deleted=include_deleted)
+    q = db.query(FeeAssignment).join(FeeStructure, FeeAssignment.fee_structure_id == FeeStructure.id).join(FeeType).filter(FeeType.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if student_id:
+        q = q.filter(FeeAssignment.student_id == student_id)
+    if academic_year_id:
+        q = q.filter(FeeAssignment.academic_year_id == academic_year_id)
+    q = q.order_by(FeeAssignment.id)
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[FeeAssignmentResponse.model_validate(fa) for fa in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/invoices", response_model=InvoiceResponse, dependencies=FINANCE)
@@ -174,13 +234,27 @@ def create_scholarship(data: ScholarshipCreate, db: Session = Depends(get_db), c
     return finance_service.create_scholarship(db, data, current_user.id, current_user.school_id)
 
 
-@router.get("/scholarships", response_model=list[ScholarshipResponse], dependencies=VIEW_FINANCE)
+@router.get("/scholarships", dependencies=VIEW_FINANCE)
 def list_scholarships(
     student_id: str = Query(None), academic_year_id: str = Query(None),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_scholarships(db, current_user.school_id, student_id, academic_year_id, include_deleted=include_deleted)
+    q = db.query(Scholarship).filter(Scholarship.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if student_id:
+        q = q.filter(Scholarship.student_id == student_id)
+    if academic_year_id:
+        q = q.filter(Scholarship.academic_year_id == academic_year_id)
+    q = q.order_by(Scholarship.id)
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[ScholarshipResponse.model_validate(s) for s in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/periods", response_model=PeriodResponse, dependencies=FINANCE)
@@ -188,10 +262,22 @@ def create_period(data: PeriodCreate, db: Session = Depends(get_db), current_use
     return finance_service.create_period(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/periods", response_model=list[PeriodResponse], dependencies=VIEW_FINANCE)
-def list_periods(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/periods", dependencies=VIEW_FINANCE)
+def list_periods(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_periods(db, current_user.school_id, include_deleted=include_deleted)
+    q = db.query(AccountingPeriod).filter(AccountingPeriod.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    q = q.order_by(AccountingPeriod.start_date.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[PeriodResponse.model_validate(p) for p in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/periods/{period_id}/lock", dependencies=FINANCE)
@@ -211,10 +297,22 @@ def create_payroll_run(data: PayrollRunCreate, db: Session = Depends(get_db), cu
     return finance_service.create_payroll_run(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/payroll-runs", response_model=list[PayrollRunResponse], dependencies=VIEW_FINANCE)
-def list_payroll_runs(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/payroll-runs", dependencies=VIEW_FINANCE)
+def list_payroll_runs(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_payroll_runs(db, current_user.school_id, include_deleted=include_deleted)
+    q = db.query(PayrollRun).filter(PayrollRun.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    q = q.order_by(PayrollRun.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[PayrollRunResponse.model_validate(pr) for pr in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/payroll-runs/{run_id}/approve", dependencies=FINANCE_DIRECTOR)
@@ -228,10 +326,22 @@ def create_budget(data: BudgetCreate, db: Session = Depends(get_db), current_use
     return finance_service.create_budget(db, current_user.school_id, data, current_user.id)
 
 
-@router.get("/budgets", response_model=list[BudgetResponse], dependencies=VIEW_FINANCE)
-def list_budgets(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/budgets", dependencies=VIEW_FINANCE)
+def list_budgets(
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_budgets(db, current_user.school_id, include_deleted=include_deleted)
+    q = db.query(Budget).filter(Budget.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    q = q.order_by(Budget.id)
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[BudgetResponse.model_validate(b) for b in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/budgets/{budget_id}/items", response_model=BudgetItemResponse, dependencies=FINANCE)
@@ -239,10 +349,25 @@ def create_budget_item(budget_id: str, data: BudgetItemCreate, db: Session = Dep
     return finance_service.create_budget_item(db, budget_id, data, current_user.id, current_user.school_id)
 
 
-@router.get("/budgets/{budget_id}/items", response_model=list[BudgetItemResponse], dependencies=VIEW_FINANCE)
-def list_budget_items(budget_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/budgets/{budget_id}/items", dependencies=VIEW_FINANCE)
+def list_budget_items(
+    budget_id: str,
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return finance_service.get_budget_items(db, budget_id, current_user.school_id, include_deleted=include_deleted)
+    q = db.query(BudgetItem).join(Budget).filter(
+        BudgetItem.budget_id == budget_id, Budget.school_id == current_user.school_id
+    )
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    q = q.order_by(BudgetItem.id)
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[BudgetItemResponse.model_validate(bi) for bi in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
+    )
 
 
 @router.post("/purchase-requests", response_model=PurchaseRequestResponse, dependencies=[require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS, Permission.INVENTORY_MANAGE)])
