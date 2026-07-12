@@ -1,52 +1,43 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { announcementService } from "@/services/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { useApiQuery, useApiMutation } from "@/hooks/use-api"
+import { useForm, FormProvider } from "react-hook-form"
+import { FormField } from "@/components/ui/form"
 import { Plus, Trash2, Loader2, Megaphone } from "lucide-react"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AnnouncementsPage() {
-  const [announcements, setAnnouncements] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
   const [showForm, setShowForm] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState("")
-  const [form, setForm] = useState({ title: "", content: "", target_roles: "" })
+  const { data: announcements = [], isLoading, refetch } = useApiQuery(
+    ["announcements"],
+    () => announcementService.list(),
+  )
+  const form = useForm({ defaultValues: { title: "", content: "", target_roles: "" } })
 
-  const fetchAnnouncements = () => {
-    setLoading(true)
-    announcementService.list()
-      .then((r) => setAnnouncements(r.data || []))
-      .catch(() => setAnnouncements([]))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetchAnnouncements() }, [])
-
-  const handleCreate = async () => {
-    if (!form.title || !form.content) { setError("Title and content are required"); return }
-    setSaving(true)
-    setError("")
-    try {
-      await announcementService.create(form)
-      setForm({ title: "", content: "", target_roles: "" })
+  const createMutation = useApiMutation((data: any) => announcementService.create(data), {
+    onSuccess: () => {
+      toast({ title: "Announcement published" })
+      form.reset()
       setShowForm(false)
-      fetchAnnouncements()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || "Failed to create announcement")
-    }
-    setSaving(false)
-  }
+      refetch()
+    },
+    onError: (e: any) => {
+      toast({ title: e?.response?.data?.detail || "Failed to create announcement", variant: "destructive" })
+    },
+  })
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this announcement?")) return
-    try {
-      await announcementService.delete(id)
-      setAnnouncements(announcements.filter((a) => a.id !== id))
-    } catch {}
-  }
+  const deleteMutation = useApiMutation((id: string) => announcementService.delete(id), {
+    onSuccess: (_data, id) => {
+      toast({ title: "Announcement deleted" })
+      refetch()
+    },
+  })
 
   return (
     <div className="space-y-6">
@@ -62,39 +53,27 @@ export default function AnnouncementsPage() {
 
       {showForm && (
         <Card>
-          <CardContent className="p-6 space-y-4">
-            {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input type="text" value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-              <textarea value={form.content}
-                onChange={(e) => setForm({ ...form, content: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-sm" rows={4} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Roles (comma-separated, leave empty for all)</label>
-              <input type="text" value={form.target_roles}
-                onChange={(e) => setForm({ ...form, target_roles: e.target.value })}
-                placeholder="TEACHER, PARENT, STUDENT"
-                className="w-full px-3 py-2 border rounded-lg text-sm" />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                Publish
-              </Button>
-            </div>
-          </CardContent>
+          <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))}>
+              <CardContent className="p-6 space-y-4">
+                <FormField name="title" label="Title" required />
+                <FormField name="content" label="Content" textarea required />
+                <FormField name="target_roles" label="Target Roles (comma-separated, empty = all)"
+                  placeholder="TEACHER, PARENT, STUDENT" />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                    Publish
+                  </Button>
+                </div>
+              </CardContent>
+            </form>
+          </FormProvider>
         </Card>
       )}
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
       ) : announcements.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-gray-500">No announcements yet.</CardContent></Card>
@@ -116,7 +95,7 @@ export default function AnnouncementsPage() {
                       {a.target_roles ? ` — For: ${a.target_roles}` : " — All roles"}
                     </p>
                   </div>
-                  <button onClick={() => handleDelete(a.id)} className="text-gray-400 hover:text-red-600 ml-4">
+                  <button onClick={() => deleteMutation.mutate(a.id)} className="text-gray-400 hover:text-red-600 ml-4">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

@@ -17,23 +17,30 @@ export function useApiQuery(
   })
 }
 
-export function useApiMutation(
-  mutator: (vars: any) => Promise<AxiosResponse>,
-  options?: { onSuccess?: (data: any, vars: any) => void; invalidate?: string[][] },
+export function useApiMutation<TVars = void>(
+  mutator: (vars: TVars) => Promise<AxiosResponse>,
+  options?: {
+    onSuccess?: (data: any, vars: TVars) => void;
+    onError?: (error: any, vars: TVars) => void;
+    invalidate?: string[][];
+  },
 ) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (vars: any) => {
+    mutationFn: async (vars: TVars) => {
       const res = await mutator(vars)
       return res.data ?? res
     },
-    onSuccess: (data, vars) => {
+    onSuccess: (data, vars: TVars) => {
       if (options?.invalidate) {
         for (const key of options.invalidate) {
           queryClient.invalidateQueries({ queryKey: key })
         }
       }
       options?.onSuccess?.(data, vars)
+    },
+    onError: (error, vars: TVars) => {
+      options?.onError?.(error, vars)
     },
   })
 }

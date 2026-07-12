@@ -1,50 +1,30 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
+import { useApiQuery, useApiMutation } from "@/hooks/use-api"
 import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
-import { Loader2, HardDrive, Download, Trash2, RefreshCw } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { Loader2, HardDrive, Download, Trash2 } from "lucide-react"
 
 export default function SuperAdminBackups() {
-  const [backups, setBackups] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
+  const { toast } = useToast()
+  const { data, isLoading, refetch } = useApiQuery(["backups"], () => api.get("/backups"))
+  const backups = (data as any)?.backups || []
 
-  const fetchBackups = () => {
-    setLoading(true)
-    api.get("/backups").then((r) => {
-      setBackups(r.data?.backups || [])
-    }).catch(() => {}).finally(() => setLoading(false))
-  }
+  const createMutation = useApiMutation(() => api.post("/backups"), {
+    onSuccess: () => { toast({ title: "Backup created" }); refetch() },
+    onError: () => toast({ title: "Backup failed", variant: "destructive" }),
+  })
 
-  useEffect(() => { fetchBackups() }, [])
+  const deleteMutation = useApiMutation((filename: string) => api.delete(`/backups/${encodeURIComponent(filename)}`), {
+    onSuccess: () => { toast({ title: "Backup deleted" }); refetch() },
+    onError: () => toast({ title: "Delete failed", variant: "destructive" }),
+  })
 
-  const handleCreate = async () => {
-    setCreating(true)
-    try {
-      const r = await api.post("/backups")
-      if (r.data.success) {
-        toast({ title: "Backup created", description: r.data.backup.filename })
-        fetchBackups()
-      }
-    } catch {
-      toast({ title: "Backup failed", variant: "destructive" })
-    }
-    setCreating(false)
-  }
-
-  const handleDelete = async (filename: string) => {
-    try {
-      await api.delete(`/backups/${encodeURIComponent(filename)}`)
-      toast({ title: "Backup deleted" })
-      fetchBackups()
-    } catch {
-      toast({ title: "Delete failed", variant: "destructive" })
-    }
-  }
+  const handleCreate = () => createMutation.mutate()
+  const handleDelete = (filename: string) => deleteMutation.mutate(filename)
 
   const handleDownload = (filename: string) => {
     const a = document.createElement("a")
@@ -59,9 +39,9 @@ export default function SuperAdminBackups() {
         title="Backup Manager"
         description="Create, download, and manage database backups"
         actions={
-          <Button onClick={handleCreate} disabled={creating}>
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDrive className="h-4 w-4" />}
-            {creating ? "Creating..." : "Create Backup"}
+          <Button onClick={handleCreate} disabled={createMutation.isPending}>
+            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDrive className="h-4 w-4" />}
+            {createMutation.isPending ? "Creating..." : "Create Backup"}
           </Button>
         }
       />
@@ -74,7 +54,7 @@ export default function SuperAdminBackups() {
           <CardDescription>All database backups sorted by creation date</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : backups.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">No backups yet. Click "Create Backup" to start.</div>
@@ -89,7 +69,7 @@ export default function SuperAdminBackups() {
                 </tr>
               </thead>
               <tbody>
-                {backups.map((b, i) => (
+                {backups.map((b: any, i: number) => (
                   <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
                     <td className="p-4 font-mono text-xs font-medium">{b.filename}</td>
                     <td className="p-4 text-muted-foreground">{b.size_display || "—"}</td>
