@@ -89,7 +89,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 | H1 | Card UID uniqueness per-table only | Same UID can be student+staff | ✅ Resolved — cross-table check |
 | H2 | Bulk NFC assign lacks RBAC | Any authenticated user can assign | ✅ Resolved — CARD_PRINT_ASSIGN |
 | H3 | No frontend data caching | Redundant API calls, slow UX | ❌ Open |
-| H4 | Unpaginated list endpoints | Can return thousands of records | ⚡ Partially — utility created, audit-logs done |
+| H4 | Unpaginated list endpoints | Can return thousands of records | ✅ Resolved — all list endpoints now use paginate() |
 | H5 | No API integration tests | Cannot verify HTTP-layer correctness | ❌ Open |
 | H6 | No E2E tests | Critical journeys not validated | ❌ Open |
 | H7 | public NFC lookup oracle | User enumeration possible | ✅ Resolved — uniform response |
