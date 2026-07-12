@@ -104,7 +104,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 | M4 | No CI/CD pipeline defined | ✅ Fixed |
 | M5 | No monitoring/Observability stack |
 | M6 | No developer onboarding guide | ✅ Fixed — docs/ONBOARDING.md |
-| M7 | No operator/SRE runbook |
+| M7 | No operator/SRE runbook | ✅ Fixed — docs/OPS_RUNBOOK.md |
 | M8 | `user_role` in non-HttpOnly cookie (UX integrity) | ✅ Fixed |
 | M9 | No API response caching | ✅ Fixed — Cache-Control set by SecurityHeadersMiddleware |
 | M10 | license-server uses SQLite |
