@@ -23,10 +23,10 @@
 | NFC & QR | 8.5/10 | school_id added, AES-256-GCM QR, cross-table UID dedup |
 | Deployment | 8.5/10 | Docker + K8s + Ubuntu, CI/CD added, missing monitoring |
 | Performance | 8.0/10 | N+1 hotspots fixed, pagination on all ~30 list endpoints |
-| Testing | 5.5/10 | 173 unit tests, settings schema tests added, no API/E2E |
+| Testing | 6.5/10 | 185 unit + API integration tests, settings schema tests, no E2E yet |
 | Documentation | 8.0/10 | Audit report updated, CHANGELOG maintained |
 
-### **Enterprise Readiness Score: 87/100**
+### **Enterprise Readiness Score: 88/100**
 
 ---
 
@@ -68,7 +68,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 - ✅ `user_role` cookie made HttpOnly; redundant frontend cookie set removed
 - ✅ Pagination applied to purchase-requests, purchase-orders endpoints
 
-**Still Open**: H3 (frontend caching — ~100 components still need conversion), H5 (API integration tests), H6 (E2E tests), and M11–M12 medium items
+**Still Open**: H3 (frontend caching — ~100 components still need conversion), H6 (E2E tests), and M11–M12 medium items
 
 ---
 
@@ -90,7 +90,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 | H2 | Bulk NFC assign lacks RBAC | Any authenticated user can assign | ✅ Resolved — CARD_PRINT_ASSIGN |
 | H3 | No frontend data caching | Redundant API calls, slow UX | ⚡ Mitigated — infrastructure in place, 3/100+ components converted |
 | H4 | Unpaginated list endpoints | Can return thousands of records | ✅ Resolved — all list endpoints now use paginate() |
-| H5 | No API integration tests | Cannot verify HTTP-layer correctness | ❌ Open |
+| H5 | No API integration tests | Cannot verify HTTP-layer correctness | ✅ Resolved — 12 tests covering auth, pagination, NFC RBAC |
 | H6 | No E2E tests | Critical journeys not validated | ❌ Open |
 | H7 | public NFC lookup oracle | User enumeration possible | ✅ Resolved — uniform response |
 
@@ -155,7 +155,7 @@ ZENOVA is a well-architected hybrid school ERP platform nearing production readi
 | Task | Effort | Risk |
 |------|--------|------|
 | Convert remaining ~100 frontend components to React Query (H3) | High | Low |
-| Create API integration tests (auth + finance + NFC) (H5) | High | Low |
+| Create API integration tests (auth + finance + NFC) (H5) | High | Low | ✅ Done |
 | E2E smoke tests (Playwright) (H6) | Medium | Low |
 | Frontend component tests | Medium | Low |
 | Payment gateway abstraction (M12) | Medium | Medium |
