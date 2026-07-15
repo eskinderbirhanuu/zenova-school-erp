@@ -1,31 +1,24 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { cafeteriaService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useCafeteriaOrders } from "@/hooks/queries"
 
 export default function CafeteriaSalesPage() {
-  const [sales, setSales] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    setLoading(true)
-    cafeteriaService.orders.list({ limit: 100 }).then((r: any) => setSales(r.data)).catch(() => toast({ title: "Failed to load sales", variant: "destructive" })).finally(() => setLoading(false))
-  }, [])
+  const { data: sales, isLoading } = useCafeteriaOrders({ limit: 100 })
 
   return (
     <GenericListPage
       title="Sales" description="Track cafeteria sales transactions"
       columns={[
-        { key: "date", header: "Date", render: (s) => <span>{s.date || s.created_at?.slice(0, 10) || "\u2014"}</span> },
-        { key: "product", header: "Product", render: (s) => <span className="font-medium">{s.product_name || s.name || "\u2014"}</span> },
-        { key: "qty", header: "Qty", render: (s) => <span>{s.quantity || 1}</span> },
-        { key: "total", header: "Total", render: (s) => <span className="font-mono">${Number(s.total || s.amount || 0).toFixed(2)}</span> },
-        { key: "payment", header: "Payment", render: (s) => <span>{s.payment_method || "\u2014"}</span> },
+        { key: "date", header: "Date", render: (s: any) => <span>{s.date || s.created_at?.slice(0, 10) || "\u2014"}</span> },
+        { key: "product", header: "Product", render: (s: any) => <span className="font-medium">{s.product_name || s.name || "\u2014"}</span> },
+        { key: "qty", header: "Qty", render: (s: any) => <span>{s.quantity || 1}</span> },
+        { key: "total", header: "Total", render: (s: any) => <span className="font-mono">${Number(s.total || s.amount || 0).toFixed(2)}</span> },
+        { key: "payment", header: "Payment", render: (s: any) => <span>{s.payment_method || "\u2014"}</span> },
       ]}
-      data={sales} keyExtractor={(s) => s.id}
-      loading={loading} emptyTitle="No sales records"
+      data={sales || []} keyExtractor={(s) => s.id}
+      loading={isLoading} emptyTitle="No sales records"
     />
   )
 }

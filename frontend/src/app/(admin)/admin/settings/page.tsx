@@ -4,9 +4,11 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import api, { setupService } from "@/services/api"
+import api from "@/services/api"
+import { useInstallerWhoami, useSettings } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { Save, Bell, Lock, Calendar, Globe, Server, CheckCircle2, AlertCircle, Loader2, ArrowRight } from "lucide-react"
+import { PasskeyManager } from "@/components/auth/passkey-manager"
 
 const sectionDefs = [
   { key: "academic", title: "Academic Settings", icon: Calendar, description: "Term dates, grading scale, and academic year configuration", fields: [
@@ -49,18 +51,20 @@ export default function AdminSettings() {
   const [vpsConnecting, setVpsConnecting] = useState(false)
   const [vpsConnected, setVpsConnected] = useState(false)
   const [vpsError, setVpsError] = useState("")
-  const [whoami, setWhoami] = useState<any>(null)
+  const { data: whoami } = useInstallerWhoami()
+  const { data: settingsData } = useSettings()
 
   useEffect(() => {
-    api.get("/settings").then((res) => {
-      const s = res.data?.settings || {}
+    if (settingsData) {
+      const s = (settingsData as any)?.settings || {}
       const defaults: Record<string, string> = {}
-      sectionDefs.forEach(sec => sec.fields.forEach(f => { defaults[f.key] = s[f.key] || "" }))
+      sectionDefs.forEach((sec: any) => sec.fields.forEach((f: any) => { defaults[f.key] = s[f.key] || "" }))
       setValues(defaults)
-    }).catch(() => {}).finally(() => setLoading(false))
-
-    setupService.installerWhoami().then(r => setWhoami(r.data)).catch(() => {})
-  }, [])
+      setLoading(false)
+    } else {
+      setLoading(false)
+    }
+  }, [settingsData])
 
   const handleVpsConnect = async () => {
     setVpsConnecting(true)
@@ -91,7 +95,7 @@ export default function AdminSettings() {
     setSaving(false)
   }
 
-  const isLocal = whoami?.is_main_school || whoami?.is_branch
+  const isLocal = (whoami as any)?.is_main_school || (whoami as any)?.is_branch
 
   return (
     <div className="space-y-6">
@@ -174,7 +178,7 @@ export default function AdminSettings() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {s.fields.map((f) => (
+                {s.fields.map((f: any) => (
                   <div key={f.key} className="space-y-1.5">
                     <label className="text-sm font-medium">{f.label}</label>
                     <Input value={values[f.key] || ""} type={f.type}
@@ -185,6 +189,11 @@ export default function AdminSettings() {
             </Card>
           )
         })}
+      </div>
+
+      {/* Passkey Management */}
+      <div className="mt-6">
+        <PasskeyManager />
       </div>
     </div>
   )

@@ -38,7 +38,7 @@ export function Sidebar() {
   const pathname = usePathname()
   const { user, logout } = useAuth()
 
-  const visibleItems = navItems.filter((item) => user && item.roles.includes(user.role as string))
+  const visibleItems = navItems.filter((item: any) => user && item.roles.includes(user.role as string))
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r glass">
@@ -49,7 +49,7 @@ export function Sidebar() {
         <span className="font-semibold">ZENOVA</span>
       </div>
       <nav className="flex-1 space-y-1 p-4">
-        {visibleItems.map((item) => (
+        {visibleItems.map((item: any) => (
           <Link
             key={item.href}
             href={item.href}

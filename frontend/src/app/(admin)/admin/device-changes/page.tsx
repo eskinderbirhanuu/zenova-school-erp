@@ -1,28 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { deviceReviewService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
 import { HardDrive, RefreshCw } from "lucide-react"
+import { useDeviceReviews } from "@/hooks/queries"
 
 export default function AdminDeviceChanges() {
-  const [requests, setRequests] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const fetch = () => {
-    setLoading(true)
-    deviceReviewService.list("pending")
-      .then(res => {
-        const all = res.data.requests || []
-        setRequests(all)
-      })
-      .catch(err => toast({ title: "Failed to load", description: err.response?.data?.detail || err.message, variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetch() }, [])
+  const { data: deviceReviews, isLoading, refetch } = useDeviceReviews("pending")
+  const requests = deviceReviews || []
 
   return (
     <div className="space-y-6 p-6">
@@ -31,13 +17,13 @@ export default function AdminDeviceChanges() {
           <h1 className="text-2xl font-bold tracking-tight">Device Changes</h1>
           <p className="text-sm text-muted-foreground mt-1">Pending hardware change requests for your school</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetch} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Refresh
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+          <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? "animate-spin" : ""}`} /> Refresh
         </Button>
       </div>
 
-      {loading ? (
-        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />)}</div>
+      {isLoading ? (
+        <div className="space-y-3">{[1, 2, 3].map((i: any) => <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />)}</div>
       ) : requests.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <HardDrive className="h-12 w-12 mx-auto mb-3 opacity-30" />
@@ -46,7 +32,7 @@ export default function AdminDeviceChanges() {
         </div>
       ) : (
         <div className="space-y-3">
-          {requests.map((req) => (
+          {requests.map((req: any) => (
             <div key={req.id} className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3">

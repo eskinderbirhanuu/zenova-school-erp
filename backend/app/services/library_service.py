@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from app.core.exceptions import NotFoundException, BadRequestException
 from app.models.library import BookCategory, Book, BookBorrowing
 from app.core.audit import log_audit
 
@@ -38,7 +38,7 @@ def update_book(db: Session, book_id: str, data, user_id: str, school_id: str = 
     if school_id:
         q = q.filter(Book.school_id == school_id)
     b = q.first()
-    if not b: raise HTTPException(404, "Book not found")
+    if not b: raise NotFoundException("Book not found")
     if data.title is not None: b.title = data.title
     if data.author is not None: b.author = data.author
     if data.total_quantity is not None: b.total_quantity = data.total_quantity
@@ -58,8 +58,8 @@ def get_books(db: Session, school_id: str, category_id: str = None, search: str 
 
 def borrow_book(db: Session, school_id: str, data, user_id: str):
     book = db.query(Book).filter(Book.id == data.book_id, Book.school_id == school_id).first()
-    if not book: raise HTTPException(404, "Book not found")
-    if book.available_quantity < 1: raise HTTPException(400, "No copies available")
+    if not book: raise NotFoundException("Book not found")
+    if book.available_quantity < 1: raise BadRequestException("No copies available")
     br = BookBorrowing(book_id=data.book_id, borrower_type=data.borrower_type,
                        borrower_id=data.borrower_id, borrow_date=date.today(),
                        due_date=data.due_date, status="borrowed", school_id=school_id, created_by=user_id)
@@ -76,8 +76,8 @@ def return_book(db: Session, borrowing_id: str, user_id: str, school_id: str = N
     if school_id:
         q = q.filter(BookBorrowing.school_id == school_id)
     br = q.first()
-    if not br: raise HTTPException(404, "Borrowing record not found")
-    if br.status == "returned": raise HTTPException(400, "Already returned")
+    if not br: raise NotFoundException("Borrowing record not found")
+    if br.status == "returned": raise BadRequestException("Already returned")
     br.return_date = date.today()
     br.status = "returned"
     q_book = db.query(Book).filter(Book.id == br.book_id)

@@ -1,33 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { academicService } from "@/services/api"
+import { useClasses, useSubjects, useCreateSubject } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
-import { Checkbox } from "@/components/ui/checkbox"
 
 export default function SubjectsPage() {
-  const [classes, setClasses] = useState<any[]>([])
-  const [subjects, setSubjects] = useState<any[]>([])
   const [classId, setClassId] = useState("")
   const [name, setName] = useState("")
   const [code, setCode] = useState("")
   const [isOptional, setIsOptional] = useState(false)
-
-  useEffect(() => { academicService.classes.list().then((r) => setClasses(r.data)) }, [])
-  useEffect(() => {
-    if (classId) academicService.subjects.list(classId).then((r) => setSubjects(r.data)).catch(() => {})
-  }, [classId])
+  const { data: classes } = useClasses()
+  const { data: subjects } = useSubjects(classId ? { class_id: classId } : undefined)
+  const createMutation = useCreateSubject()
 
   const create = async () => {
     try {
-      await academicService.subjects.create({ name, code, class_id: classId, is_optional: isOptional })
+      await createMutation.mutateAsync({ name, code, class_id: classId, is_optional: isOptional } as any)
       toast({ title: "Subject created" }); setName(""); setCode(""); setIsOptional(false)
-      if (classId) academicService.subjects.list(classId).then((r) => setSubjects(r.data))
     } catch (e: any) {
       toast({ title: "Error", description: e.response?.data?.detail, variant: "destructive" })
     }
@@ -44,7 +38,7 @@ export default function SubjectsPage() {
             <Select value={classId} onValueChange={setClassId}>
               <SelectTrigger className="w-48"><SelectValue placeholder="Select class" /></SelectTrigger>
               <SelectContent>
-                {classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                {(classes || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -67,13 +61,13 @@ export default function SubjectsPage() {
               </tr>
             </thead>
             <tbody>
-              {subjects.map((s: any) => (
+              {(subjects || []).map((s: any) => (
                 <tr key={s.id} className="border-b last:border-0">
                   <td className="py-3">{s.name}</td><td className="py-3">{s.code}</td>
                   <td className="py-3">{s.is_optional ? "✅" : "—"}</td>
                 </tr>
               ))}
-              {subjects.length === 0 && <tr><td colSpan={3} className="py-6 text-center text-muted-foreground">No subjects</td></tr>}
+              {(subjects || []).length === 0 && <tr><td colSpan={3} className="py-6 text-center text-muted-foreground">No subjects</td></tr>}
             </tbody>
           </table>
         </CardContent>

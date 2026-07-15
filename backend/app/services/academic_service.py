@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from app.core.exceptions import NotFoundException, BadRequestException
 from app.models.academic_year import AcademicYear, Semester
 from app.models.class_ import ClassGrade
 from app.models.section import Section
@@ -33,7 +33,7 @@ def set_current_academic_year(db: Session, year_id: str, school_id: str, user_id
     db.query(AcademicYear).filter(AcademicYear.school_id == school_id).update({"is_current": False})
     year = db.query(AcademicYear).filter(AcademicYear.id == year_id, AcademicYear.school_id == school_id).first()
     if not year:
-        raise HTTPException(status_code=404, detail="Academic year not found")
+        raise NotFoundException("Academic year not found")
     year.is_current = True
     log_audit(db, user_id, "UPDATE", "academic_year", year_id, "Set as current academic year", school_id=school_id)
     db.commit()
@@ -78,7 +78,7 @@ def get_classes(db: Session, school_id: str, include_deleted: bool = False):
 def update_class_grade(db: Session, class_id: str, data, user_id: str, school_id: str):
     cls = db.query(ClassGrade).filter(ClassGrade.id == class_id, ClassGrade.school_id == school_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise NotFoundException("Class not found")
     if data.name is not None:
         cls.name = data.name
     if data.code is not None:
@@ -92,7 +92,7 @@ def update_class_grade(db: Session, class_id: str, data, user_id: str, school_id
 def delete_class_grade(db: Session, class_id: str, user_id: str, school_id: str):
     cls = db.query(ClassGrade).filter(ClassGrade.id == class_id, ClassGrade.school_id == school_id).first()
     if not cls:
-        raise HTTPException(status_code=404, detail="Class not found")
+        raise NotFoundException("Class not found")
     cls.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "DELETE", "class", class_id, "Class grade deleted", school_id=school_id)
     db.commit()
@@ -117,7 +117,7 @@ def get_sections(db: Session, school_id: str, class_id: str, include_deleted: bo
 def update_section(db: Session, section_id: str, data, user_id: str, school_id: str):
     sec = db.query(Section).filter(Section.id == section_id, Section.school_id == school_id).first()
     if not sec:
-        raise HTTPException(status_code=404, detail="Section not found")
+        raise NotFoundException("Section not found")
     if data.name is not None:
         sec.name = data.name
     if data.capacity is not None:
@@ -131,7 +131,7 @@ def update_section(db: Session, section_id: str, data, user_id: str, school_id: 
 def delete_section(db: Session, section_id: str, user_id: str, school_id: str):
     sec = db.query(Section).filter(Section.id == section_id, Section.school_id == school_id).first()
     if not sec:
-        raise HTTPException(status_code=404, detail="Section not found")
+        raise NotFoundException("Section not found")
     sec.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "DELETE", "section", section_id, "Section deleted", school_id=school_id)
     db.commit()
@@ -156,7 +156,7 @@ def get_subjects(db: Session, school_id: str, class_id: str, include_deleted: bo
 def update_subject(db: Session, subject_id: str, data, user_id: str, school_id: str):
     sub = db.query(Subject).filter(Subject.id == subject_id, Subject.school_id == school_id).first()
     if not sub:
-        raise HTTPException(status_code=404, detail="Subject not found")
+        raise NotFoundException("Subject not found")
     if data.name is not None:
         sub.name = data.name
     if data.code is not None:
@@ -172,7 +172,7 @@ def update_subject(db: Session, subject_id: str, data, user_id: str, school_id: 
 def delete_subject(db: Session, subject_id: str, user_id: str, school_id: str):
     sub = db.query(Subject).filter(Subject.id == subject_id, Subject.school_id == school_id).first()
     if not sub:
-        raise HTTPException(status_code=404, detail="Subject not found")
+        raise NotFoundException("Subject not found")
     sub.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "DELETE", "subject", subject_id, "Subject deleted", school_id=school_id)
     db.commit()
@@ -197,7 +197,7 @@ def get_classrooms(db: Session, school_id: str, include_deleted: bool = False):
 def update_classroom(db: Session, classroom_id: str, data, user_id: str, school_id: str):
     room = db.query(Classroom).filter(Classroom.id == classroom_id, Classroom.school_id == school_id).first()
     if not room:
-        raise HTTPException(status_code=404, detail="Classroom not found")
+        raise NotFoundException("Classroom not found")
     if data.name is not None:
         room.name = data.name
     if data.capacity is not None:
@@ -211,7 +211,7 @@ def update_classroom(db: Session, classroom_id: str, data, user_id: str, school_
 def delete_classroom(db: Session, classroom_id: str, user_id: str, school_id: str):
     room = db.query(Classroom).filter(Classroom.id == classroom_id, Classroom.school_id == school_id).first()
     if not room:
-        raise HTTPException(status_code=404, detail="Classroom not found")
+        raise NotFoundException("Classroom not found")
     room.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "DELETE", "classroom", classroom_id, "Classroom deleted", school_id=school_id)
     db.commit()
@@ -269,7 +269,7 @@ def create_timetable_entry(db: Session, school_id: str, data, user_id: str):
 def update_timetable_entry(db: Session, entry_id: str, data, user_id: str, school_id: str):
     entry = db.query(TimetableEntry).filter(TimetableEntry.id == entry_id, TimetableEntry.school_id == school_id).first()
     if not entry:
-        raise HTTPException(status_code=404, detail="Timetable entry not found")
+        raise NotFoundException("Timetable entry not found")
     day = data.day_of_week if data.day_of_week is not None else entry.day_of_week
     st = data.start_time if data.start_time is not None else entry.start_time
     et = data.end_time if data.end_time is not None else entry.end_time
@@ -298,7 +298,7 @@ def update_timetable_entry(db: Session, entry_id: str, data, user_id: str, schoo
 def delete_timetable_entry(db: Session, entry_id: str, user_id: str, school_id: str):
     entry = db.query(TimetableEntry).filter(TimetableEntry.id == entry_id, TimetableEntry.school_id == school_id).first()
     if not entry:
-        raise HTTPException(status_code=404, detail="Timetable entry not found")
+        raise NotFoundException("Timetable entry not found")
     entry.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "DELETE", "timetable_entry", entry_id, "Timetable entry deleted", school_id=school_id)
     db.commit()
@@ -344,7 +344,7 @@ def create_exam(db: Session, school_id: str, data, user_id: str):
 def update_exam(db: Session, exam_id: str, data, user_id: str, school_id: str):
     exam = db.query(Exam).filter(Exam.id == exam_id, Exam.school_id == school_id).first()
     if not exam:
-        raise HTTPException(status_code=404, detail="Exam not found")
+        raise NotFoundException("Exam not found")
     if data.name is not None:
         exam.name = data.name
     if data.exam_date is not None:
@@ -419,7 +419,7 @@ def bulk_create_exam_results(db: Session, school_id: str, results_list: list, us
 def update_exam_result(db: Session, result_id: str, data, user_id: str, school_id: str):
     result = db.query(ExamResult).filter(ExamResult.id == result_id, ExamResult.school_id == school_id).first()
     if not result:
-        raise HTTPException(status_code=404, detail="Exam result not found")
+        raise NotFoundException("Exam result not found")
     if data.score is not None:
         result.score = data.score
     if data.remarks is not None:
@@ -440,12 +440,12 @@ def get_exam_results(db: Session, school_id: str, exam_id: str, include_deleted:
 def promote_student(db: Session, school_id: str, student_id: str, to_class_id: str, academic_year_id: str, user_id: str):
     student = db.query(StudentModel).filter(StudentModel.id == student_id, StudentModel.school_id == school_id).first()
     if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
-    from_class_id = student.current_class_id
+        raise NotFoundException("Student not found")
+    from_class_id = student.grade_id
     if not from_class_id:
-        raise HTTPException(status_code=400, detail="Student has no current class")
+        raise BadRequestException("Student has no current class")
     pr = PromotionRecord(student_id=student_id, from_class_id=from_class_id, to_class_id=to_class_id, academic_year_id=academic_year_id, promoted_by=user_id, school_id=school_id)
-    student.current_class_id = to_class_id
+    student.grade_id = to_class_id
     db.add(pr)
     log_audit(db, user_id, "CREATE", "promotion", pr.id, f"Student {student_id} promoted from {from_class_id} to {to_class_id}", school_id=school_id)
     db.commit()
@@ -463,11 +463,11 @@ def bulk_promote_students(db: Session, student_ids: list[str], to_class_id: str,
         student = db.query(StudentModel).filter(StudentModel.id == sid, StudentModel.school_id == school_id).first()
         if not student:
             continue
-        from_class_id = student.current_class_id
+        from_class_id = student.grade_id
         if not from_class_id:
             continue
         pr = PromotionRecord(student_id=sid, school_id=school_id, from_class_id=from_class_id, to_class_id=to_class_id, academic_year_id=academic_year_id, promoted_by=user_id)
-        student.current_class_id = to_class_id
+        student.grade_id = to_class_id
         db.add(pr)
         promoted.append(pr)
     log_audit(db, user_id, "BULK_PROMOTE", "promotion", f"{len(promoted)} students", f"Promoted {len(promoted)} students to class {to_class_id}", school_id=school_id)

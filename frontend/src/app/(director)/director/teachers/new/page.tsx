@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { teacherService } from "@/services/api"
+import { useCreateTeacher } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { GraduationCap, Loader2, CheckCircle2, ArrowLeft, Mail, Phone, BookOpen } from "lucide-react"
 import Link from "next/link"
@@ -13,22 +13,22 @@ import Link from "next/link"
 export default function NewTeacherPage() {
   const router = useRouter()
   const [form, setForm] = useState({ name: "", email: "", phone: "", subject: "", classes: "", password: "" })
-  const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+
+  const { mutateAsync: createTeacher, isPending: saving } = useCreateTeacher()
 
   const update = (p: Partial<typeof form>) => setForm(prev => ({ ...prev, ...p }))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     try {
-      await teacherService.create({ full_name: form.name, email: form.email, phone: form.phone, subject: form.subject, assigned_classes: form.classes, password: form.password })
+      await createTeacher({ full_name: form.name, email: form.email, phone: form.phone, subject: form.subject, assigned_classes: form.classes, password: form.password } as any)
       toast({ title: "Teacher account created successfully" })
       setSuccess(true)
       setTimeout(() => router.push("/director/teachers"), 1500)
     } catch (err: any) {
       toast({ title: err?.response?.data?.detail || "Failed to create teacher account", variant: "destructive" })
-    } finally { setLoading(false) }
+    }
   }
 
   if (success) {
@@ -92,8 +92,8 @@ export default function NewTeacherPage() {
 
             <div className="border-t pt-4 flex justify-end gap-3">
               <Link href="/director/teachers"><Button type="button" variant="outline">Cancel</Button></Link>
-              <Button type="submit" className="gap-2" disabled={loading}>
-                {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</> : "Create Teacher Account"}
+              <Button type="submit" className="gap-2" disabled={saving}>
+                {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</> : "Create Teacher Account"}
               </Button>
             </div>
           </form>

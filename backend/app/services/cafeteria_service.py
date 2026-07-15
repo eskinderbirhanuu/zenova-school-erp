@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from app.core.exceptions import NotFoundException, BadRequestException
 from app.models.cafeteria import CafeteriaProduct, CafeteriaOrder, CafeteriaOrderItem
 from app.core.audit import log_audit
 from app.services.sync_service import enqueue_sync
@@ -35,8 +35,8 @@ def create_order(db: Session, school_id: str, data, user_id: str):
             CafeteriaProduct.id == item.product_id,
             CafeteriaProduct.school_id == school_id,
         ).with_for_update().first()
-        if not product: raise HTTPException(404, f"Product {item.product_id} not found")
-        if product.stock < item.quantity: raise HTTPException(400, f"Insufficient stock for {product.name}")
+        if not product: raise NotFoundException(f"Product {item.product_id} not found")
+        if product.stock < item.quantity: raise BadRequestException(f"Insufficient stock for {product.name}")
         line_total = product.price * item.quantity
         total += line_total
         items.append(CafeteriaOrderItem(product_id=item.product_id, quantity=item.quantity, unit_price=product.price))
@@ -48,7 +48,7 @@ def create_order(db: Session, school_id: str, data, user_id: str):
             Wallet.student_id == data.customer_id,
         ).with_for_update().first()
         if wallet and wallet.balance < total:
-            raise HTTPException(400, f"Insufficient wallet balance ({wallet.balance}) for order total ({total})")
+            raise BadRequestException(f"Insufficient wallet balance ({wallet.balance}) for order total ({total})")
     order = CafeteriaOrder(customer_type=data.customer_type, customer_id=data.customer_id,
                            total=total, payment_method=data.payment_method, school_id=school_id, created_by=user_id)
     db.add(order); db.flush()
@@ -72,7 +72,7 @@ def update_product(db: Session, product_id: str, school_id: str, data, user_id: 
         q = q.execution_options(include_deleted=True)
     p = q.first()
     if not p:
-        raise HTTPException(404, "Product not found")
+        raise NotFoundException("Product not found")
     if data.name is not None:
         p.name = data.name
     if data.price is not None:
@@ -93,7 +93,7 @@ def delete_product(db: Session, product_id: str, school_id: str, user_id: str, i
         q = q.execution_options(include_deleted=True)
     p = q.first()
     if not p:
-        raise HTTPException(404, "Product not found")
+        raise NotFoundException("Product not found")
     p.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "CAFETERIA_PRODUCT_DELETED", "cafeteria_product", product_id, f"Product '{p.name}'", school_id=school_id)
     db.commit()
@@ -103,12 +103,12 @@ def delete_product(db: Session, product_id: str, school_id: str, user_id: str, i
 def update_order_status(db: Session, order_id: str, school_id: str, status: str, user_id: str):
     VALID_STATUSES = {"pending", "preparing", "ready", "delivered", "cancelled"}
     if status not in VALID_STATUSES:
-        raise HTTPException(400, f"Invalid status. Must be one of: {', '.join(sorted(VALID_STATUSES))}")
+        raise BadRequestException(f"Invalid status. Must be one of: {', '.join(sorted(VALID_STATUSES))}")
     order = db.query(CafeteriaOrder).filter(CafeteriaOrder.id == order_id, CafeteriaOrder.school_id == school_id).first()
     if not order:
-        raise HTTPException(404, "Order not found")
+        raise NotFoundException("Order not found")
     if order.status == "cancelled":
-        raise HTTPException(400, "Cannot update a cancelled order")
+        raise BadRequestException("Cannot update a cancelled order")
     order.status = status
     log_audit(db, user_id, "CAFETERIA_ORDER_STATUS_CHANGED", "cafeteria_order", order.id, f"Status: {status}", school_id=school_id)
     db.commit()

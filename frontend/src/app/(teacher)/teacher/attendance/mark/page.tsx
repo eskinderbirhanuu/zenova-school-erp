@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { PageHeader } from "@/components/ui/page-header"
-import { academicService, studentService, authService } from "@/services/api"
+import { studentService } from "@/services/api"
+import { useClasses, useSections } from "@/hooks/queries"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Loader2, Save, CheckCircle2, XCircle, Clock } from "lucide-react"
@@ -24,45 +24,30 @@ const STATUS_OPTIONS: { value: MarkStatus; label: string; icon: any; color: stri
 ]
 
 export default function MarkAttendancePage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const [classes, setClasses] = useState<any[]>([])
-  const [sections, setSections] = useState<any[]>([])
   const [students, setStudents] = useState<StudentRec[]>([])
   const [attendance, setAttendance] = useState<Record<string, MarkStatus>>({})
 
   const [selectedClass, setSelectedClass] = useState("")
   const [selectedSection, setSelectedSection] = useState("")
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
+  const { data: classesData } = useClasses()
+  const { data: sectionsData } = useSections({})
 
-  useEffect(() => {
-    Promise.all([
-      academicService.classes.list(),
-    ]).then(([clsRes]) => {
-      setClasses(clsRes.data || [])
-    }).catch(() => {
-      toast({ title: "Failed to load classes", variant: "destructive" })
-    }).finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    if (!selectedClass) { setSections([]); return }
-    academicService.sections.list({ class_id: selectedClass })
-      .then(r => setSections(r.data || []))
-      .catch(() => setSections([]))
-  }, [selectedClass])
+  const classes = classesData || []
+  const sections = selectedClass ? (sectionsData || []).filter((s: any) => s.class_id === selectedClass) : []
 
   const handleLoadStudents = async () => {
     if (!selectedSection) return
     setLoading(true)
     try {
       const res = await studentService.list({ section_id: selectedSection, limit: 200 })
-      const list: StudentRec[] = (res.data || [])
+      const list: StudentRec[] = (res.data || []) as any
       setStudents(list)
       const init: Record<string, MarkStatus> = {}
-      list.forEach(s => { init[s.id] = "present" })
+      list.forEach((s: any) => { init[s.id] = "present" })
       setAttendance(init)
     } catch {
       toast({ title: "Failed to load students", variant: "destructive" })
@@ -116,7 +101,7 @@ export default function MarkAttendancePage() {
                   <SelectValue placeholder="Select class..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {classes.map(c => (
+                  {classes.map((c: any) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -130,7 +115,7 @@ export default function MarkAttendancePage() {
                   <SelectValue placeholder="Select section..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {sections.map(s => (
+                  {sections.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -170,11 +155,11 @@ export default function MarkAttendancePage() {
               <CardTitle>Students</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {students.map(s => (
+              {students.map((s: any) => (
                 <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card/50">
                   <span className="flex-1 text-sm font-medium">{s.full_name || s.student_id}</span>
                   <div className="flex gap-1">
-                    {STATUS_OPTIONS.map(opt => (
+                    {STATUS_OPTIONS.map((opt: any) => (
                       <button
                         key={opt.value}
                         onClick={() => setStatus(s.id, opt.value)}

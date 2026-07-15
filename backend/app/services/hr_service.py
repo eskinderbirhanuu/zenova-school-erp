@@ -1,6 +1,6 @@
 from datetime import date
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from app.core.exceptions import NotFoundException, BadRequestException
 from app.models.contract import EmployeeContract
 from app.models.leave import LeaveType, LeaveRequest, LeaveBalance
 from app.models.attendance import Attendance
@@ -42,7 +42,7 @@ def terminate_contract(db: Session, contract_id: str, end_date: date, user_id: s
         q = q.execution_options(include_deleted=True)
     c = q.first()
     if not c:
-        raise HTTPException(status_code=404, detail="Contract not found")
+        raise NotFoundException("Contract not found")
     c.status = "terminated"
     c.end_date = end_date
     log_audit(db, user_id, "CONTRACT_TERMINATED", "employee_contract", contract_id, "Contract terminated", school_id=school_id)
@@ -75,7 +75,7 @@ def request_leave(db: Session, data, user_id: str, school_id: str, include_delet
         q = q.execution_options(include_deleted=True)
     sp = q.first()
     if not sp:
-        raise HTTPException(status_code=404, detail="Staff profile not found")
+        raise NotFoundException("Staff profile not found")
     days = (data.end_date - data.start_date).days + 1
     bal = db.query(LeaveBalance).filter(
         LeaveBalance.staff_profile_id == data.staff_profile_id,
@@ -83,7 +83,7 @@ def request_leave(db: Session, data, user_id: str, school_id: str, include_delet
         LeaveBalance.year == data.start_date.year,
     ).first()
     if bal and days > bal.remaining_days:
-        raise HTTPException(status_code=400, detail=f"Insufficient leave balance. Only {bal.remaining_days} days remaining.")
+        raise BadRequestException(f"Insufficient leave balance. Only {bal.remaining_days} days remaining.")
     lr = LeaveRequest(
         staff_profile_id=data.staff_profile_id, leave_type_id=data.leave_type_id,
         start_date=data.start_date, end_date=data.end_date, days=days, reason=data.reason,
@@ -103,7 +103,7 @@ def approve_leave(db: Session, request_id: str, user_id: str, school_id: str, in
         q = q.execution_options(include_deleted=True)
     lr = q.first()
     if not lr:
-        raise HTTPException(status_code=404, detail="Leave request not found")
+        raise NotFoundException("Leave request not found")
     lr.status = "approved"
     lr.approved_by = user_id
     bal = db.query(LeaveBalance).filter(
@@ -127,7 +127,7 @@ def reject_leave(db: Session, request_id: str, user_id: str, school_id: str, inc
         q = q.execution_options(include_deleted=True)
     lr = q.first()
     if not lr:
-        raise HTTPException(status_code=404, detail="Leave request not found")
+        raise NotFoundException("Leave request not found")
     lr.status = "rejected"
     lr.approved_by = user_id
     log_audit(db, user_id, "LEAVE_REJECTED", "leave_request", request_id, "Leave rejected", school_id=school_id)
@@ -181,7 +181,7 @@ def mark_attendance(db: Session, school_id: str, data, user_id: str, include_del
         q = q.execution_options(include_deleted=True)
     existing = q.first()
     if existing:
-        raise HTTPException(status_code=400, detail="Attendance already marked for this date")
+        raise BadRequestException("Attendance already marked for this date")
     a = Attendance(
         staff_profile_id=data.staff_profile_id, student_id=data.student_id,
         date=data.date, check_in=data.check_in, check_out=data.check_out,
@@ -235,7 +235,7 @@ def update_attendance(db: Session, attendance_id: str, data, user_id: str, schoo
         q = q.execution_options(include_deleted=True)
     a = q.first()
     if not a:
-        raise HTTPException(status_code=404, detail="Attendance record not found")
+        raise NotFoundException("Attendance record not found")
     if data.check_in is not None:
         a.check_in = data.check_in
     if data.check_out is not None:

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from app.core.exceptions import NotFoundException
 from app.models.event import Event
 from app.core.audit import log_audit
 
@@ -23,7 +23,7 @@ def update_event(db: Session, event_id: str, data, user_id: str, school_id: str 
     if school_id:
         q = q.filter(Event.school_id == school_id)
     ev = q.first()
-    if not ev: raise HTTPException(404, "Event not found")
+    if not ev: raise NotFoundException("Event not found")
     for field in ["title", "description", "event_type", "event_date", "end_date", "location"]:
         if getattr(data, field, None) is not None:
             setattr(ev, field, getattr(data, field))
@@ -48,7 +48,7 @@ def delete_event(db: Session, event_id: str, user_id: str, school_id: str = None
     if school_id:
         q = q.filter(Event.school_id == school_id)
     ev = q.first()
-    if not ev: raise HTTPException(404, "Event not found")
+    if not ev: raise NotFoundException("Event not found")
     ev.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "DELETE", "event", ev.id, f"Event '{ev.title}' deleted", school_id=school_id)
     db.commit()

@@ -1,8 +1,22 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text, Integer
 from sqlalchemy.orm import relationship
 from app.database import Base
+
+
+PASSWORD_HISTORY_LIMIT = 5  # prevent reuse of last 5 passwords
+
+
+class PasswordHistory(Base):
+    __tablename__ = "password_history"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="password_history")
 
 
 class User(Base):
@@ -33,3 +47,4 @@ class User(Base):
     role = relationship("Role", back_populates="users")
     school = relationship("School", back_populates="users", foreign_keys=[school_id])
     branch = relationship("Branch", back_populates="users")
+    password_history = relationship("PasswordHistory", back_populates="user", order_by="PasswordHistory.created_at.desc()")

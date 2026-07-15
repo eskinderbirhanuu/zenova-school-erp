@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { studentService } from "@/services/api"
+import { useStudents } from "@/hooks/queries"
 import { Upload, Download } from "lucide-react"
 import Link from "next/link"
 import api from "@/services/api"
@@ -19,17 +19,13 @@ interface Student {
 }
 
 export default function RegistrarStudentsPage() {
-  const [students, setStudents] = useState<Student[]>([])
   const [search, setSearch] = useState("")
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading } = useStudents({ limit: 50 })
 
-  useEffect(() => {
-    setLoading(true)
-    studentService.list({ limit: 50 }).then((res) => setStudents(res.data)).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const students = data || []
 
   const exportExcel = () => {
-    api.get("/students/export-excel", { responseType: "blob" }).then((res) => {
+    api.get("/students/export-excel", { responseType: "blob" }).then((res: any) => {
       const url = URL.createObjectURL(new Blob([res.data]))
       const a = document.createElement("a"); a.href = url; a.download = "students.xlsx"; a.click()
       URL.revokeObjectURL(url)
@@ -37,7 +33,7 @@ export default function RegistrarStudentsPage() {
   }
 
   const filtered = search
-    ? students.filter((s) =>
+    ? students.filter((s: any) =>
         `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
         s.student_id?.includes(search)
       )
@@ -56,7 +52,7 @@ export default function RegistrarStudentsPage() {
       ]}
       data={filtered}
       keyExtractor={(s) => s.id}
-      loading={loading}
+      loading={isLoading}
       searchPlaceholder="Search by name or ID..."
       onSearch={setSearch}
       onCreateLabel="Register Student"

@@ -4,13 +4,13 @@ import { Suspense } from "react"
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Mail, Lock, Eye, EyeOff, User, CheckCircle2, AlertCircle, Loader2, Building2 } from "lucide-react"
+import { Mail, Lock, Eye, EyeOff, User, CheckCircle2, AlertCircle, Loader2, Building2, Fingerprint } from "lucide-react"
 import { Logo } from "@/components/branding"
 import { useAuth } from "@/services/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { GradientMeshBackground } from "@/components/3d/gradient-mesh"
+import { DynamicGradientMeshBackground } from "@/components/3d/dynamic"
 
 const BRANDING_API = process.env.NEXT_PUBLIC_API_URL
   ? new URL(process.env.NEXT_PUBLIC_API_URL).origin
@@ -34,7 +34,9 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { login } = useAuth()
+  const { login, passkeyLogin } = useAuth()
+
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
 
   const [school, setSchool] = useState<SchoolBranding | null>(null)
   const [brandingLoaded, setBrandingLoaded] = useState(false)
@@ -49,8 +51,8 @@ function LoginForm() {
 
   useEffect(() => {
     fetch(`${BRANDING_API}/api/v1/setup/school-branding`, { cache: "no-store" })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
+      .then((r: any) => r.ok ? r.json() : null)
+      .then((data: any) => {
         if (data && data.name) setSchool(data)
       })
       .catch(() => {})
@@ -77,12 +79,27 @@ function LoginForm() {
     }
   }
 
+  const handlePasskeyLogin = async () => {
+    setError("")
+    setPasskeyLoading(true)
+    try {
+      await passkeyLogin()
+      setSuccess(true)
+      setTimeout(() => { router.push("/") }, 1000)
+    } catch (err: any) {
+      if (err.message === "User cancelled") return
+      setError(err.response?.data?.detail || err.message || "Passkey authentication failed")
+    } finally {
+      setPasskeyLoading(false)
+    }
+  }
+
   const redirectReason = searchParams.get("reason")
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Animated gradient mesh background */}
-      <GradientMeshBackground colors={["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b"]} />
+      <DynamicGradientMeshBackground colors={["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b"]} />
       
       {/* Grid pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
@@ -307,6 +324,38 @@ function LoginForm() {
                     </div>
                   ) : (
                     "Sign In"
+                  )}
+                </motion.button>
+
+                {/* Passkey divider */}
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-200 dark:border-gray-600" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white dark:bg-gray-800 px-2 text-gray-500 dark:text-gray-400">or</span>
+                  </div>
+                </div>
+
+                {/* Passkey Login */}
+                <motion.button
+                  type="button"
+                  onClick={handlePasskeyLogin}
+                  disabled={passkeyLoading}
+                  whileHover={{ scale: passkeyLoading ? 1 : 1.02 }}
+                  whileTap={{ scale: passkeyLoading ? 1 : 0.98 }}
+                  className="w-full py-3 px-6 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {passkeyLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Authenticating...
+                    </div>
+                  ) : (
+                    <>
+                      <Fingerprint className="w-5 h-5" />
+                      Sign in with Passkey
+                    </>
                   )}
                 </motion.button>
 

@@ -1,4 +1,19 @@
 import axios from "axios"
+import type {
+  ApiResponse, UserProfile, LoginRequest,
+  Student, Parent, Teacher, Staff,
+  Class, Section, Subject, AcademicYear, Semester, Exam, ExamResult, TimetableEntry,
+  Branch, DashboardOverview, DashboardTrends,
+  Account, Invoice, Payment, FeeType, FeeStructure, Budget, JournalEntry,
+  Contract, LeaveRequest, Attendance,
+  InventoryCategory, InventoryItem, StockMovement, Supplier,
+  Book, Borrowing,
+  CafeteriaProduct, CafeteriaOrder,
+  License, AuditLog,
+  NfcAssignment, PrintRequest,
+  NotificationPreferences,
+  CorporateDepartment, CorporateEmployee,
+} from "@/types/api"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
 
@@ -22,8 +37,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-api.interceptors.response.use(
-  (response) => response,
+api.interceptors.response.use((response) => response,
   async (error) => {
     const originalRequest = error.config
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -51,359 +65,386 @@ api.interceptors.response.use(
 export default api
 
 export const authService = {
-  login: (email: string, password: string, employee_id?: string) =>
+  login: (email: string, password: string, employee_id?: string): ApiResponse<{ access_token: string; user: UserProfile }> =>
     api.post("/auth/login", employee_id ? { employee_id, password } : { email, password }),
-  register: (data: any) => api.post("/auth/register", data),
-  refresh: (refreshToken: string) => api.post("/auth/refresh", { refresh_token: refreshToken }),
-  me: () => api.get("/auth/me"),
-  logout: () => api.post("/auth/logout"),
-  forgotPassword: (email: string) => api.post("/auth/forgot-password", { email }),
-  resetPassword: (token: string, password: string) => api.post("/auth/reset-password", { token, password }),
+  register: (data: any): ApiResponse<UserProfile> => api.post("/auth/register", data),
+  refresh: (refreshToken: string): ApiResponse<{ access_token: string }> => api.post("/auth/refresh", { refresh_token: refreshToken }),
+  me: (): ApiResponse<UserProfile> => api.get("/auth/me"),
+  logout: (): ApiResponse<void> => api.post("/auth/logout"),
+  forgotPassword: (email: string): ApiResponse<void> => api.post("/auth/forgot-password", { email }),
+  resetPassword: (token: string, password: string): ApiResponse<void> => api.post("/auth/reset-password", { token, password }),
 }
 
 export const studentService = {
-  list: (params?: any) => api.get("/students", { params }),
-  get: (id: string) => api.get(`/students/${id}`),
-  create: (data: any) => api.post("/students", data),
-  update: (id: string, data: any) => api.patch(`/students/${id}`, data),
-  delete: (id: string) => api.delete(`/students/${id}`),
-  transfer: (id: string, data: any) => api.post(`/students/${id}/transfer`, data),
-  promote: (id: string, data: any) => api.post(`/students/${id}/promote`, data),
+  list: (params?: Record<string, unknown>): ApiResponse<Student[]> => api.get("/students", { params }),
+  get: (id: string): ApiResponse<Student> => api.get(`/students/${id}`),
+  create: (data: Partial<Student>): ApiResponse<Student> => api.post("/students", data),
+  update: (id: string, data: Partial<Student>): ApiResponse<Student> => api.patch(`/students/${id}`, data),
+  delete: (id: string): ApiResponse<void> => api.delete(`/students/${id}`),
+  transfer: (id: string, data: { to_class_id: string }): ApiResponse<Student> => api.post(`/students/${id}/transfer`, data),
+  promote: (id: string, data: { academic_year_id: string }): ApiResponse<Student> => api.post(`/students/${id}/promote`, data),
 }
 
 export const parentService = {
-  search: (data: any) => api.post("/parents/search", data),
-  create: (data: any) => api.post("/parents", data),
-  list: (params?: any) => api.get("/parents", { params }),
-  get: (id: string) => api.get(`/parents/${id}`),
-  update: (id: string, data: any) => api.patch(`/parents/${id}`, data),
-  link: (id: string, data: any) => api.post(`/parents/${id}/link`, data),
-  unlink: (id: string, data: any) => api.delete(`/parents/${id}/unlink`, { params: data }),
-  dashboard: () => api.get("/parent-portal/dashboard"),
+  search: (data: { query: string }): ApiResponse<Parent[]> => api.post("/parents/search", data),
+  create: (data: Partial<Parent>): ApiResponse<Parent> => api.post("/parents", data),
+  list: (params?: Record<string, unknown>): ApiResponse<Parent[]> => api.get("/parents", { params }),
+  get: (id: string): ApiResponse<Parent> => api.get(`/parents/${id}`),
+  update: (id: string, data: Partial<Parent>): ApiResponse<Parent> => api.patch(`/parents/${id}`, data),
+  link: (id: string, data: { student_id: string; relationship: string }): ApiResponse<void> => api.post(`/parents/${id}/link`, data),
+  unlink: (id: string, data: { student_id: string }): ApiResponse<void> => api.delete(`/parents/${id}/unlink`, { params: data }),
+  dashboard: (): ApiResponse<Record<string, unknown>> => api.get("/parent-portal/dashboard"),
 }
 
 export const teacherService = {
-  create: (data: any) => api.post("/teachers", data),
-  list: (params?: any) => api.get("/teachers", { params }),
-  update: (id: string, data: any) => api.patch(`/teachers/${id}`, data),
-  assignGrade: (id: string, data: any) => api.post(`/teachers/${id}/assign-grade`, data),
-  assignSection: (id: string, data: any) => api.post(`/teachers/${id}/assign-section`, data),
-  assignSubjects: (id: string, subjectIds: string[]) => api.post(`/teachers/${id}/assign-subjects`, subjectIds),
-  getSubjects: (id: string) => api.get(`/teachers/${id}/subjects`),
-  getMySubjects: () => api.get("/teachers/me/subjects"),
-  getMyProfile: () => api.get("/teachers/me/profile"),
-  updateMe: (data: any) => api.patch("/teachers/me", data),
-  getMyStudents: () => api.get("/teachers/me/students"),
+  create: (data: Partial<Teacher>): ApiResponse<Teacher> => api.post("/teachers", data),
+  list: (params?: Record<string, unknown>): ApiResponse<Teacher[]> => api.get("/teachers", { params }),
+  update: (id: string, data: Partial<Teacher>): ApiResponse<Teacher> => api.patch(`/teachers/${id}`, data),
+  assignGrade: (id: string, data: { grade_id: string }): ApiResponse<Teacher> => api.post(`/teachers/${id}/assign-grade`, data),
+  assignSection: (id: string, data: { section_id: string }): ApiResponse<Teacher> => api.post(`/teachers/${id}/assign-section`, data),
+  assignSubjects: (id: string, subjectIds: string[]): ApiResponse<Teacher> => api.post(`/teachers/${id}/assign-subjects`, subjectIds),
+  getSubjects: (id: string): ApiResponse<Subject[]> => api.get(`/teachers/${id}/subjects`),
+  getMySubjects: (): ApiResponse<Subject[]> => api.get("/teachers/me/subjects"),
+  getMyProfile: (): ApiResponse<Teacher> => api.get("/teachers/me/profile"),
+  updateMe: (data: Partial<Teacher>): ApiResponse<Teacher> => api.patch("/teachers/me", data),
+  getMyStudents: (): ApiResponse<Student[]> => api.get("/teachers/me/students"),
 }
 
 export const staffService = {
-  create: (data: any) => api.post("/staff", data),
-  list: (params?: any) => api.get("/staff", { params }),
+  create: (data: Partial<Staff>): ApiResponse<Staff> => api.post("/staff", data),
+  list: (params?: Record<string, unknown>): ApiResponse<Staff[]> => api.get("/staff", { params }),
 }
 
 export const academicService = {
   classes: {
-    list: (params?: any) => api.get("/classes", { params }),
-    create: (data: any) => api.post("/classes", data),
-    update: (id: string, data: any) => api.patch(`/classes/${id}`, data),
-    delete: (id: string) => api.delete(`/classes/${id}`),
+    list: (params?: Record<string, unknown>): ApiResponse<Class[]> => api.get("/classes", { params }),
+    create: (data: Partial<Class>): ApiResponse<Class> => api.post("/classes", data),
+    update: (id: string, data: Partial<Class>): ApiResponse<Class> => api.patch(`/classes/${id}`, data),
+    delete: (id: string): ApiResponse<void> => api.delete(`/classes/${id}`),
   },
   sections: {
-    list: (params?: any) => api.get("/sections", { params }),
-    create: (data: any) => api.post("/sections", data),
-    update: (id: string, data: any) => api.patch(`/sections/${id}`, data),
-    delete: (id: string) => api.delete(`/sections/${id}`),
+    list: (params?: Record<string, unknown>): ApiResponse<Section[]> => api.get("/sections", { params }),
+    create: (data: Partial<Section>): ApiResponse<Section> => api.post("/sections", data),
+    update: (id: string, data: Partial<Section>): ApiResponse<Section> => api.patch(`/sections/${id}`, data),
+    delete: (id: string): ApiResponse<void> => api.delete(`/sections/${id}`),
   },
   subjects: {
-    list: (params?: any) => api.get("/subjects", { params }),
-    create: (data: any) => api.post("/subjects", data),
-    update: (id: string, data: any) => api.patch(`/subjects/${id}`, data),
-    delete: (id: string) => api.delete(`/subjects/${id}`),
+    list: (params?: Record<string, unknown>): ApiResponse<Subject[]> => api.get("/subjects", { params }),
+    create: (data: Partial<Subject>): ApiResponse<Subject> => api.post("/subjects", data),
+    update: (id: string, data: Partial<Subject>): ApiResponse<Subject> => api.patch(`/subjects/${id}`, data),
+    delete: (id: string): ApiResponse<void> => api.delete(`/subjects/${id}`),
   },
   academicYears: {
-    list: () => api.get("/academic-years"),
-    create: (data: any) => api.post("/academic-years", data),
-    setCurrent: (id: string) => api.patch(`/academic-years/${id}/set-current`),
+    list: (): ApiResponse<AcademicYear[]> => api.get("/academic-years"),
+    create: (data: Partial<AcademicYear>): ApiResponse<AcademicYear> => api.post("/academic-years", data),
+    setCurrent: (id: string): ApiResponse<AcademicYear> => api.patch(`/academic-years/${id}/set-current`),
   },
   semesters: {
-    list: (params?: any) => api.get("/semesters", { params }),
-    create: (data: any) => api.post("/semesters", data),
+    list: (params?: Record<string, unknown>): ApiResponse<Semester[]> => api.get("/semesters", { params }),
+    create: (data: Partial<Semester>): ApiResponse<Semester> => api.post("/semesters", data),
   },
   exams: {
-    list: (params?: any) => api.get("/exams", { params }),
-    create: (data: any) => api.post("/exams", data),
+    list: (params?: Record<string, unknown>): ApiResponse<Exam[]> => api.get("/exams", { params }),
+    create: (data: Partial<Exam>): ApiResponse<Exam> => api.post("/exams", data),
   },
   examResults: {
-    list: (params?: any) => api.get("/exam-results", { params }),
-    create: (data: any) => api.post("/exam-results", data),
-    bulkCreate: (data: any) => api.post("/exam-results/bulk", data),
-    marksheet: (subjectId: string, sectionId: string) =>
+    list: (params?: Record<string, unknown>): ApiResponse<ExamResult[]> => api.get("/exam-results", { params }),
+    create: (data: Partial<ExamResult>): ApiResponse<ExamResult> => api.post("/exam-results", data),
+    bulkCreate: (data: Partial<ExamResult>[]): ApiResponse<ExamResult[]> => api.post("/exam-results/bulk", data),
+    marksheet: (subjectId: string, sectionId: string): ApiResponse<ExamResult[]> =>
       api.get("/exam-results/marksheet", { params: { subject_id: subjectId, section_id: sectionId } }),
   },
   timetable: {
-    list: (params?: any) => api.get("/timetable", { params }),
-    create: (data: any) => api.post("/timetable", data),
-    update: (id: string, data: any) => api.patch(`/timetable/${id}`, data),
-    delete: (id: string) => api.delete(`/timetable/${id}`),
-    byTeacher: () => api.get("/timetable/by-teacher"),
-    checkConflicts: (data: any) => api.post("/timetable/check-conflicts", data),
+    list: (params?: Record<string, unknown>): ApiResponse<TimetableEntry[]> => api.get("/timetable", { params }),
+    create: (data: Partial<TimetableEntry>): ApiResponse<TimetableEntry> => api.post("/timetable", data),
+    update: (id: string, data: Partial<TimetableEntry>): ApiResponse<TimetableEntry> => api.patch(`/timetable/${id}`, data),
+    delete: (id: string): ApiResponse<void> => api.delete(`/timetable/${id}`),
+    byTeacher: (): ApiResponse<TimetableEntry[]> => api.get("/timetable/by-teacher"),
+    checkConflicts: (data: Partial<TimetableEntry>): ApiResponse<{ conflicts: string[] }> => api.post("/timetable/check-conflicts", data),
   },
 }
 
 export const financeService = {
   accounts: {
-    list: () => api.get("/accounts"),
-    create: (data: any) => api.post("/accounts", data),
+    list: (): ApiResponse<Account[]> => api.get("/accounts"),
+    create: (data: Partial<Account>): ApiResponse<Account> => api.post("/accounts", data),
   },
   journalEntries: {
-    list: (params?: any) => api.get("/journal-entries", { params }),
-    create: (data: any) => api.post("/journal-entries", data),
-    reverse: (id: string, reason: string) => api.post(`/journal-entries/${id}/reverse`, null, { params: { reason } }),
+    list: (params?: Record<string, unknown>): ApiResponse<JournalEntry[]> => api.get("/journal-entries", { params }),
+    create: (data: Partial<JournalEntry>): ApiResponse<JournalEntry> => api.post("/journal-entries", data),
+    reverse: (id: string, reason: string): ApiResponse<JournalEntry> => api.post(`/journal-entries/${id}/reverse`, null, { params: { reason } }),
   },
   invoices: {
-    list: (params?: any) => api.get("/invoices", { params }),
-    create: (data: any) => api.post("/invoices", data),
+    list: (params?: Record<string, unknown>): ApiResponse<Invoice[]> => api.get("/invoices", { params }),
+    create: (data: Partial<Invoice>): ApiResponse<Invoice> => api.post("/invoices", data),
   },
   payments: {
-    list: (params?: any) => api.get("/payments", { params }),
-    create: (data: any) => api.post("/payments", data),
+    list: (params?: Record<string, unknown>): ApiResponse<Payment[]> => api.get("/payments", { params }),
+    create: (data: Partial<Payment>): ApiResponse<Payment> => api.post("/payments", data),
   },
   feeTypes: {
-    list: () => api.get("/fee-types"),
-    create: (data: any) => api.post("/fee-types", data),
+    list: (): ApiResponse<FeeType[]> => api.get("/fee-types"),
+    create: (data: Partial<FeeType>): ApiResponse<FeeType> => api.post("/fee-types", data),
   },
   feeStructures: {
-    list: (params?: any) => api.get("/fee-structures", { params }),
-    create: (data: any) => api.post("/fee-structures", data),
+    list: (params?: Record<string, unknown>): ApiResponse<FeeStructure[]> => api.get("/fee-structures", { params }),
+    create: (data: Partial<FeeStructure>): ApiResponse<FeeStructure> => api.post("/fee-structures", data),
   },
   feeAssignments: {
-    list: (params?: any) => api.get("/fee-assignments", { params }),
-    create: (data: any) => api.post("/fee-assignments", data),
+    list: (params?: Record<string, unknown>): ApiResponse<unknown[]> => api.get("/fee-assignments", { params }),
+    create: (data: unknown): ApiResponse<unknown> => api.post("/fee-assignments", data),
   },
   budgets: {
-    list: (params?: any) => api.get("/budgets", { params }),
-    create: (data: any) => api.post("/budgets", data),
+    list: (params?: Record<string, unknown>): ApiResponse<Budget[]> => api.get("/budgets", { params }),
+    create: (data: Partial<Budget>): ApiResponse<Budget> => api.post("/budgets", data),
   },
   journal: {
-    list: (params?: any) => api.get("/journal-entries", { params }),
-    create: (data: any) => api.post("/journal-entries", data),
+    list: (params?: Record<string, unknown>): ApiResponse<JournalEntry[]> => api.get("/journal-entries", { params }),
+    create: (data: Partial<JournalEntry>): ApiResponse<JournalEntry> => api.post("/journal-entries", data),
   },
-  trialBalance: () => api.get("/reports/trial-balance"),
+  trialBalance: (): ApiResponse<{ total_debit: number; total_credit: number; rows: unknown[] }> => api.get("/reports/trial-balance"),
+  payroll: {
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/payroll", { params }),
+  },
+  reports: {
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/reports/finance", { params }),
+  },
+  walletTransactions: {
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/wallet/transactions", { params }),
+  },
 }
 
 export const hrService = {
   contracts: {
-    list: (params?: any) => api.get("/contracts", { params }),
-    create: (data: any) => api.post("/contracts", data),
+    list: (params?: Record<string, unknown>): ApiResponse<Contract[]> => api.get("/contracts", { params }),
+    create: (data: Partial<Contract>): ApiResponse<Contract> => api.post("/contracts", data),
   },
   leaveRequests: {
-    list: (params?: any) => api.get("/leave-requests", { params }),
-    create: (data: any) => api.post("/leave-requests", data),
-    approve: (id: string) => api.post(`/leave-requests/${id}/approve`),
-    reject: (id: string) => api.post(`/leave-requests/${id}/reject`),
+    list: (params?: Record<string, unknown>): ApiResponse<LeaveRequest[]> => api.get("/leave-requests", { params }),
+    create: (data: Partial<LeaveRequest>): ApiResponse<LeaveRequest> => api.post("/leave-requests", data),
+    approve: (id: string): ApiResponse<LeaveRequest> => api.post(`/leave-requests/${id}/approve`),
+    reject: (id: string): ApiResponse<LeaveRequest> => api.post(`/leave-requests/${id}/reject`),
   },
   attendance: {
-    list: (params?: any) => api.get("/attendance", { params }),
-    mark: (data: any) => api.post("/attendance", data),
-    bulk: (data: any[]) => api.post("/attendance/bulk", data),
+    list: (params?: Record<string, unknown>): ApiResponse<Attendance[]> => api.get("/attendance", { params }),
+    mark: (data: Partial<Attendance>): ApiResponse<Attendance> => api.post("/attendance", data),
+    bulk: (data: Partial<Attendance>[]): ApiResponse<Attendance[]> => api.post("/attendance/bulk", data),
   },
-  scanAttendance: (data: { qr_uuid: string; date: string }) => api.post("/scanner/attendance", data),
+  scanAttendance: (data: { qr_uuid: string; date: string }): ApiResponse<Attendance> => api.post("/scanner/attendance", data),
+  performanceReviews: {
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/performance-reviews", { params }),
+  },
+  recruitment: {
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/recruitment", { params }),
+  },
+  reports: {
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/reports/hr", { params }),
+  },
 }
 
 export const inventoryService = {
   categories: {
-    list: () => api.get("/inventory/categories"),
-    create: (data: any) => api.post("/inventory/categories", data),
+    list: (): ApiResponse<InventoryCategory[]> => api.get("/inventory/categories"),
+    create: (data: Partial<InventoryCategory>): ApiResponse<InventoryCategory> => api.post("/inventory/categories", data),
   },
   items: {
-    list: (params?: any) => api.get("/inventory/items", { params }),
-    create: (data: any) => api.post("/inventory/items", data),
-    update: (id: string, data: any) => api.patch(`/inventory/items/${id}`, data),
+    list: (params?: Record<string, unknown>): ApiResponse<InventoryItem[]> => api.get("/inventory/items", { params }),
+    create: (data: Partial<InventoryItem>): ApiResponse<InventoryItem> => api.post("/inventory/items", data),
+    update: (id: string, data: Partial<InventoryItem>): ApiResponse<InventoryItem> => api.patch(`/inventory/items/${id}`, data),
   },
   stockMovements: {
-    list: (params?: any) => api.get("/inventory/stock-movements", { params }),
-    create: (data: any) => api.post("/inventory/stock-movements", data),
+    list: (params?: Record<string, unknown>): ApiResponse<StockMovement[]> => api.get("/inventory/stock-movements", { params }),
+    create: (data: Partial<StockMovement>): ApiResponse<StockMovement> => api.post("/inventory/stock-movements", data),
   },
   suppliers: {
-    list: () => api.get("/inventory/suppliers"),
-    create: (data: any) => api.post("/inventory/suppliers", data),
+    list: (): ApiResponse<Supplier[]> => api.get("/inventory/suppliers"),
+    create: (data: Partial<Supplier>): ApiResponse<Supplier> => api.post("/inventory/suppliers", data),
+  },
+  assets: {
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/inventory/assets", { params }),
+  },
+  reports: {
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/reports/inventory", { params }),
   },
 }
 
 export const qrService = {
-  generate: (data: any) => api.post("/qr/generate", data),
-  validate: (uuid: string) => api.get(`/qr/${uuid}`),
+  generate: (data: { entity_type: string; entity_id: string }): ApiResponse<{ uuid: string }> => api.post("/qr/generate", data),
+  validate: (uuid: string): ApiResponse<{ entity_type: string; entity_id: string }> => api.get(`/qr/${uuid}`),
 }
 
 export const nfcService = {
-  assign: (data: any) => api.post("/nfc/assign", data),
-  validate: (data: any) => api.post("/nfc/validate", data),
+  assign: (data: { card_uid: string; entity_type: string; entity_id: string }): ApiResponse<NfcAssignment> => api.post("/nfc/assign", data),
+  validate: (data: { card_uid: string }): ApiResponse<{ valid: boolean }> => api.post("/nfc/validate", data),
 }
 
 export const nfcV2Service = {
-  assignStudent: (data: any) => api.post("/nfc/student/assign", data),
-  assignStaff: (data: any) => api.post("/nfc/staff/assign", data),
-  assignParent: (data: any) => api.post("/nfc/parent/assign", data),
-  assignEmployee: (data: any) => api.post("/nfc/employee/assign", data),
-  scan: (data: any) => api.post("/nfc/scan", data),
-  bulkAssign: (items: any[]) => api.post("/nfc/bulk-assign", items),
-  publicLookup: (cardUid: string) => api.get(`/nfc/public/lookup`, { params: { card_uid: cardUid } }),
-  downloadCardPdf: (cardType: string, referenceId: string) =>
+  assignStudent: (data: { card_uid: string; student_id: string }): ApiResponse<NfcAssignment> => api.post("/nfc/student/assign", data),
+  assignStaff: (data: { card_uid: string; staff_id: string }): ApiResponse<NfcAssignment> => api.post("/nfc/staff/assign", data),
+  assignParent: (data: { card_uid: string; parent_id: string }): ApiResponse<NfcAssignment> => api.post("/nfc/parent/assign", data),
+  assignEmployee: (data: { card_uid: string; employee_id: string }): ApiResponse<NfcAssignment> => api.post("/nfc/employee/assign", data),
+  scan: (data: { card_uid: string }): ApiResponse<{ entity_type: string; entity_id: string }> => api.post("/nfc/scan", data),
+  bulkAssign: (items: { card_uid: string; entity_type: string; entity_id: string }[]): ApiResponse<NfcAssignment[]> => api.post("/nfc/bulk-assign", items),
+  publicLookup: (cardUid: string): ApiResponse<{ name: string; type: string }> => api.get(`/nfc/public/lookup`, { params: { card_uid: cardUid } }),
+  downloadCardPdf: (cardType: string, referenceId: string): ApiResponse<Blob> =>
     api.get(`/nfc/print-card/${cardType}/${referenceId}`, { responseType: "blob" }),
-  getStudentByCard: (cardUid: string) => api.get(`/nfc/student/by-card/${cardUid}`),
-  getStaffByCard: (cardUid: string) => api.get(`/nfc/staff/by-card/${cardUid}`),
-  getParentByCard: (cardUid: string) => api.get(`/nfc/parent/by-card/${cardUid}`),
-  getEmployeeByCard: (cardUid: string) => api.get(`/nfc/employee/by-card/${cardUid}`),
-  updateCardStatus: (cardType: string, cardId: string, status: string) =>
+  getStudentByCard: (cardUid: string): ApiResponse<Student> => api.get(`/nfc/student/by-card/${cardUid}`),
+  getStaffByCard: (cardUid: string): ApiResponse<Staff> => api.get(`/nfc/staff/by-card/${cardUid}`),
+  getParentByCard: (cardUid: string): ApiResponse<Parent> => api.get(`/nfc/parent/by-card/${cardUid}`),
+  getEmployeeByCard: (cardUid: string): ApiResponse<CorporateEmployee> => api.get(`/nfc/employee/by-card/${cardUid}`),
+  updateCardStatus: (cardType: string, cardId: string, status: string): ApiResponse<NfcAssignment> =>
     api.patch(`/nfc/card/${cardType}/${cardId}/status`, null, { params: { status } }),
-  createPrintRequest: (data: any) => api.post("/nfc/print-request", data),
-  listPrintRequests: (statusFilter?: string) =>
+  createPrintRequest: (data: { card_type: string; reference_id: string }): ApiResponse<PrintRequest> => api.post("/nfc/print-request", data),
+  listPrintRequests: (statusFilter?: string): ApiResponse<PrintRequest[]> =>
     api.get("/nfc/print-requests", { params: statusFilter ? { status_filter: statusFilter } : {} }),
-  processPrintRequest: (requestId: string, action: string = "approve") =>
+  processPrintRequest: (requestId: string, action: string = "approve"): ApiResponse<PrintRequest> =>
     api.patch(`/nfc/print-request/${requestId}/process`, null, { params: { action } }),
-  listScanLogs: () => api.get("/nfc/scan-logs"),
+  listScanLogs: (): ApiResponse<{ timestamp: string; card_uid: string; status: string }[]> => api.get("/nfc/scan-logs"),
 }
 
 export const cardDesignService = {
-  get: (schoolId: string) => api.get(`/card-design/${schoolId}`),
-  save: (schoolId: string, data: any) => api.put(`/card-design/${schoolId}`, data),
+  get: (schoolId: string): ApiResponse<{ design: Record<string, unknown> }> => api.get(`/card-design/${schoolId}`),
+  save: (schoolId: string, data: { design: Record<string, unknown> }): ApiResponse<{ design: Record<string, unknown> }> => api.put(`/card-design/${schoolId}`, data),
 }
 
 export const corporateService = {
   departments: {
-    list: (includeInactive?: boolean) =>
+    list: (includeInactive?: boolean): ApiResponse<CorporateDepartment[]> =>
       api.get("/corporate/departments", { params: includeInactive ? { include_inactive: true } : {} }),
-    create: (data: any) => api.post("/corporate/departments", data),
-    update: (id: string, data: any) => api.patch(`/corporate/departments/${id}`, data),
+    create: (data: Partial<CorporateDepartment>): ApiResponse<CorporateDepartment> => api.post("/corporate/departments", data),
+    update: (id: string, data: Partial<CorporateDepartment>): ApiResponse<CorporateDepartment> => api.patch(`/corporate/departments/${id}`, data),
   },
   employees: {
-    list: (params?: any) => api.get("/corporate/employees", { params }),
-    get: (id: string) => api.get(`/corporate/employees/${id}`),
-    create: (data: any) => api.post("/corporate/employees", data),
-    update: (id: string, data: any) => api.patch(`/corporate/employees/${id}`, data),
-    delete: (id: string) => api.delete(`/corporate/employees/${id}`),
+    list: (params?: Record<string, unknown>): ApiResponse<CorporateEmployee[]> => api.get("/corporate/employees", { params }),
+    get: (id: string): ApiResponse<CorporateEmployee> => api.get(`/corporate/employees/${id}`),
+    create: (data: Partial<CorporateEmployee>): ApiResponse<CorporateEmployee> => api.post("/corporate/employees", data),
+    update: (id: string, data: Partial<CorporateEmployee>): ApiResponse<CorporateEmployee> => api.patch(`/corporate/employees/${id}`, data),
+    delete: (id: string): ApiResponse<void> => api.delete(`/corporate/employees/${id}`),
   },
-  dashboard: () => api.get("/corporate/dashboard"),
+  dashboard: (): ApiResponse<Record<string, unknown>> => api.get("/corporate/dashboard"),
 }
 
 export const licenseService = {
-  verify: (key: string) => api.post("/licenses/verify", { key }),
-  activate: (key: string) => api.post("/licenses/activate", { key }),
-  list: () => api.get("/licenses"),
-  get: (id: string) => api.get(`/licenses/${id}`),
-  create: (data: any) => api.post("/licenses", data),
-  updateStatus: (id: string, status: string) => api.patch(`/licenses/${id}/status`, { status }),
+  verify: (key: string): ApiResponse<{ valid: boolean; school_name?: string }> => api.post("/licenses/verify", { key }),
+  activate: (key: string): ApiResponse<License> => api.post("/licenses/activate", { key }),
+  list: (): ApiResponse<License[]> => api.get("/licenses"),
+  get: (id: string): ApiResponse<License> => api.get(`/licenses/${id}`),
+  create: (data: Partial<License>): ApiResponse<License> => api.post("/licenses", data),
+  updateStatus: (id: string, status: string): ApiResponse<License> => api.patch(`/licenses/${id}/status`, { status }),
 }
 
 export const libraryService = {
   books: {
-    list: (params?: any) => api.get("/library/books", { params }),
-    create: (data: any) => api.post("/library/books", data),
+    list: (params?: Record<string, unknown>): ApiResponse<Book[]> => api.get("/library/books", { params }),
+    create: (data: Partial<Book>): ApiResponse<Book> => api.post("/library/books", data),
   },
   categories: {
-    list: () => api.get("/library/categories"),
-    create: (data: any) => api.post("/library/categories", data),
+    list: (): ApiResponse<InventoryCategory[]> => api.get("/library/categories"),
+    create: (data: Partial<InventoryCategory>): ApiResponse<InventoryCategory> => api.post("/library/categories", data),
   },
   borrowings: {
-    list: (params?: any) => api.get("/library/borrowings", { params }),
-    borrow: (data: any) => api.post("/library/borrowings", data),
-    return: (id: string) => api.post(`/library/borrowings/${id}/return`),
+    list: (params?: Record<string, unknown>): ApiResponse<Borrowing[]> => api.get("/library/borrowings", { params }),
+    borrow: (data: { book_id: string; member_id: string }): ApiResponse<Borrowing> => api.post("/library/borrowings", data),
+    return: (id: string): ApiResponse<Borrowing> => api.post(`/library/borrowings/${id}/return`),
   },
 }
 
 export const cafeteriaService = {
   products: {
-    list: (params?: any) => api.get("/cafeteria/products", { params }),
-    create: (data: any) => api.post("/cafeteria/products", data),
+    list: (params?: Record<string, unknown>): ApiResponse<CafeteriaProduct[]> => api.get("/cafeteria/products", { params }),
+    create: (data: Partial<CafeteriaProduct>): ApiResponse<CafeteriaProduct> => api.post("/cafeteria/products", data),
   },
   orders: {
-    list: (params?: any) => api.get("/cafeteria/orders", { params }),
-    create: (data: any) => api.post("/cafeteria/orders", data),
+    list: (params?: Record<string, unknown>): ApiResponse<CafeteriaOrder[]> => api.get("/cafeteria/orders", { params }),
+    create: (data: Partial<CafeteriaOrder>): ApiResponse<CafeteriaOrder> => api.post("/cafeteria/orders", data),
   },
-
+  reports: {
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/reports/cafeteria", { params }),
+  },
 }
 
 export const deviceReviewService = {
-  list: (status?: string) => api.get("/licenses/device-changes", { params: status ? { status_filter: status } : {} }),
-  approve: (id: string, note?: string) => api.post(`/licenses/device-changes/${id}/approve`, { note }),
-  reject: (id: string, note?: string) => api.post(`/licenses/device-changes/${id}/reject`, { note }),
-  autoApprove: () => api.post("/licenses/device-changes/auto-approve"),
+  list: (status?: string): ApiResponse<{ id: string; status: string; requested_at: string }[]> =>
+    api.get("/licenses/device-changes", { params: status ? { status_filter: status } : {} }),
+  approve: (id: string, note?: string): ApiResponse<void> => api.post(`/licenses/device-changes/${id}/approve`, { note }),
+  reject: (id: string, note?: string): ApiResponse<void> => api.post(`/licenses/device-changes/${id}/reject`, { note }),
+  autoApprove: (): ApiResponse<{ approved: number }> => api.post("/licenses/device-changes/auto-approve"),
 }
 
 export const auditService = {
-  list: (params?: any) => api.get("/audit-logs", { params }),
+  list: (params?: Record<string, unknown>): ApiResponse<AuditLog[]> => api.get("/audit-logs", { params }),
 }
 
 export const setupWizardService = {
-  status: () => api.get("/setup/wizard-status"),
+  status: (): ApiResponse<{ steps: Record<string, boolean>; all_done: boolean }> => api.get("/setup/wizard-status"),
 }
 
 export const setupService = {
-  status: () => api.get("/setup/status"),
-  activateStatus: () => api.get("/activate/status"),
-  validateLicense: (data: any) => api.post("/activate/validate", data),
-  activateInitialize: (data: any) => api.post("/activate/initialize", data),
-  validateLicenseType: (key: string) => api.post("/activate/validate-type", { key }),
-  initializeMain: (data: any) => api.post("/activate/initialize-main", data),
-  initializeBranch: (data: any) => api.post("/activate/initialize-branch", data),
-  createEmployee: (data: any) => api.post("/employees/create", data),
-  createSchool: (data: any) => api.post("/setup/school", data),
-  createBranch: (data: any) => api.post("/setup/branch", data),
-  createAdmin: (data: any) => api.post("/setup/admin", data),
-  verifySuperAdminContact: (phone: string, email: string) =>
+  status: (): ApiResponse<{ setup_complete: boolean }> => api.get("/setup/status"),
+  activateStatus: (): ApiResponse<{ activated: boolean }> => api.get("/activate/status"),
+  validateLicense: (data: { key: string }): ApiResponse<{ valid: boolean }> => api.post("/activate/validate", data),
+  activateInitialize: (data: Record<string, unknown>): ApiResponse<{ success: boolean }> => api.post("/activate/initialize", data),
+  validateLicenseType: (key: string): ApiResponse<{ type: string }> => api.post("/activate/validate-type", { key }),
+  initializeMain: (data: Record<string, unknown>): ApiResponse<{ success: boolean }> => api.post("/activate/initialize-main", data),
+  initializeBranch: (data: Record<string, unknown>): ApiResponse<{ success: boolean }> => api.post("/activate/initialize-branch", data),
+  createEmployee: (data: Record<string, unknown>): ApiResponse<Staff> => api.post("/employees/create", data),
+  createSchool: (data: Record<string, unknown>): ApiResponse<{ id: string; name: string }> => api.post("/setup/school", data),
+  createBranch: (data: Partial<Branch>): ApiResponse<Branch> => api.post("/setup/branch", data),
+  createAdmin: (data: Record<string, unknown>): ApiResponse<UserProfile> => api.post("/setup/admin", data),
+  verifySuperAdminContact: (phone: string, email: string): ApiResponse<{ verified: boolean }> =>
     api.post("/auth/verify-super-admin-contact", { phone, email }),
-  resetPassword: (data: { employee_id: string; license_key: string; new_password: string }) =>
+  resetPassword: (data: { employee_id: string; license_key: string; new_password: string }): ApiResponse<void> =>
     api.post("/activate/reset-password", data),
-
-  installerStatus: () => api.get("/installer/status"),
-  installerWhoami: () => api.get("/installer/whoami"),
-  installerInitSuperAdmin: (data: any) => api.post("/installer/initialize-super-admin", data),
-  installerInitMain: (data: any) => api.post("/installer/initialize-main", data),
-  installerInitBranch: (data: any) => api.post("/installer/initialize-branch", data),
+  installerStatus: (): ApiResponse<{ server_identity_exists: boolean; setup_complete: boolean }> => api.get("/installer/status"),
+  installerWhoami: (): ApiResponse<{ role: string; email: string }> => api.get("/installer/whoami"),
+  installerInitSuperAdmin: (data: { email: string; password: string }): ApiResponse<{ success: boolean }> => api.post("/installer/initialize-super-admin", data),
+  installerInitMain: (data: { school_name: string; admin_email: string; admin_password: string }): ApiResponse<{ success: boolean }> => api.post("/installer/initialize-main", data),
+  installerInitBranch: (data: { branch_name: string; branch_code: string; license_key: string }): ApiResponse<{ success: boolean }> => api.post("/installer/initialize-branch", data),
 }
 
 export const branchService = {
-  list: (params?: any) => api.get("/branches", { params }),
-  create: (data: any) => api.post("/branches", data),
-  get: (id: string) => api.get(`/branches/${id}`),
-  update: (id: string, data: any) => api.patch(`/branches/${id}`, data),
-  delete: (id: string) => api.delete(`/branches/${id}`),
+  list: (params?: Record<string, unknown>): ApiResponse<(Branch & { student_count?: number })[]> => api.get("/branches", { params }),
+  create: (data: Partial<Branch>): ApiResponse<Branch> => api.post("/branches", data),
+  get: (id: string): ApiResponse<Branch> => api.get(`/branches/${id}`),
+  update: (id: string, data: Partial<Branch>): ApiResponse<Branch> => api.patch(`/branches/${id}`, data),
+  delete: (id: string): ApiResponse<void> => api.delete(`/branches/${id}`),
 }
 
 export const schoolService = {
-  list: (params?: any) => api.get("/schools", { params }),
-  get: (id: string) => api.get(`/schools/${id}`),
+  list: (params?: Record<string, unknown>): ApiResponse<{ id: string; name: string; code: string }[]> => api.get("/schools", { params }),
+  get: (id: string): ApiResponse<{ id: string; name: string; code: string }> => api.get(`/schools/${id}`),
 }
 
 export const telegramService = {
-  status: () => api.get("/telegram/bot/status"),
-  connect: (data: { bot_token: string }) => api.post("/telegram/bot/connect", data),
-  disconnect: () => api.post("/telegram/bot/disconnect"),
+  status: (): ApiResponse<{ connected: boolean; bot_name?: string }> => api.get("/telegram/bot/status"),
+  connect: (data: { bot_token: string }): ApiResponse<{ connected: boolean }> => api.post("/telegram/bot/connect", data),
+  disconnect: (): ApiResponse<{ connected: boolean }> => api.post("/telegram/bot/disconnect"),
 }
 
 export const notificationService = {
-  getPreferences: () => api.get("/notifications/preferences"),
-  updatePreferences: (data: any) => api.put("/notifications/preferences", data),
+  getPreferences: (): ApiResponse<NotificationPreferences> => api.get("/notifications/preferences"),
+  updatePreferences: (data: Partial<NotificationPreferences>): ApiResponse<NotificationPreferences> => api.put("/notifications/preferences", data),
 }
 
 export const dashboardService = {
-  overview: () => api.get("/dashboard/overview"),
-  trends: (months?: number) => api.get("/dashboard/trends", { params: { months } }),
+  overview: (): ApiResponse<DashboardOverview> => api.get("/dashboard/overview"),
+  trends: (months?: number): ApiResponse<DashboardTrends> => api.get("/dashboard/trends", { params: { months } }),
 }
 
 export const studentPortalService = {
-  dashboard: () => api.get("/student-portal/dashboard"),
+  dashboard: (): ApiResponse<Record<string, unknown>> => api.get("/student-portal/dashboard"),
 }
 
 export const platformService = {
-  adminDashboard: () => api.get("/platform/admin/dashboard"),
-  dailyReport: (date?: string) => api.get("/platform/reports/daily", { params: { date_str: date } }),
-  monthlyReport: (month?: number, year?: number) => api.get("/platform/reports/monthly", { params: { month, year } }),
-  schoolReport: () => api.get("/platform/reports/schools"),
+  adminDashboard: (): ApiResponse<Record<string, unknown>> => api.get("/platform/admin/dashboard"),
+  dailyReport: (date?: string): ApiResponse<Record<string, unknown>> => api.get("/platform/reports/daily", { params: { date_str: date } }),
+  monthlyReport: (month?: number, year?: number): ApiResponse<Record<string, unknown>> => api.get("/platform/reports/monthly", { params: { month, year } }),
+  schoolReport: (): ApiResponse<Record<string, unknown>[]> => api.get("/platform/reports/schools"),
 }
 
 export const announcementService = {
-  list: (params?: any) => api.get("/announcements", { params }),
-  create: (data: any) => api.post("/announcements", data),
-  delete: (id: string) => api.delete(`/announcements/${id}`),
+  list: (params?: Record<string, unknown>): ApiResponse<{ id: string; title: string; body: string; created_at: string }[]> =>
+    api.get("/announcements", { params }),
+  create: (data: { title: string; body: string }): ApiResponse<{ id: string; title: string; body: string }> => api.post("/announcements", data),
+  delete: (id: string): ApiResponse<void> => api.delete(`/announcements/${id}`),
 }

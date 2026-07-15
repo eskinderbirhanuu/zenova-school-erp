@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_permission, Permission
+from app.api.v1.deps import get_db, get_auth_context
+from app.core.auth_deps import AuthContext
+from app.core.permissions import Permission
 from app.schemas.inventory import (
     InventoryCategoryCreate, InventoryCategoryUpdate, InventoryCategoryResponse,
     InventoryItemCreate, InventoryItemUpdate, InventoryItemResponse,
@@ -12,53 +13,64 @@ from app.schemas.pagination import PaginatedResponse
 from app.core.pagination import paginate, build_paginated_response
 from app.services import inventory_service
 from app.models.inventory import InventoryItem
-
 from app.models.inventory_asset import InventoryAsset
 
 router = APIRouter()
-INVENTORY = [require_permission(Permission.INVENTORY_MANAGE)]
-VIEW_INVENTORY = [require_permission(Permission.INVENTORY_MANAGE, Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS)]
+
+_INVENTORY = [Permission.INVENTORY_MANAGE]
+_VIEW_INVENTORY = [Permission.INVENTORY_MANAGE, Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS]
 
 
-@router.post("/inventory/categories", response_model=InventoryCategoryResponse, dependencies=INVENTORY)
-def create_category(data: InventoryCategoryCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return inventory_service.create_category(db, current_user.school_id, data, current_user.id)
+def _include_deleted(ctx: AuthContext) -> bool:
+    return ctx.is_superuser or ctx.role in ("ADMIN", "SUPER_ADMIN")
 
 
-@router.get("/inventory/categories", response_model=list[InventoryCategoryResponse], dependencies=VIEW_INVENTORY)
-def list_categories(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return inventory_service.get_categories(db, current_user.school_id, include_deleted=include_deleted)
+@router.post("/inventory/categories", response_model=InventoryCategoryResponse)
+def create_category(data: InventoryCategoryCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_INVENTORY)
+    return inventory_service.create_category(db, ctx.school_id, data, ctx.id)
 
 
-@router.patch("/inventory/categories/{category_id}", response_model=InventoryCategoryResponse, dependencies=INVENTORY)
-def update_category(category_id: str, data: InventoryCategoryUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return inventory_service.update_category(db, category_id, data, current_user.id, current_user.school_id, include_deleted=True)
+@router.get("/inventory/categories", response_model=list[InventoryCategoryResponse])
+def list_categories(db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_VIEW_INVENTORY)
+    include_deleted = _include_deleted(ctx)
+    return inventory_service.get_categories(db, ctx.school_id, include_deleted=include_deleted)
 
 
-@router.delete("/inventory/categories/{category_id}", dependencies=INVENTORY)
-def delete_category(category_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    inventory_service.delete_category(db, category_id, current_user.id, current_user.school_id, include_deleted=True)
+@router.patch("/inventory/categories/{category_id}", response_model=InventoryCategoryResponse)
+def update_category(category_id: str, data: InventoryCategoryUpdate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_INVENTORY)
+    return inventory_service.update_category(db, category_id, data, ctx.id, ctx.school_id, include_deleted=True)
+
+
+@router.delete("/inventory/categories/{category_id}")
+def delete_category(category_id: str, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_INVENTORY)
+    inventory_service.delete_category(db, category_id, ctx.id, ctx.school_id, include_deleted=True)
     return {"message": "Category deleted"}
 
 
-@router.post("/inventory/items", response_model=InventoryItemResponse, dependencies=INVENTORY)
-def create_item(data: InventoryItemCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return inventory_service.create_item(db, current_user.school_id, data, current_user.id)
+@router.post("/inventory/items", response_model=InventoryItemResponse)
+def create_item(data: InventoryItemCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_INVENTORY)
+    return inventory_service.create_item(db, ctx.school_id, data, ctx.id)
 
 
-@router.patch("/inventory/items/{item_id}", response_model=InventoryItemResponse, dependencies=INVENTORY)
-def update_item(item_id: str, data: InventoryItemUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return inventory_service.update_item(db, item_id, data, current_user.id, current_user.school_id)
+@router.patch("/inventory/items/{item_id}", response_model=InventoryItemResponse)
+def update_item(item_id: str, data: InventoryItemUpdate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_INVENTORY)
+    return inventory_service.update_item(db, item_id, data, ctx.id, ctx.school_id)
 
 
-@router.get("/inventory/items", dependencies=VIEW_INVENTORY)
+@router.get("/inventory/items")
 def list_items(
     category_id: str = Query(None), low_stock: bool = Query(False),
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)
 ):
-    q = db.query(InventoryItem).filter(InventoryItem.school_id == current_user.school_id)
+    ctx.require_permission(*_VIEW_INVENTORY)
+    q = db.query(InventoryItem).filter(InventoryItem.school_id == ctx.school_id)
     if category_id:
         q = q.filter(InventoryItem.category_id == category_id)
     if low_stock:
@@ -72,19 +84,21 @@ def list_items(
     )
 
 
-@router.post("/inventory/stock-movements", response_model=StockMovementResponse, dependencies=INVENTORY)
-def record_movement(data: StockMovementCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return inventory_service.record_movement(db, current_user.school_id, data, current_user.id)
+@router.post("/inventory/stock-movements", response_model=StockMovementResponse)
+def record_movement(data: StockMovementCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_INVENTORY)
+    return inventory_service.record_movement(db, ctx.school_id, data, ctx.id)
 
 
-@router.get("/inventory/stock-movements", dependencies=VIEW_INVENTORY)
+@router.get("/inventory/stock-movements")
 def list_movements(
     item_id: str = Query(None),
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+    db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context),
 ):
+    ctx.require_permission(*_VIEW_INVENTORY)
     from app.models.inventory import StockMovement
-    q = db.query(StockMovement).filter(StockMovement.school_id == current_user.school_id)
+    q = db.query(StockMovement).filter(StockMovement.school_id == ctx.school_id)
     if item_id:
         q = q.filter(StockMovement.item_id == item_id)
     q = q.order_by(StockMovement.created_at.desc())
@@ -96,34 +110,39 @@ def list_movements(
     )
 
 
-@router.post("/inventory/suppliers", response_model=SupplierResponse, dependencies=INVENTORY)
-def create_supplier(data: SupplierCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return inventory_service.create_supplier(db, current_user.school_id, data, current_user.id)
+@router.post("/inventory/suppliers", response_model=SupplierResponse)
+def create_supplier(data: SupplierCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_INVENTORY)
+    return inventory_service.create_supplier(db, ctx.school_id, data, ctx.id)
 
 
-@router.get("/inventory/suppliers", response_model=list[SupplierResponse], dependencies=VIEW_INVENTORY)
-def list_suppliers(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return inventory_service.get_suppliers(db, current_user.school_id)
+@router.get("/inventory/suppliers", response_model=list[SupplierResponse])
+def list_suppliers(db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_VIEW_INVENTORY)
+    return inventory_service.get_suppliers(db, ctx.school_id)
 
 
-@router.patch("/inventory/suppliers/{supplier_id}", response_model=SupplierResponse, dependencies=INVENTORY)
-def update_supplier(supplier_id: str, data: SupplierUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return inventory_service.update_supplier(db, supplier_id, data, current_user.id, current_user.school_id)
+@router.patch("/inventory/suppliers/{supplier_id}", response_model=SupplierResponse)
+def update_supplier(supplier_id: str, data: SupplierUpdate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_INVENTORY)
+    return inventory_service.update_supplier(db, supplier_id, data, ctx.id, ctx.school_id)
 
 
-@router.delete("/inventory/suppliers/{supplier_id}", dependencies=INVENTORY)
-def delete_supplier(supplier_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    inventory_service.delete_supplier(db, supplier_id, current_user.id, current_user.school_id)
+@router.delete("/inventory/suppliers/{supplier_id}")
+def delete_supplier(supplier_id: str, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(*_INVENTORY)
+    inventory_service.delete_supplier(db, supplier_id, ctx.id, ctx.school_id)
     return {"message": "Supplier deleted"}
 
 
-@router.get("/inventory/assets", dependencies=VIEW_INVENTORY)
+@router.get("/inventory/assets")
 def list_assets(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+    db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context),
 ):
-    q = db.query(InventoryAsset).filter(InventoryAsset.school_id == current_user.school_id)
-    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+    ctx.require_permission(*_VIEW_INVENTORY)
+    q = db.query(InventoryAsset).filter(InventoryAsset.school_id == ctx.school_id)
+    if _include_deleted(ctx):
         q = q.execution_options(include_deleted=True)
     q = q.order_by(InventoryAsset.created_at.desc())
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)

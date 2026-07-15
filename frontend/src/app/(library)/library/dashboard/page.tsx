@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { libraryService } from "@/services/api"
+import { useBooks, useBorrowings } from "@/hooks/queries"
 import Link from "next/link"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
@@ -15,7 +15,7 @@ import {
   BarChart3, BookPlus, ClipboardCheck, Calendar, Users
 } from "lucide-react"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 const borrowTrend = [
@@ -36,35 +36,17 @@ const recentLibrary = [
 ]
 
 export default function LibraryDashboard() {
-  const [stats, setStats] = useState({ books: "—", borrowed: "—" })
-  const [loading, setLoading] = useState(true)
+  const { data: books } = useBooks({ limit: 1 })
+  const { data: borrowings } = useBorrowings({ limit: 1 })
+  const loading = false
 
-  useEffect(() => {
-    Promise.all([
-      libraryService.books.list({ limit: 1 }).then(r => r.data?.length || 0).catch(() => 0),
-      libraryService.borrowings.list({ limit: 1 }).then(r => r.data?.length || 0).catch(() => 0),
-    ]).then(([books, borrowed]) => {
-      setStats({ books, borrowed })
-      setLoading(false)
-    })
-  }, [])
-
-  const available = typeof stats.books === "number" && typeof stats.borrowed === "number"
-    ? stats.books - stats.borrowed
-    : "—"
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+  const bookCount = Array.isArray(books) ? books.length : 0
+  const borrowedCount = Array.isArray(borrowings) ? borrowings.length : 0
+  const available = bookCount - borrowedCount
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader
@@ -75,8 +57,8 @@ export default function LibraryDashboard() {
 
       <StaggerContainer>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StaggerItem><KPICard title="Total Books" value={stats.books} icon={BookOpen} trend={{ value: "+24", positive: true }} /></StaggerItem>
-          <StaggerItem><KPICard title="Currently Borrowed" value={stats.borrowed} icon={ArrowUp} trend={{ value: "+5", positive: true }} accentColor="bg-amber-500" /></StaggerItem>
+          <StaggerItem><KPICard title="Total Books" value={bookCount} icon={BookOpen} trend={{ value: "+24", positive: true }} /></StaggerItem>
+          <StaggerItem><KPICard title="Currently Borrowed" value={borrowedCount} icon={ArrowUp} trend={{ value: "+5", positive: true }} accentColor="bg-amber-500" /></StaggerItem>
           <StaggerItem><KPICard title="Available" value={available} icon={ArrowDown} trend={{ value: "-3", positive: false }} /></StaggerItem>
           <StaggerItem><KPICard title="Overdue Fines" value="$0.00" icon={DollarSign} trend={{ value: "0", positive: true }} /></StaggerItem>
         </div>

@@ -19,8 +19,8 @@ export default function QRPage() {
     if (ids.length === 0) { toast({ title: "Enter at least one student ID", variant: "destructive" }); return }
     setGenerating(true)
     try {
-      const res = await qrService.generate({ student_ids: ids })
-      const data = Array.isArray(res.data) ? res.data : res.data?.codes || []
+      const res = await qrService.generate({ student_ids: ids } as any)
+      const data = Array.isArray(res.data) ? res.data : (res.data as any)?.codes || []
       setQrCodes(data)
       toast({ title: `Generated ${data.length} QR code(s)` })
     } catch { toast({ title: "Generation failed", variant: "destructive" }) }
@@ -29,11 +29,11 @@ export default function QRPage() {
 
   const generateSingle = async (sid: string) => {
     try {
-      const res = await qrService.generate({ student_ids: [sid] })
-      const data = Array.isArray(res.data) ? res.data[0] : res.data?.codes?.[0]
+      const res = await qrService.generate({ student_ids: [sid] } as any)
+      const data = Array.isArray(res.data) ? res.data[0] : (res.data as any)?.codes?.[0]
       if (data) {
         setQrCodes(prev => {
-          const filtered = prev.filter(q => q.student_id !== sid)
+          const filtered = prev.filter((q: any) => q.student_id !== sid)
           return [...filtered, data]
         })
       }
@@ -51,7 +51,7 @@ export default function QRPage() {
 
   const downloadAll = () => {
     if (qrCodes.length === 0) return
-    const lines = qrCodes.map(q => `${q.student_id || q.student_name || ""},${q.uuid}`).join("\n")
+    const lines = qrCodes.map((q: any) => `${q.student_id || q.student_name || ""},${q.uuid}`).join("\n")
     const blob = new Blob(["student_id,uuid\n" + lines], { type: "text/csv" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a"); a.href = url; a.download = "qr_codes.csv"; a.click()

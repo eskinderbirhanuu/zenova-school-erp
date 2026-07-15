@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { studentService, parentService, academicService } from "@/services/api"
+import { studentService, parentService } from "@/services/api"
+import { useClasses, useSections } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { ArrowLeft, Save, Search, X, Plus, UserCheck, User, GraduationCap, Heart, Phone, MapPin } from "lucide-react"
 import Link from "next/link"
@@ -77,8 +78,7 @@ const FieldGroup = ({ children }: { children: React.ReactNode }) => (
 export default function RegisterStudentPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [classes, setClasses] = useState<any[]>([])
-  const [sections, setSections] = useState<any[]>([])
+  const { data: classes } = useClasses()
   const [mounted, setMounted] = useState(false)
 
   const [form, setForm] = useState({
@@ -89,6 +89,7 @@ export default function RegisterStudentPage() {
     address: "", nationality: "", blood_group: "",
     emergency_contact: "",
   })
+  const { data: sectionsData } = useSections(form.grade_id ? { class_id: form.grade_id } : {})
 
   const [parentQuery, setParentQuery] = useState("")
   const [parentResults, setParentResults] = useState<any[]>([])
@@ -99,17 +100,6 @@ export default function RegisterStudentPage() {
   const searchTimer = useRef<any>(null)
 
   useEffect(() => { setMounted(true) }, [])
-  useEffect(() => {
-    academicService.classes.list().then((r: any) => setClasses(r.data)).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    if (form.grade_id) {
-      academicService.sections.list({ class_id: form.grade_id }).then((r: any) => setSections(r.data)).catch(() => setSections([]))
-    } else {
-      setSections([])
-    }
-  }, [form.grade_id])
 
   const searchParents = useCallback((q: string) => {
     if (q.length < 2) { setParentResults([]); return }
@@ -124,7 +114,7 @@ export default function RegisterStudentPage() {
   }
 
   const addParent = (p: any) => {
-    if (!selectedParents.find(sp => sp.id === p.id)) {
+    if (!selectedParents.find((sp: any) => sp.id === p.id)) {
       setSelectedParents([...selectedParents, p])
     }
     setParentQuery("")
@@ -133,7 +123,7 @@ export default function RegisterStudentPage() {
   }
 
   const removeParent = (id: string) => {
-    setSelectedParents(selectedParents.filter(p => p.id !== id))
+    setSelectedParents(selectedParents.filter((p: any) => p.id !== id))
   }
 
   const handleCreateNewParent = async () => {
@@ -225,9 +215,9 @@ export default function RegisterStudentPage() {
             <SectionCard icon={GraduationCap} title="Academic Information">
               <div className="space-y-4">
                 <Field label="Grade / Class" name="grade_id" type="select"
-                  options={classes.map(c => ({value: c.id, label: c.name}))} />
+                  options={(classes || []).map((c: any) => ({value: c.id, label: c.name}))} />
                 <Field label="Section" name="section_id" type="select"
-                  options={sections.map(s => ({value: s.id, label: s.name}))} />
+                  options={(sectionsData || []).map((s: any) => ({value: s.id, label: s.name}))} />
                 <Field label="Stream" name="stream" type="select"
                   options={[{value:"natural",label:"Natural Science"},{value:"social",label:"Social Science"},{value:"language",label:"Language"},{value:"vocational",label:"Vocational"}]} />
               </div>
@@ -242,7 +232,7 @@ export default function RegisterStudentPage() {
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 <AnimatePresence>
-                  {selectedParents.map(p => (
+                  {selectedParents.map((p: any) => (
                     <motion.div key={p.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
                       <Badge className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-xl bg-primary/10 text-primary border-primary/20 hover:bg-primary/15 transition-colors">
                         <UserCheck className="h-3.5 w-3.5" />
@@ -286,7 +276,7 @@ export default function RegisterStudentPage() {
                         animate={{ opacity: 1, y: 0 }}
                         className="border rounded-xl overflow-hidden bg-card/80 backdrop-blur-sm"
                       >
-                        {parentResults.map(p => (
+                        {parentResults.map((p: any) => (
                           <button
                             key={p.id} type="button"
                             className="w-full text-left px-4 py-3.5 hover:bg-primary/5 flex items-center justify-between group transition-colors border-b border-border/20 last:border-0"

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { cafeteriaService } from "@/services/api"
+import { useCafeteriaProducts, useCafeteriaOrders } from "@/hooks/queries"
 import Link from "next/link"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
@@ -15,7 +15,7 @@ import {
   BarChart3, Plus, ClipboardCheck, Clock, TrendingUp
 } from "lucide-react"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 const dailySales = [
@@ -37,30 +37,13 @@ const recentOrders = [
 
 export default function CafeteriaDashboard() {
   const [stats, setStats] = useState({ products: "—", orders: "—" })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.all([
-      cafeteriaService.products.list({ limit: 1 }).then(r => r.data?.length || 0).catch(() => 0),
-      cafeteriaService.orders.list({ limit: 1 }).then(r => r.data?.length || 0).catch(() => 0),
-    ]).then(([products, orders]) => {
-      setStats({ products, orders })
-      setLoading(false)
-    })
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+  const { data: products } = useCafeteriaProducts({ limit: 1 })
+  const { data: orders } = useCafeteriaOrders({ limit: 1 })
+  const loading = false
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader
@@ -71,8 +54,8 @@ export default function CafeteriaDashboard() {
 
       <StaggerContainer>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StaggerItem><KPICard title="Products" value={stats.products} icon={Coffee} trend={{ value: "+5", positive: true }} /></StaggerItem>
-          <StaggerItem><KPICard title="Today's Orders" value={stats.orders} icon={ShoppingCart} trend={{ value: "+12", positive: true }} /></StaggerItem>
+          <StaggerItem><KPICard title="Products" value={products?.length || 0} icon={Coffee} trend={{ value: "+5", positive: true }} /></StaggerItem>
+          <StaggerItem><KPICard title="Today's Orders" value={orders?.length || 0} icon={ShoppingCart} trend={{ value: "+12", positive: true }} /></StaggerItem>
           <StaggerItem><KPICard title="Revenue" value="$0.00" icon={DollarSign} trend={{ value: "+8%", positive: true }} accentColor="bg-emerald-500" /></StaggerItem>
           <StaggerItem><KPICard title="POS Status" value="Ready" icon={CheckCircle} trend={{ value: "Online", positive: true }} /></StaggerItem>
         </div>

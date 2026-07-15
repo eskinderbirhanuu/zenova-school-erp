@@ -43,12 +43,13 @@ export default function MainSchoolInstallerPage() {
         main_license: mainLicense,
         admin_email: adminEmail,
         admin_password: adminPassword,
-      })
-      if (res.data.success) {
-        setResult(res.data)
+      } as any)
+      const rd = res.data as any
+      if (rd.success) {
+        setResult(rd)
         setStep("result")
       } else {
-        setError(res.data.message || "Activation failed")
+        setError(rd.message || "Activation failed")
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Activation failed. Check school ID and license.")

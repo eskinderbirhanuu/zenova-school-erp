@@ -1,43 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { announcementService } from "@/services/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { useApiQuery, useApiMutation } from "@/hooks/use-api"
 import { useForm, FormProvider } from "react-hook-form"
 import { FormField } from "@/components/ui/form"
 import { Plus, Trash2, Loader2, Megaphone } from "lucide-react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { useToast } from "@/hooks/use-toast"
+import { useAnnouncements, useCreateAnnouncement, useDeleteAnnouncement } from "@/hooks/queries"
 
 export default function AnnouncementsPage() {
   const { toast } = useToast()
   const [showForm, setShowForm] = useState(false)
-  const { data: announcements = [], isLoading, refetch } = useApiQuery(
-    ["announcements"],
-    () => announcementService.list(),
-  )
+  const { data: announcements = [], isLoading } = useAnnouncements()
   const form = useForm({ defaultValues: { title: "", content: "", target_roles: "" } })
 
-  const createMutation = useApiMutation((data: any) => announcementService.create(data), {
-    onSuccess: () => {
-      toast({ title: "Announcement published" })
-      form.reset()
-      setShowForm(false)
-      refetch()
-    },
-    onError: (e: any) => {
-      toast({ title: e?.response?.data?.detail || "Failed to create announcement", variant: "destructive" })
-    },
-  })
-
-  const deleteMutation = useApiMutation((id: string) => announcementService.delete(id), {
-    onSuccess: (_data, id) => {
-      toast({ title: "Announcement deleted" })
-      refetch()
-    },
-  })
+  const createMutation = useCreateAnnouncement()
+  const deleteMutation = useDeleteAnnouncement()
 
   return (
     <div className="space-y-6">
@@ -54,7 +34,16 @@ export default function AnnouncementsPage() {
       {showForm && (
         <Card>
           <FormProvider {...form}>
-            <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))}>
+            <form onSubmit={form.handleSubmit((data: any) => createMutation.mutate(data, {
+                  onSuccess: () => {
+                    toast({ title: "Announcement published" })
+                    form.reset()
+                    setShowForm(false)
+                  },
+                  onError: (e: any) => {
+                    toast({ title: e?.response?.data?.detail || "Failed to create announcement", variant: "destructive" })
+                  },
+                }))}>
               <CardContent className="p-6 space-y-4">
                 <FormField name="title" label="Title" required />
                 <FormField name="content" label="Content" textarea required />
@@ -95,7 +84,7 @@ export default function AnnouncementsPage() {
                       {a.target_roles ? ` — For: ${a.target_roles}` : " — All roles"}
                     </p>
                   </div>
-                  <button onClick={() => deleteMutation.mutate(a.id)} className="text-gray-400 hover:text-red-600 ml-4">
+                  <button onClick={() => deleteMutation.mutate(a.id, { onSuccess: () => toast({ title: "Announcement deleted" }) })} className="text-gray-400 hover:text-red-600 ml-4">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

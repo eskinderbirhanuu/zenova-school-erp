@@ -2,23 +2,17 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { academicService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useClasses, useSections } from "@/hooks/queries"
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
 export default function TimetablePage() {
-  const [classes, setClasses] = useState<any[]>([])
-  const [sections, setSections] = useState<any[]>([])
   const [classId, setClassId] = useState("")
   const [sectionId, setSectionId] = useState("")
   const [entries, setEntries] = useState<any[]>([])
 
-  useEffect(() => { academicService.classes.list().then((r) => setClasses(r.data)) }, [])
-
-  useEffect(() => {
-    if (classId) academicService.sections.list(classId).then((r) => setSections(r.data)).catch(() => {})
-  }, [classId])
+  const { data: classes } = useClasses()
+  const { data: sections } = useSections(classId ? { class_id: classId } as any : undefined)
 
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
 
@@ -26,7 +20,7 @@ export default function TimetablePage() {
     if (sectionId) {
       fetch(`${API}/timetable?section_id=${sectionId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
-      }).then((r) => r.json()).then(setEntries).catch(() => {})
+      }).then((r: any) => r.json()).then(setEntries).catch(() => {})
     }
   }, [sectionId])
 
@@ -42,11 +36,11 @@ export default function TimetablePage() {
       <div className="flex gap-4">
         <select value={classId} onChange={(e) => setClassId(e.target.value)} className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm">
           <option value="">Select Class</option>
-          {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {(classes || []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm">
           <option value="">Select Section</option>
-          {sections.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {(sections || []).map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </div>
       <div className="grid grid-cols-7 gap-2">

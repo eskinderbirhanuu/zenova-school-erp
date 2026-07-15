@@ -16,6 +16,7 @@ class Payment(Base):
     payment_method = Column(String(50), nullable=False)
     reference = Column(String(255), nullable=True)
     idempotency_key = Column(String(255), nullable=True, unique=True)
+    currency_code = Column(String(3), default="ETB", nullable=False)
     payment_date = Column(Date, nullable=False)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     received_by = Column(String(36), ForeignKey("users.id"), nullable=False)

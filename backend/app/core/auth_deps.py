@@ -134,3 +134,69 @@ def require_inside_network():
         current_user.is_view_only = True
         return current_user
     return _check
+
+
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class AuthContext:
+    """Consolidated authentication context — user + permissions + shortcuts.
+    
+    Provides a single dependency to replace the common pattern of using both
+    ``require_permission`` (router-level) and ``Depends(get_current_user)``
+    (function-level) in the same endpoint.
+    
+    Usage::
+    
+        from app.core.auth_deps import get_auth_context
+    
+        @router.get("/items")
+        def list_items(ctx: AuthContext = Depends(get_auth_context)):
+            if not ctx.has_permission("students.view"):
+                ...
+            return service.list(ctx.school_id)
+    """
+    user: User
+
+    def has_permission(self, permission: str) -> bool:
+        from app.core.permissions import has_permission as _has_perm
+        return _has_perm(self.user, permission)
+
+    def require_permission(self, *permissions: str) -> "AuthContext":
+        if not permissions:
+            return self
+        from app.core.permissions import has_permission as _has_perm
+        for perm in permissions:
+            if _has_perm(self.user, perm):
+                return self
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Missing one of: {', '.join(permissions)}",
+        )
+
+    @property
+    def school_id(self) -> Optional[str]:
+        return getattr(self.user, "school_id", None)
+
+    @property
+    def id(self) -> str:
+        return self.user.id
+
+    @property
+    def is_superuser(self) -> bool:
+        return self.user.is_superuser
+
+    @property
+    def role(self) -> Optional[str]:
+        return self.user.role.name if self.user.role else None
+
+
+def get_auth_context(user: User = Depends(get_current_user)) -> AuthContext:
+    """Consolidated auth dependency — returns an ``AuthContext`` with user + permission helpers.
+    
+    Replaces the need for both router-level ``require_permission()``
+    and function-level ``Depends(get_current_user)`` in the same endpoint.
+    """
+    return AuthContext(user=user)

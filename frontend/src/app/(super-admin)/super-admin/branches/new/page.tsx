@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,12 +10,13 @@ import { PageHeader } from "@/components/ui/page-header"
 import { GitBranch, CheckCircle, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { branchService, schoolService } from "@/services/api"
+import { useSchoolList, useCreateBranch } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 
 export default function NewBranch() {
   const router = useRouter()
-  const [schools, setSchools] = useState<{ id: string; name: string; code: string }[]>([])
+  const { data: schoolsData } = useSchoolList()
+  const schools = ((schoolsData as any)?.schools ?? schoolsData ?? []) as { id: string; name: string; code: string }[]
   const [schoolId, setSchoolId] = useState("")
   const [name, setName] = useState("")
   const [code, setCode] = useState("")
@@ -25,26 +26,23 @@ export default function NewBranch() {
   const [licenseKey, setLicenseKey] = useState("")
   const [success, setSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    schoolService.list().then(r => setSchools(r.data || [])).catch(() => {})
-  }, [])
+  const branchMutation = useCreateBranch()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await branchService.create({
+      await branchMutation.mutateAsync({
         name, code,
         address: address || undefined,
         phone: phone || undefined,
         principal: principal || undefined,
         license_key: licenseKey,
         school_id: schoolId || undefined,
-      })
+      } as any)
       setSuccess(true)
     } catch (err: any) {
-      toast({ title: "Failed to create branch", description: err.response?.data?.detail || err.message, variant: "destructive" })
+      toast({ title: "Failed to create branch", description: (err as any)?.response?.data?.detail || (err as any)?.message, variant: "destructive" })
     } finally {
       setSubmitting(false)
     }
@@ -97,7 +95,7 @@ export default function NewBranch() {
                 <Select value={schoolId} onValueChange={setSchoolId} required>
                   <SelectTrigger><SelectValue placeholder="Select school" /></SelectTrigger>
                   <SelectContent>
-                    {schools.map(s => (
+                    {schools.map((s: any) => (
                       <SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>
                     ))}
                   </SelectContent>

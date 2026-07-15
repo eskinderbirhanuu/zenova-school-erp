@@ -1,40 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { academicService, authService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useMe, useTimetable } from "@/hooks/queries"
 import { Calendar, Loader2 } from "lucide-react"
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const HOURS = Array.from({ length: 11 }, (_, i) => `${String(i + 7).padStart(2, "0")}:00`)
 
 export default function StudentTimetable() {
-  const [entries, setEntries] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: me } = useMe()
+  const user = me as any
 
-  useEffect(() => {
-    setLoading(true)
-    authService
-      .me()
-      .then(async (res) => {
-        const user = res.data
-        if (user.student?.section_id) {
-          const r = await academicService.timetable.list({ section_id: user.student.section_id })
-          return r.data
-        }
-        if (user.student_id) {
-          const r = await academicService.timetable.list({ student_id: user.student_id })
-          return r.data
-        }
-        return []
-      })
-      .then((data: any) => setEntries(data || []))
-      .catch(() => toast({ title: "Failed to load timetable", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const timetableParams = useMemo(() => {
+    if (!user) return undefined
+    if (user.student?.section_id) return { section_id: user.student.section_id }
+    if (user.student_id) return { student_id: user.student_id }
+    return undefined
+  }, [user])
 
-  if (loading) {
+  const { data: entries, isLoading } = useTimetable(timetableParams)
+
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">My Timetable</h1>
@@ -46,7 +33,7 @@ export default function StudentTimetable() {
     )
   }
 
-  if (entries.length === 0) {
+  if (!entries || entries.length === 0) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">My Timetable</h1>
@@ -63,8 +50,7 @@ export default function StudentTimetable() {
 
   const getEntry = (day: number, hourStr: string) => {
     const h = parseInt(hourStr)
-    return entries.find(
-      (e) => e.day_of_week === day && parseInt(e.start_time) <= h && parseInt(e.end_time) > h
+    return (entries || []).find((e: any) => e.day_of_week === day && parseInt(e.start_time) <= h && parseInt(e.end_time) > h
     )
   }
 
@@ -76,13 +62,13 @@ export default function StudentTimetable() {
           <thead>
             <tr>
               <th className="p-2 border bg-gray-50 text-left text-gray-600 w-16">Time</th>
-              {DAYS.map((d) => (
+              {DAYS.map((d: any) => (
                 <th key={d} className="p-2 border bg-gray-50 text-center text-gray-600 w-28">{d}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {HOURS.map((hour) => (
+            {HOURS.map((hour: any) => (
               <tr key={hour}>
                 <td className="p-2 border text-gray-500 text-xs font-mono">{hour}</td>
                 {DAYS.map((_, di) => {
@@ -91,12 +77,12 @@ export default function StudentTimetable() {
                     <td key={di} className="p-1 border align-top text-center text-xs min-h-[48px]">
                       {entry && (
                         <div className="rounded bg-blue-50 border border-blue-200 p-1.5">
-                          <div className="font-medium text-blue-800">{entry.subject_name || entry.subject_id || "—"}</div>
+                          <div className="font-medium text-blue-800">{(entry as any).subject_name || entry.subject_id || "—"}</div>
                           <div className="text-blue-600">
                             {entry.start_time?.substring(0, 5)}-{entry.end_time?.substring(0, 5)}
                           </div>
-                          {entry.teacher_name && <div className="text-blue-500">{entry.teacher_name}</div>}
-                          {entry.classroom_id && <div className="text-blue-400">Room {entry.classroom_id}</div>}
+                          {(entry as any).teacher_name && <div className="text-blue-500">{(entry as any).teacher_name}</div>}
+                          {(entry as any).classroom_id && <div className="text-blue-400">Room {(entry as any).classroom_id}</div>}
                         </div>
                       )}
                     </td>

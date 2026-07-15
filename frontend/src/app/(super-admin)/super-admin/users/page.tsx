@@ -1,25 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useUsers } from "@/hooks/queries"
 
 export default function SuperAdminUsers() {
-  const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-
-  const fetchUsers = () => {
-    setLoading(true)
-    api.get("/users", { params: { search: search || undefined, limit: 200 } })
-      .then(res => setUsers(res.data || []))
-      .catch(err => toast({ title: "Failed to load users", description: err.response?.data?.detail || err.message, variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetchUsers() }, [search])
+  const { data: users = [], isLoading: loading } = useUsers({ search: search || undefined, limit: 200 } as any)
 
   return (
     <GenericListPage

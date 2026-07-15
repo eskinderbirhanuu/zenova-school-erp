@@ -9,30 +9,27 @@ import {
 } from "recharts"
 import { Users, DollarSign, GraduationCap, TrendingUp, Loader2, ScanLine } from "lucide-react"
 import api from "@/services/api"
-import { dashboardService } from "@/services/api"
+import { useDashboardOverview, useDashboardTrends } from "@/hooks/queries"
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2, 210 80% 55%))", "hsl(var(--chart-3, 142 70% 50%))", "hsl(var(--chart-4, 30 90% 55%))"]
 
 export default function AdminAnalytics() {
-  const [loading, setLoading] = useState(true)
   const [gradeDist, setGradeDist] = useState<any[]>([])
   const [staffDist, setStaffDist] = useState<any[]>([])
-  const [overview, setOverview] = useState<any>(null)
-  const [trends, setTrends] = useState<any>(null)
   const [attSummary, setAttSummary] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  const { data: overview } = useDashboardOverview()
+  const { data: trends } = useDashboardTrends(12)
 
   useEffect(() => {
     Promise.all([
       api.get("/analytics/grade-distribution"),
       api.get("/analytics/staff-distribution"),
-      dashboardService.overview().catch(() => ({ data: null })),
-      dashboardService.trends(12).catch(() => ({ data: null })),
-      api.get("/analytics/attendance-summary").catch(() => ({ data: null })),
-    ]).then(([g, s, o, t, a]) => {
+      api.get("/analytics/attendance-summary"),
+    ]).then(([g, s, a]) => {
       setGradeDist(g.data || [])
       setStaffDist(s.data || [])
-      setOverview(o.data || null)
-      setTrends(t.data || null)
       setAttSummary(a.data || null)
     }).finally(() => setLoading(false))
   }, [])
@@ -41,11 +38,11 @@ export default function AdminAnalytics() {
     return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>
   }
 
-  const totals = overview?.totals || {}
-  const finance = overview?.finance || {}
+  const totals = (overview?.totals || {}) as any
+  const finance = (overview?.finance || {}) as any
   const revTrend = trends?.revenue_trend || []
   const enrollTrend = trends?.enrollment_trend || []
-  const attTrend = trends?.attendance_trend || []
+  const attTrend = (trends as any)?.attendance_trend || []
   const todayAtt = attSummary?.today || 0
 
   return (

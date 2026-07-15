@@ -1,22 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { teacherService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useMyStudents } from "@/hooks/queries"
 
 export default function TeacherStudentsPage() {
-  const [students, setStudents] = useState<any[]>([])
   const [search, setSearch] = useState("")
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading } = useMyStudents()
 
-  useEffect(() => {
-    setLoading(true)
-    teacherService.getMyStudents().then((r: any) => setStudents(Array.isArray(r.data) ? r.data : [])).catch(() => toast({ title: "Failed to load students", variant: "destructive" })).finally(() => setLoading(false))
-  }, [])
-
-  const filtered = students.filter(s => !search || `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()) || s.student_id?.includes(search))
+  const students = data || []
+  const filtered = students.filter((s: any) => !search || `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()) || s.student_id?.includes(search))
 
   return (
     <GenericListPage
@@ -28,7 +22,7 @@ export default function TeacherStudentsPage() {
         { key: "status", header: "Status", render: (s) => <StatusBadge status={s.status} /> },
       ]}
       data={filtered} keyExtractor={(s) => s.id}
-      loading={loading} searchPlaceholder="Search by name or ID..." onSearch={setSearch}
+      loading={isLoading} searchPlaceholder="Search by name or ID..." onSearch={setSearch}
       emptyTitle="No students found"
     />
   )

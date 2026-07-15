@@ -48,10 +48,11 @@ export default function ActivateMainPage() {
     setError("")
     try {
       const res = await setupService.validateLicenseType(key)
-      if (res.data.valid && res.data.is_main) {
+      const vld = res.data as any
+      if (vld.valid && vld.is_main) {
         setStep("school")
       } else {
-        setError(res.data.message || "Invalid or non-MAIN license key")
+        setError(vld.message || "Invalid or non-MAIN license key")
       }
     } catch {
       setError("Validation failed. Check the license key.")
@@ -68,12 +69,13 @@ export default function ActivateMainPage() {
         logo_url: logoUrl || undefined,
         admin_full_name: adminName, admin_email: adminEmail,
         admin_phone: adminPhone, admin_password: adminPassword,
-      })
-      if (res.data.success) {
-        setResult(res.data)
+      } as any)
+      const rd = res.data as any
+      if (rd.success) {
+        setResult(rd)
         setStep("result")
       } else {
-        setError(res.data.message || "Activation failed")
+        setError(rd.message || "Activation failed")
       }
     } catch {
       setError("Activation failed. Check your inputs.")

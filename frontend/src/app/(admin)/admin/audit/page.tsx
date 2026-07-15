@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { auditService } from "@/services/api"
 import { Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useAuditLogs } from "@/hooks/queries"
 
 const actionColors: Record<string, string> = {
   CREATE: "bg-green-100 text-green-700 border border-green-200",
@@ -14,16 +14,11 @@ const actionColors: Record<string, string> = {
 }
 
 export default function AdminAudit() {
-  const [logs, setLogs] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const { data: auditData, isLoading } = useAuditLogs({ limit: 100 })
+  const logs: any[] = auditData || []
 
-  useEffect(() => {
-    setLoading(true)
-    auditService.list({ limit: 100 }).then((r: any) => setLogs(r.data?.logs || [])).catch(() => {}).finally(() => setLoading(false))
-  }, [])
-
-  const filtered = logs.filter(l => !search || l.action?.toLowerCase().includes(search.toLowerCase()) || l.user?.toLowerCase().includes(search.toLowerCase()))
+  const filtered = logs.filter((l: any) => !search || l.action?.toLowerCase().includes(search.toLowerCase()) || l.user?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <GenericListPage
@@ -36,7 +31,7 @@ export default function AdminAudit() {
         { key: "timestamp", header: "Timestamp", render: (l) => <span className="text-muted-foreground whitespace-nowrap">{l.created_at ? new Date(l.created_at).toLocaleString() : "-"}</span> },
       ]}
       data={filtered} keyExtractor={(l) => l.id}
-      loading={loading} searchPlaceholder="Search by action, user, or resource..." onSearch={setSearch}
+      loading={isLoading} searchPlaceholder="Search by action, user, or resource..." onSearch={setSearch}
       emptyTitle="No audit logs found"
       actions={<Button variant="outline" size="sm"><Download className="h-4 w-4 mr-2" /> Export</Button>}
     />

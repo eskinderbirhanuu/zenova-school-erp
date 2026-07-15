@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,28 +8,24 @@ import { Label } from "@/components/ui/label"
 import { academicService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Layers, Loader2, Plus, Pencil, Trash2, X, ChevronDown, ChevronRight, Check } from "lucide-react"
+import { useClasses, useCreateClass, useUpdateClass, useDeleteClass, useCreateSection, useDeleteSection } from "@/hooks/queries"
 
 export default function AdminClassesPage() {
-  const [classes, setClasses] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: classesData, isLoading } = useClasses()
+  const createClass = useCreateClass()
+  const updateClass = useUpdateClass()
+  const deleteClass = useDeleteClass()
+  const createSection = useCreateSection()
+  const deleteSectionMutation = useDeleteSection()
+  const classes = classesData || []
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ name: "", code: "", description: "" })
-  const [saving, setSaving] = useState(false)
 
   const [expandedClass, setExpandedClass] = useState<string | null>(null)
   const [sections, setSections] = useState<Record<string, any[]>>({})
   const [sectionForms, setSectionForms] = useState<Record<string, { name: string; capacity: string }>>({})
   const [savingSection, setSavingSection] = useState<string | null>(null)
-
-  const fetchClasses = () => {
-    setLoading(true)
-    academicService.classes.list().then((r: any) => {
-      setClasses(Array.isArray(r.data) ? r.data : [])
-    }).catch(() => {}).finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetchClasses() }, [])
 
   const resetForm = () => {
     setForm({ name: "", code: "", description: "" })
@@ -44,29 +40,25 @@ export default function AdminClassesPage() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
     try {
       if (editingId) {
-        await academicService.classes.update(editingId, form)
+        await updateClass.mutateAsync({ id: editingId, data: form })
         toast({ title: "Class updated" })
       } else {
-        await academicService.classes.create(form)
+        await createClass.mutateAsync(form)
         toast({ title: "Class created" })
       }
       resetForm()
-      fetchClasses()
     } catch (err: any) {
       toast({ title: err?.response?.data?.detail || "Failed to save", variant: "destructive" })
-    } finally { setSaving(false) }
+    }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this class and all associated data?")) return
     try {
-      await academicService.classes.delete(id)
+      await deleteClass.mutateAsync(id)
       toast({ title: "Class deleted" })
-      fetchClasses()
     } catch { toast({ title: "Failed to delete", variant: "destructive" }) }
   }
 
@@ -89,7 +81,7 @@ export default function AdminClassesPage() {
     if (!sf?.name) { toast({ title: "Enter section name", variant: "destructive" }); return }
     setSavingSection(classId)
     try {
-      await academicService.sections.create({ name: sf.name, class_id: classId, capacity: parseInt(sf.capacity) || 0 })
+      await createSection.mutateAsync({ name: sf.name, class_id: classId, capacity: parseInt(sf.capacity) || 0 } as any)
       toast({ title: "Section added" })
       setSectionForms(prev => ({ ...prev, [classId]: { name: "", capacity: "30" } }))
       const res = await academicService.sections.list({ class_id: classId })
@@ -99,10 +91,10 @@ export default function AdminClassesPage() {
     } finally { setSavingSection(null) }
   }
 
-  const deleteSection = async (sectionId: string, classId: string) => {
+  const handleDeleteSection = async (sectionId: string, classId: string) => {
     if (!confirm("Delete this section?")) return
     try {
-      await academicService.sections.delete(sectionId)
+      await deleteSectionMutation.mutateAsync(sectionId)
       const res = await academicService.sections.list({ class_id: classId })
       setSections(prev => ({ ...prev, [classId]: res.data || [] }))
       toast({ title: "Section deleted" })
@@ -142,8 +134,8 @@ export default function AdminClassesPage() {
               </div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={resetForm}><X className="h-4 w-4" /> Cancel</Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {editingId ? "Update" : "Create"}
+                <Button type="submit" disabled={createClass.isPending || updateClass.isPending}>
+                  {createClass.isPending || updateClass.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {editingId ? "Update" : "Create"}
                 </Button>
               </div>
             </form>
@@ -153,7 +145,7 @@ export default function AdminClassesPage() {
 
       <Card>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : classes.length === 0 ? (
             <div className="flex flex-col items-center py-12 text-center">
@@ -184,7 +176,7 @@ export default function AdminClassesPage() {
                       {(sections[c.id] || []).map((s: any) => (
                         <div key={s.id} className="flex items-center gap-3">
                           <span className="text-sm flex-1">{s.name} {s.capacity ? <span className="text-xs text-muted-foreground">(capacity: {s.capacity})</span> : null}</span>
-                          <Button variant="ghost" size="icon" onClick={() => deleteSection(s.id, c.id)} className="h-7 w-7">
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteSection(s.id, c.id)} className="h-7 w-7">
                             <Trash2 className="h-3 w-3 text-red-400" />
                           </Button>
                         </div>

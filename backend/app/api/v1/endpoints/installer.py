@@ -51,18 +51,14 @@ class ConnectVpsResponse(BaseModel):
 
 
 def _validate_vps_url(url: str) -> bool:
-    """Validate VPS URL to prevent SSRF attacks.
+    """Validate VPS URL to prevent SSRF attacks (including DNS rebinding).
     
-    Returns True if the URL passes safety checks:
-    - Uses http:// or https:// scheme
-    - Does not point to localhost, loopback, or private internal IPs
+    Resolves the hostname and checks every returned IP against private/loopback ranges.
     """
     from urllib.parse import urlparse
-    from ipaddress import ip_address, AddressValueError
     
     try:
         parsed = urlparse(url)
-        # Must be http or https
         if parsed.scheme not in ("http", "https"):
             return False
         
@@ -70,22 +66,38 @@ def _validate_vps_url(url: str) -> bool:
         if not hostname:
             return False
         
-        # Block localhost and loopback variations
         if hostname.lower() in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
             return False
         
-        # Block internal IP ranges
-        try:
-            ip = ip_address(hostname)
-            if ip.is_private or ip.is_loopback or ip.is_reserved:
-                return False
-        except (AddressValueError, ValueError):
-            # Not an IP address, check for internal-looking names
-            pass
+        ips = _resolve_non_private_ips(hostname)
+        if ips is None:
+            return False
         
         return True
     except Exception:
         return False
+
+
+def _resolve_non_private_ips(hostname: str) -> list[str] | None:
+    """Resolve a hostname to IPs. Returns list of public IPs, or None if any IP is private/reserved."""
+    import socket
+    from ipaddress import ip_address, AddressValueError
+    
+    try:
+        addrs = socket.getaddrinfo(hostname, None)
+        resolved = set()
+        for family, _, _, _, sockaddr in addrs:
+            ip = sockaddr[0]
+            resolved.add(ip)
+        
+        for ip_str in resolved:
+            addr = ip_address(ip_str)
+            if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_multicast:
+                return None
+        
+        return list(resolved)
+    except (socket.gaierror, AddressValueError, ValueError, OSError):
+        return None
 
 
 def _generate_employee_id(db: Session, role_prefix: str) -> str:

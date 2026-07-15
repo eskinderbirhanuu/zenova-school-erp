@@ -1,33 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Plus, CalendarDays, MapPin } from "lucide-react"
+import { useCalendarEvents } from "@/hooks/queries"
 
 const EVENT_TYPES = ["general", "academic", "holiday", "sports", "meeting", "exam", "deadline"]
 
 export default function CalendarPage() {
-  const [events, setEvents] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [filter, setFilter] = useState("")
   const [form, setForm] = useState({ title: "", description: "", event_type: "general", event_date: "", end_date: "", location: "" })
-
-  const load = async () => {
-    setLoading(true)
-    try {
-      const params = filter ? { event_type: filter } : {}
-      const res = await api.get("/events", { params })
-      setEvents(res.data || [])
-    } catch { setEvents([]) }
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [filter])
+  const { data: events, isLoading: loading, refetch } = useCalendarEvents(filter ? { event_type: filter } : {})
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,12 +27,12 @@ export default function CalendarPage() {
       })
       toast({ title: "Event created" }); setShowForm(false)
       setForm({ title: "", description: "", event_type: "general", event_date: "", end_date: "", location: "" })
-      load()
+      refetch()
     } catch { toast({ title: "Failed", variant: "destructive" }) }
   }
 
   const handleDelete = async (id: string) => {
-    try { await api.delete(`/events/${id}`); toast({ title: "Deleted" }); load() } catch { toast({ title: "Failed", variant: "destructive" }) }
+    try { await api.delete(`/events/${id}`); toast({ title: "Deleted" }); refetch() } catch { toast({ title: "Failed", variant: "destructive" }) }
   }
 
   const typeColors: Record<string, string> = {
@@ -54,7 +42,7 @@ export default function CalendarPage() {
     deadline: "bg-yellow-100 text-yellow-700",
   }
 
-  const groupedByDate = events.reduce((acc: Record<string, any[]>, ev: any) => {
+  const groupedByDate = (events ?? []).reduce((acc: Record<string, any[]>, ev: any) => {
     const d = ev.event_date?.substring(0, 10) || "unknown"
     if (!acc[d]) acc[d] = []
     acc[d].push(ev)
@@ -68,7 +56,7 @@ export default function CalendarPage() {
         <div className="flex gap-2">
           <select value={filter} onChange={e => setFilter(e.target.value)} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
             <option value="">All Types</option>
-            {EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            {EVENT_TYPES.map((t: any) => <option key={t} value={t}>{t}</option>)}
           </select>
           <Button onClick={() => setShowForm(!showForm)}><Plus className="mr-1 h-4 w-4" />{showForm ? "Cancel" : "New Event"}</Button>
         </div>
@@ -83,7 +71,7 @@ export default function CalendarPage() {
               <Input placeholder="Description" value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="md:col-span-2" />
               <div className="flex flex-col gap-1.5"><label className="text-xs text-muted-foreground">Type</label>
                 <select value={form.event_type} onChange={e => setForm({...form, event_type: e.target.value})} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  {EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {EVENT_TYPES.map((t: any) => <option key={t} value={t}>{t}</option>)}
                 </select></div>
               <div className="flex flex-col gap-1.5"><label className="text-xs text-muted-foreground">Location</label>
                 <Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} /></div>
@@ -125,7 +113,7 @@ export default function CalendarPage() {
           </div>
         </div>
       ))}
-      {!loading && events.length === 0 && <p className="text-center text-muted-foreground py-12">No events. Create one!</p>}
+      {!loading && (events ?? []).length === 0 && <p className="text-center text-muted-foreground py-12">No events. Create one!</p>}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from app.core.exceptions import BadRequestException, NotFoundException
 from app.models.account import Account
 from app.models.journal import JournalEntry, JournalLine
 from app.models.fee import FeeType, FeeStructure, FeeAssignment
@@ -63,7 +63,7 @@ def get_accounts(db: Session, school_id: str, include_deleted: bool = False):
 def create_account(db: Session, school_id: str, data, user_id: str):
     normal = ACCOUNT_TYPE_MAP.get(data.account_type.lower())
     if not normal:
-        raise HTTPException(status_code=400, detail=f"Invalid account type: {data.account_type}")
+        raise BadRequestException(f"Invalid account type: {data.account_type}")
     acct = Account(
         account_number=data.account_number, name=data.name,
         account_type=data.account_type.lower(), normal_side=normal,
@@ -79,7 +79,7 @@ def create_account(db: Session, school_id: str, data, user_id: str):
 def update_account(db: Session, account_id: str, data, user_id: str, school_id: str):
     acct = db.query(Account).filter(Account.id == account_id, Account.school_id == school_id).first()
     if not acct:
-        raise HTTPException(status_code=404, detail="Account not found")
+        raise NotFoundException("Account not found")
     if data.name is not None:
         acct.name = data.name
     if data.is_active is not None:
@@ -100,7 +100,7 @@ def _check_period(db: Session, entry_date, school_id: str):
         AccountingPeriod.is_locked == True,
     ).first()
     if period:
-        raise HTTPException(status_code=400, detail=f"Period '{period.name}' is locked. No entries allowed.")
+        raise BadRequestException(f"Period '{period.name}' is locked. No entries allowed.")
 
 
 def _next_entry_number(db: Session, school_id: str) -> str:
@@ -110,19 +110,19 @@ def _next_entry_number(db: Session, school_id: str) -> str:
 def create_journal_entry(db: Session, school_id: str, data, user_id: str):
     _check_period(db, data.entry_date, school_id)
     if len(data.lines) < 2:
-        raise HTTPException(status_code=400, detail="Journal entry must have at least 2 lines")
+        raise BadRequestException("Journal entry must have at least 2 lines")
     total_debit = Decimal("0.00")
     total_credit = Decimal("0.00")
     for line in data.lines:
         acct = db.query(Account).filter(Account.id == line.account_id, Account.school_id == school_id, Account.is_active == True).first()
         if not acct:
-            raise HTTPException(status_code=400, detail=f"Account {line.account_id} not found or inactive")
+            raise BadRequestException(f"Account {line.account_id} not found or inactive")
         if line.debit > 0 and line.credit > 0:
-            raise HTTPException(status_code=400, detail="Line cannot have both debit and credit")
+            raise BadRequestException("Line cannot have both debit and credit")
         total_debit += Decimal(str(line.debit))
         total_credit += Decimal(str(line.credit))
     if abs(total_debit - total_credit) > Decimal("0.001"):
-        raise HTTPException(status_code=400, detail=f"Debit ({total_debit}) must equal Credit ({total_credit})")
+        raise BadRequestException(f"Debit ({total_debit}) must equal Credit ({total_credit})")
     entry = JournalEntry(
         entry_number=_next_entry_number(db, school_id),
         entry_date=data.entry_date, description=data.description,
@@ -152,9 +152,9 @@ def create_journal_entry(db: Session, school_id: str, data, user_id: str):
 def reverse_journal_entry(db: Session, entry_id: str, reason: str, user_id: str, school_id: str):
     original = db.query(JournalEntry).filter(JournalEntry.id == entry_id, JournalEntry.school_id == school_id).first()
     if not original:
-        raise HTTPException(status_code=404, detail="Journal entry not found")
+        raise NotFoundException("Journal entry not found")
     if original.is_reversed:
-        raise HTTPException(status_code=400, detail="Entry already reversed")
+        raise BadRequestException("Entry already reversed")
     lines = db.query(JournalLine).filter(JournalLine.journal_entry_id == entry_id).all()
     reverse_lines = []
     for line in lines:
@@ -204,7 +204,7 @@ def get_fee_types(db: Session, school_id: str, include_deleted: bool = False):
 def update_fee_type(db: Session, fee_type_id: str, data, user_id: str, school_id: str):
     ft = db.query(FeeType).filter(FeeType.id == fee_type_id, FeeType.school_id == school_id).first()
     if not ft:
-        raise HTTPException(status_code=404, detail="Fee type not found")
+        raise NotFoundException("Fee type not found")
     if data.name is not None:
         ft.name = data.name
     if data.frequency is not None:
@@ -220,7 +220,7 @@ def update_fee_type(db: Session, fee_type_id: str, data, user_id: str, school_id
 def delete_fee_type(db: Session, fee_type_id: str, user_id: str, school_id: str):
     ft = db.query(FeeType).filter(FeeType.id == fee_type_id, FeeType.school_id == school_id).first()
     if not ft:
-        raise HTTPException(status_code=404, detail="Fee type not found")
+        raise NotFoundException("Fee type not found")
     ft.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "FEE_TYPE_DELETED", "fee_type", fee_type_id, "Fee type deleted", school_id=school_id)
     db.commit()
@@ -229,7 +229,7 @@ def delete_fee_type(db: Session, fee_type_id: str, user_id: str, school_id: str)
 def create_fee_structure(db: Session, data, user_id: str, school_id: str):
     ft = db.query(FeeType).filter(FeeType.id == data.fee_type_id, FeeType.school_id == school_id).first()
     if not ft:
-        raise HTTPException(status_code=404, detail="Fee type not found")
+        raise NotFoundException("Fee type not found")
     fs = FeeStructure(fee_type_id=data.fee_type_id, school_id=school_id, class_id=data.class_id, amount=Decimal(str(data.amount)), due_date=data.due_date)
     db.add(fs)
     log_audit(db, user_id, "FEE_STRUCTURE_CREATED", "fee_structure", fs.id, "Fee structure created", school_id=school_id)
@@ -252,7 +252,7 @@ def assign_fee(db: Session, data, user_id: str, school_id: str):
         FeeStructure.id == data.fee_structure_id, FeeType.school_id == school_id
     ).first()
     if not fs:
-        raise HTTPException(status_code=404, detail="Fee structure not found")
+        raise NotFoundException("Fee structure not found")
     fa = FeeAssignment(
         student_id=data.student_id, fee_structure_id=data.fee_structure_id,
         amount=Decimal(str(data.amount)), academic_year_id=data.academic_year_id,
@@ -309,7 +309,7 @@ def create_invoice(db: Session, school_id: str, data, user_id: str):
     from app.models.student import Student
     student = db.query(Student).filter(Student.id == data.student_id, Student.school_id == school_id).first()
     if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
+        raise NotFoundException("Student not found")
     links = db.query(ParentStudentLink).filter(
         ParentStudentLink.student_id == data.student_id,
         ParentStudentLink.school_id == school_id,
@@ -339,6 +339,36 @@ def get_invoices(db: Session, school_id: str, student_id: str = None, status: st
     return q.order_by(Invoice.created_at.desc()).offset(skip).limit(limit).all()
 
 
+def get_invoice_aging(db: Session, school_id: str) -> dict:
+    from datetime import date
+    from sqlalchemy import text
+
+    today = date.today()
+    q = db.query(Invoice).filter(Invoice.school_id == school_id, Invoice.status.in_(["pending", "partial"]))
+    buckets = {"current": 0, "1_30": 0, "31_60": 0, "61_90": 0, "90_plus": 0}
+    total_overdue = 0
+    for inv in q.all():
+        if not inv.due_date:
+            buckets["current"] += 1
+            continue
+        days = (today - inv.due_date).days
+        if days <= 0:
+            buckets["current"] += 1
+        elif days <= 30:
+            buckets["1_30"] += 1
+            total_overdue += inv.total_amount - (inv.paid_amount or 0)
+        elif days <= 60:
+            buckets["31_60"] += 1
+            total_overdue += inv.total_amount - (inv.paid_amount or 0)
+        elif days <= 90:
+            buckets["61_90"] += 1
+            total_overdue += inv.total_amount - (inv.paid_amount or 0)
+        else:
+            buckets["90_plus"] += 1
+            total_overdue += inv.total_amount - (inv.paid_amount or 0)
+    return {"buckets": buckets, "total_overdue": float(total_overdue)}
+
+
 def _next_payment_number(db: Session, school_id: str) -> str:
     return _next_sequence_number(db, "PAY", school_id)
 
@@ -366,7 +396,7 @@ def record_payment(db: Session, school_id: str, data, user_id: str):
         if inv:
             total_paid = Decimal(str(inv.paid_amount)) + Decimal(str(data.amount))
             if total_paid > inv.total_amount:
-                raise HTTPException(status_code=400, detail=f"Payment would exceed invoice balance ({inv.total_amount})")
+                raise BadRequestException(f"Payment would exceed invoice balance ({inv.total_amount})")
             inv.paid_amount = total_paid
             if inv.paid_amount >= inv.total_amount:
                 inv.status = "paid"
@@ -457,7 +487,7 @@ def wallet_transaction(db: Session, student_id: str, school_id: str, data, user_
     bal = Decimal(str(w.balance))
     amt = Decimal(str(data.amount))
     if data.transaction_type in ("payment", "withdrawal") and bal < amt:
-        raise HTTPException(status_code=400, detail="Insufficient wallet balance")
+        raise BadRequestException("Insufficient wallet balance")
     delta = amt if data.transaction_type in ("top_up", "refund") else -amt
     new_bal = bal + delta
     wt = WalletTransaction(
@@ -562,7 +592,7 @@ def create_period(db: Session, school_id: str, data, user_id: str):
 def lock_period(db: Session, period_id: str, user_id: str, school_id: str):
     p = db.query(AccountingPeriod).filter(AccountingPeriod.id == period_id, AccountingPeriod.school_id == school_id).first()
     if not p:
-        raise HTTPException(status_code=404, detail="Period not found")
+        raise NotFoundException("Period not found")
     p.is_locked = True
     p.locked_by = user_id
     p.locked_at = datetime.now(timezone.utc)
@@ -579,7 +609,7 @@ def unlock_period(db: Session, period_id: str, user_id: str, reason: str, school
         q = q.filter(AccountingPeriod.school_id == school_id)
     p = q.first()
     if not p:
-        raise HTTPException(status_code=404, detail="Period not found")
+        raise NotFoundException("Period not found")
     p.is_locked = False
     p.locked_by = None
     p.locked_at = None
@@ -614,7 +644,7 @@ def get_payroll_runs(db: Session, school_id: str, include_deleted: bool = False)
 def approve_payroll(db: Session, run_id: str, user_id: str, school_id: str):
     pr = db.query(PayrollRun).filter(PayrollRun.id == run_id, PayrollRun.school_id == school_id).first()
     if not pr:
-        raise HTTPException(status_code=404, detail="Payroll run not found")
+        raise NotFoundException("Payroll run not found")
     pr.status = "approved"
     pr.approved_by = user_id
     log_audit(db, user_id, "PAYROLL_APPROVED", "payroll_run", run_id, "Payroll approved", school_id=school_id)
@@ -641,7 +671,7 @@ def get_budgets(db: Session, school_id: str, include_deleted: bool = False):
 def create_budget_item(db: Session, budget_id: str, data, user_id: str, school_id: str):
     budget = db.query(Budget).filter(Budget.id == budget_id, Budget.school_id == school_id).first()
     if not budget:
-        raise HTTPException(status_code=404, detail="Budget not found")
+        raise NotFoundException("Budget not found")
     bi = BudgetItem(budget_id=budget_id, school_id=school_id, account_id=data.account_id, description=data.description, planned_amount=Decimal(str(data.planned_amount)))
     db.add(bi)
     budget.total_amount = Decimal(str(budget.total_amount)) + Decimal(str(data.planned_amount))
@@ -661,9 +691,8 @@ def get_budget_items(db: Session, budget_id: str, school_id: str, include_delete
 
 
 def create_purchase_request(db: Session, school_id: str, data, user_id: str):
-    count = db.query(PurchaseRequest).filter(PurchaseRequest.school_id == school_id).count()
     pr = PurchaseRequest(
-        pr_number=f"PR-{count + 1:05d}",
+        pr_number=_next_sequence_number(db, "PR", school_id),
         requested_by=user_id, department=data.department,
         description=data.description, estimated_amount=Decimal(str(data.estimated_amount)) if data.estimated_amount else None,
         school_id=school_id,
@@ -685,7 +714,7 @@ def get_purchase_requests(db: Session, school_id: str, include_deleted: bool = F
 def approve_purchase_request(db: Session, pr_id: str, user_id: str, school_id: str):
     pr = db.query(PurchaseRequest).filter(PurchaseRequest.id == pr_id, PurchaseRequest.school_id == school_id).first()
     if not pr:
-        raise HTTPException(status_code=404, detail="Purchase request not found")
+        raise NotFoundException("Purchase request not found")
     pr.status = "approved"
     pr.approved_by = user_id
     log_audit(db, user_id, "PURCHASE_REQUEST_APPROVED", "purchase_request", pr_id, "PR approved", school_id=school_id)
@@ -694,9 +723,8 @@ def approve_purchase_request(db: Session, pr_id: str, user_id: str, school_id: s
 
 
 def create_purchase_order(db: Session, school_id: str, data, user_id: str):
-    count = db.query(PurchaseOrder).filter(PurchaseOrder.school_id == school_id).count()
     po = PurchaseOrder(
-        po_number=f"PO-{count + 1:05d}",
+        po_number=_next_sequence_number(db, "PO", school_id),
         purchase_request_id=data.purchase_request_id, supplier=data.supplier,
         total_amount=Decimal(str(data.total_amount)) if data.total_amount else None,
         school_id=school_id, created_by=user_id,
@@ -717,12 +745,19 @@ def get_purchase_orders(db: Session, school_id: str, include_deleted: bool = Fal
 
 def trial_balance(db: Session, school_id: str):
     accounts = db.query(Account).filter(Account.school_id == school_id, Account.is_active == True).all()
+    account_ids = [a.id for a in accounts]
+    if not account_ids:
+        return {"rows": [], "total_debit": 0.0, "total_credit": 0.0}
+    all_lines = db.query(JournalLine).filter(
+        JournalLine.account_id.in_(account_ids),
+        JournalLine.school_id == school_id,
+    ).all()
+    lines_by_account: dict[str, list[JournalLine]] = {}
+    for line in all_lines:
+        lines_by_account.setdefault(line.account_id, []).append(line)
     rows = []
     for acct in accounts:
-        lines = db.query(JournalLine).join(JournalEntry).filter(
-            JournalLine.account_id == acct.id,
-            JournalEntry.school_id == school_id,
-        ).all()
+        lines = lines_by_account.get(acct.id, [])
         td = sum(Decimal(str(l.debit)) for l in lines)
         tc = sum(Decimal(str(l.credit)) for l in lines)
         balance = td - tc if acct.normal_side == "debit" else tc - td

@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"))) {
+  if (PUBLIC_ROUTES.some((r: any) => pathname === r || pathname.startsWith(r + "/"))) {
     const response = NextResponse.next()
     response.cookies.delete("csrf_token")
     const csrfToken = crypto.randomUUID()
@@ -103,7 +103,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/unauthorized", request.url))
   }
 
-  const onAllowedRoute = allowedPrefixes.some((prefix) => pathname.startsWith(prefix))
+  const onAllowedRoute = allowedPrefixes.some((prefix: any) => pathname.startsWith(prefix))
   if (onAllowedRoute) {
     const response = NextResponse.next()
     if (!request.cookies.has("csrf_token")) {

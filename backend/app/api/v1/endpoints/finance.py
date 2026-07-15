@@ -452,6 +452,14 @@ def export_payments_excel(
     return excel_response(headers, rows, "payments.xlsx")
 
 
+@router.get("/invoices/aging", dependencies=VIEW_FINANCE)
+def invoice_aging(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    return finance_service.get_invoice_aging(db, current_user.school_id)
+
+
 @router.get("/invoices/export-excel", dependencies=VIEW_FINANCE)
 def export_invoices_excel(
     student_id: str = Query(None),

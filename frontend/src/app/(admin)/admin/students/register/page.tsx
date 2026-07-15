@@ -1,21 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { studentService, parentService, academicService } from "@/services/api"
+import { useClasses, useSections, useAcademicYears } from "@/hooks/queries"
+import { useCreateStudent, useCreateParent, useLinkParent, useSearchParents } from "@/hooks/queries"
 
 export default function StudentRegistrationPage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
-
-  const [classes, setClasses] = useState<any[]>([])
-  const [sections, setSections] = useState<any[]>([])
-  const [academicYears, setAcademicYears] = useState<any[]>([])
-  const [parentResults, setParentResults] = useState<any[]>([])
-  const [parentQuery, setParentQuery] = useState("")
-  const [searchingParent, setSearchingParent] = useState(false)
 
   const [form, setForm] = useState({
     first_name: "", middle_name: "", last_name: "",
@@ -30,30 +24,24 @@ export default function StudentRegistrationPage() {
     phone_1: "", phone_2: "", occupation: "", address: "",
   })
 
-  useEffect(() => {
-    Promise.all([
-      academicService.classes.list(),
-      academicService.academicYears.list(),
-    ]).then(([cls, ay]) => {
-      setClasses(cls.data)
-      setAcademicYears(ay.data || [])
-    })
-  }, [])
+  const { data: classes } = useClasses()
+  const { data: sections } = useSections(form.class_id ? { class_id: form.class_id } : undefined)
+  const { data: academicYears } = useAcademicYears()
+  const { mutateAsync: createStudent } = useCreateStudent()
+  const { mutateAsync: createParent } = useCreateParent()
+  const { mutateAsync: linkParent } = useLinkParent()
+  const { mutateAsync: searchParents } = useSearchParents()
 
-  useEffect(() => {
-    if (form.class_id) {
-      academicService.sections.list({ class_id: form.class_id }).then((r) => setSections(r.data))
-    } else {
-      setSections([])
-    }
-  }, [form.class_id])
+  const [parentResults, setParentResults] = useState<any[]>([])
+  const [parentQuery, setParentQuery] = useState("")
+  const [searchingParent, setSearchingParent] = useState(false)
 
   const searchParent = async () => {
     if (!parentQuery.trim()) return
     setSearchingParent(true)
     try {
-      const res = await parentService.search({ query: parentQuery })
-      setParentResults(res.data || [])
+      const res = await searchParents({ query: parentQuery })
+      setParentResults((res as any) || [])
     } catch { setParentResults([]) }
     setSearchingParent(false)
   }
@@ -75,7 +63,6 @@ export default function StudentRegistrationPage() {
           return
         }
       } else if (step === 2) {
-        // Final step - create everything
         const studentPayload: any = {
           first_name: form.first_name,
           middle_name: form.middle_name || undefined,
@@ -93,21 +80,14 @@ export default function StudentRegistrationPage() {
           admission_date: new Date().toISOString().split("T")[0],
         }
 
-        const studentRes = await studentService.create(studentPayload)
-        const studentId = studentRes.data.id
-
-        if (parentForm.mode === "search" && parentForm.relationship) {
-          if (!parentForm.relationship) {
-            setError("Please select a relationship")
-            setSaving(false)
-            return
-          }
-        }
+        const studentRes = await createStudent(studentPayload)
+        const studentId = (studentRes as any).id
 
         if (parentForm.mode === "search" && parentForm.relationship) {
           const selectedParent = parentResults[0]
           if (selectedParent) {
-            await parentService.link(selectedParent.id, {
+            await linkParent({
+              id: selectedParent.id,
               student_id: studentId,
               relationship: parentForm.relationship,
             })
@@ -118,7 +98,7 @@ export default function StudentRegistrationPage() {
             setSaving(false)
             return
           }
-          const parentRes = await parentService.create({
+          const parentRes = await createParent({
             full_name: parentForm.full_name,
             relationship: parentForm.relationship,
             phone_1: parentForm.phone_1,
@@ -126,7 +106,8 @@ export default function StudentRegistrationPage() {
             occupation: parentForm.occupation || undefined,
             address: parentForm.address || undefined,
           })
-          await parentService.link(parentRes.data.id, {
+          await linkParent({
+            id: (parentRes as any).id,
             student_id: studentId,
             relationship: parentForm.relationship,
           })
@@ -155,10 +136,10 @@ export default function StudentRegistrationPage() {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
               i < step ? "bg-green-500 text-white" : i === step ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-500"
             }`}>
-              {i < step ? "✓" : i + 1}
+              {i < step ? "\u2713" : i + 1}
             </div>
             <span className={`text-sm ${i === step ? "font-semibold text-indigo-600" : "text-gray-500"}`}>{s}</span>
-            {i < 2 && <span className="text-gray-300">—</span>}
+            {i < 2 && <span className="text-gray-300">\u2014</span>}
           </div>
         ))}
       </div>
@@ -257,17 +238,17 @@ export default function StudentRegistrationPage() {
                 onChange={(e) => setForm({ ...form, class_id: e.target.value, section_id: "" })}
                 className="w-full px-3 py-2 border rounded-lg text-sm">
                 <option value="">Select class</option>
-                {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {(classes || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            {sections.length > 0 && (
+            {(sections || []).length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
                 <select value={form.section_id}
                   onChange={(e) => setForm({ ...form, section_id: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg text-sm">
                   <option value="">No section</option>
-                  {sections.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {(sections || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             )}
@@ -277,7 +258,7 @@ export default function StudentRegistrationPage() {
                 onChange={(e) => setForm({ ...form, academic_year_id: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg text-sm">
                 <option value="">Select year</option>
-                {academicYears.map((y: any) => <option key={y.id} value={y.id}>{y.name}</option>)}
+                {(academicYears || []).map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
               </select>
             </div>
           </div>

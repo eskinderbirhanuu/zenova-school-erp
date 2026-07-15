@@ -81,13 +81,13 @@ export function GenericDetailCard({ title, backHref, editHref, loading, error, f
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-        <DetailCard>{fields.map((f) => <Field key={f.label} label={f.label} value={f.value} />)}</DetailCard>
+        <DetailCard>{fields.map((f: any) => <Field key={f.label} label={f.label} value={f.value} />)}</DetailCard>
       </motion.div>
 
       {sections?.map((section, i) => (
         <motion.div key={section.title} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: (i + 1) * 0.05 }}>
           <DetailCard title={section.title}>
-            {section.fields.map((f) => <Field key={f.label} label={f.label} value={f.value} />)}
+            {section.fields.map((f: any) => <Field key={f.label} label={f.label} value={f.value} />)}
           </DetailCard>
         </motion.div>
       ))}

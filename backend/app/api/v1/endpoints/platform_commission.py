@@ -22,12 +22,7 @@ from app.services.platform_commission_service import (
     PlatformCommissionError,
     PLATFORM_FEE_PER_TRANSACTION,
 )
-from app.services.chapa_service import (
-    initialize_payment as chapa_initialize,
-    verify_transaction as chapa_verify,
-    verify_webhook_signature,
-    ChapaError,
-)
+from app.core.payment_gateway import PaymentGatewayFactory
 from app.core.audit import log_audit
 from app.core.permissions import require_permission, Permission
 from app.config import settings
@@ -62,7 +57,7 @@ def pay_platform_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Initialize Chapa payment for a platform invoice."""
+    """Initialize payment for a platform invoice via configured gateway."""
     if not current_user.school_id:
         raise HTTPException(status_code=400, detail="No school associated")
 
@@ -77,8 +72,10 @@ def pay_platform_invoice(
 
     school = db.query(School).filter(School.id == current_user.school_id).first()
 
+    gateway = PaymentGatewayFactory.get_gateway("chapa", db=db, school_id=current_user.school_id)
+
     try:
-        chapa_response = chapa_initialize(
+        result = gateway.initialize_payment(
             amount=inv.total_amount,
             currency="ETB",
             email=current_user.email or "platform@zenova.com",
@@ -88,16 +85,14 @@ def pay_platform_invoice(
             callback_url=f"{settings.base_url}/api/v1/platform/invoice/webhook",
             return_url=f"{settings.base_url}/platform/invoice/success?invoice={inv.invoice_number}",
             description=f"Platform fee invoice {inv.invoice_number}",
-            db=db,
-            school_id=current_user.school_id,
         )
         return {
-            "checkout_url": chapa_response.get("data", {}).get("checkout_url"),
-            "reference": chapa_response.get("data", {}).get("reference"),
+            "checkout_url": result.checkout_url,
+            "reference": result.gateway_reference,
             "invoice_number": inv.invoice_number,
             "amount": inv.total_amount,
         }
-    except ChapaError as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -106,21 +101,20 @@ async def platform_invoice_webhook(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Handle Chapa webhook for platform invoice payments."""
-    signature = request.headers.get("X-Chapa-Signature", "")
+    """Handle payment gateway webhook for platform invoice payments."""
     payload = await request.body()
+    data = await request.json()
+    tx_ref = data.get("tx_ref", "")
+    status = data.get("status", "")
 
-    if not verify_webhook_signature(payload, signature):
+    gateway = PaymentGatewayFactory.get_gateway("chapa", db=db)
+    signature = request.headers.get("X-Chapa-Signature", "")
+    if not gateway.verify_webhook_signature(payload, signature):
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
     try:
-        data = await request.json()
-        tx_ref = data.get("tx_ref", "")
-        status = data.get("status")
-
         if status == "success" and tx_ref.startswith("PINV-"):
             invoice_number = tx_ref.replace("PINV-", "")
-            # Lock the invoice row to prevent double-processing on concurrent webhook callbacks
             inv = db.query(MonthlyPlatformInvoice).filter(
                 MonthlyPlatformInvoice.invoice_number == invoice_number,
             ).with_for_update().first()

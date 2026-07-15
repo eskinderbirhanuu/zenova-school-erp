@@ -1,4 +1,3 @@
-import warnings
 from fastapi import Depends, HTTPException, status
 from app.core.auth_deps import get_current_user
 from app.models.user import User
@@ -138,44 +137,7 @@ def require_permission(*permissions: str):
     return Depends(_check)
 
 
-def require_role(*role_names: str):
-    """Require the current user to have at least one of the given role names.
 
-    Prefer ``require_permission()`` for new code; this function exists for
-    coarse-grained checks where role-name comparison is sufficient.
-    """
-    warnings.warn("require_role is deprecated, use require_permission() instead", DeprecationWarning, stacklevel=2)
-    def _check(current_user: User = Depends(get_current_user)):
-        if current_user.is_superuser:
-            return current_user
-        if current_user.is_view_only:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="View-only mode: mutations are disabled outside the school network",
-            )
-        if not current_user.role or current_user.role.name not in role_names:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Requires one of roles: {', '.join(role_names)}",
-            )
-        return current_user
-    return Depends(_check)
-
-
-class PermissionChecker:
-    """Deprecated: Use ``require_permission()`` instead."""
-
-    def __init__(self, permission: str):
-        warnings.warn("PermissionChecker is deprecated, use require_permission() instead", DeprecationWarning, stacklevel=2)
-        self.permission = permission
-
-    def __call__(self, current_user: User = Depends(get_current_user)):
-        if not has_permission(current_user, self.permission):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Missing permission: {self.permission}",
-            )
-        return current_user
 
 
 def require_server_role(*allowed_roles: str):

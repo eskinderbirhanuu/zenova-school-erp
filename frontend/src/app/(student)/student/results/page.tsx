@@ -1,23 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { academicService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useExamResults } from "@/hooks/queries"
 
 export default function StudentResultsPage() {
-  const [results, setResults] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: raw, isLoading } = useExamResults({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    academicService.examResults.list({ limit: 200 })
-      .then(res => setResults(res.data || []))
-      .catch(err => toast({ title: "Failed to load results", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const normalized = results.map((r: any) => ({
+  const results = (raw || []).map((r: any) => ({
     id: r.id,
     subject: r.subject_name || "—",
     exam: r.exam_name || r.term || "Exam",
@@ -36,8 +26,8 @@ export default function StudentResultsPage() {
         { key: "grade", header: "Grade", render: (r) => <span className="font-mono font-bold text-lg">{r.grade}</span> },
         { key: "term", header: "Term", render: (r) => <span className="text-muted-foreground">{r.term}</span> },
       ]}
-      data={normalized} keyExtractor={(r) => r.id}
-      loading={loading} emptyTitle="No results available"
+      data={results} keyExtractor={(r) => r.id}
+      loading={isLoading} emptyTitle="No results available"
     />
   )
 }

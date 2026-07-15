@@ -1,42 +1,34 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { cafeteriaService } from "@/services/api"
+import { useCafeteriaProducts, useCreateCafeteriaOrder } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { ShoppingCart, Trash2, Plus, Minus, Search, Coffee } from "lucide-react"
 
 export default function CafeteriaPosPage() {
-  const [products, setProducts] = useState<any[]>([])
   const [search, setSearch] = useState("")
   const [cart, setCart] = useState<{ product: any; qty: number }[]>([])
-  const [loading, setLoading] = useState(true)
   const [checkingOut, setCheckingOut] = useState(false)
+  const { data: products, isLoading } = useCafeteriaProducts({ limit: 50 })
+  const createOrderMutation = useCreateCafeteriaOrder()
 
-  useEffect(() => {
-    setLoading(true)
-    cafeteriaService.products.list({ limit: 50 })
-      .then((r: any) => setProducts(r.data))
-      .catch(() => toast({ title: "Failed to load products", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const filtered = products.filter((p: any) =>
+  const filtered = (products || []).filter((p: any) =>
     p.name?.toLowerCase().includes(search.toLowerCase())
   )
 
   const addToCart = (product: any) => {
     setCart((prev) => {
-      const existing = prev.find((c) => c.product.id === product.id)
-      if (existing) return prev.map((c) => c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c)
+      const existing = prev.find((c: any) => c.product.id === product.id)
+      if (existing) return prev.map((c: any) => c.product.id === product.id ? { ...c, qty: c.qty + 1 } : c)
       return [...prev, { product, qty: 1 }]
     })
   }
 
   const updateQty = (productId: string, delta: number) => {
-    setCart((prev) => prev.map((c) => {
+    setCart((prev) => prev.map((c: any) => {
       if (c.product.id !== productId) return c
       const newQty = c.qty + delta
       return newQty <= 0 ? null : { ...c, qty: newQty }
@@ -44,7 +36,7 @@ export default function CafeteriaPosPage() {
   }
 
   const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((c) => c.product.id !== productId))
+    setCart((prev) => prev.filter((c: any) => c.product.id !== productId))
   }
 
   const total = cart.reduce((s, c) => s + Number(c.product.price || c.product.unit_price || 0) * c.qty, 0)
@@ -53,10 +45,10 @@ export default function CafeteriaPosPage() {
     if (cart.length === 0) return
     setCheckingOut(true)
     try {
-      await cafeteriaService.orders.create({
-        items: cart.map((c) => ({ product_id: c.product.id, quantity: c.qty, unit_price: c.product.price || c.product.unit_price })),
+      await createOrderMutation.mutateAsync({
+        items: cart.map((c: any) => ({ product_id: c.product.id, quantity: c.qty, unit_price: c.product.price || c.product.unit_price })),
         total_amount: total,
-      })
+      } as any)
       toast({ title: "Order placed successfully" })
       setCart([])
     } catch {
@@ -78,7 +70,7 @@ export default function CafeteriaPosPage() {
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          {loading ? (
+          {isLoading ? (
             <p className="text-center text-muted-foreground">Loading...</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -107,7 +99,7 @@ export default function CafeteriaPosPage() {
               ) : (
                 <>
                   <div className="space-y-2 max-h-80 overflow-y-auto">
-                    {cart.map((c) => {
+                    {cart.map((c: any) => {
                       const price = Number(c.product.price || c.product.unit_price || 0)
                       return (
                         <div key={c.product.id} className="flex items-center justify-between rounded-md border p-2 text-sm">

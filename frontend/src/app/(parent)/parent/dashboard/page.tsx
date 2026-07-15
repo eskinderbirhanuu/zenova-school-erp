@@ -4,8 +4,7 @@ import { useEffect, useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { PageHeader } from "@/components/ui/page-header"
-import { parentService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useParentDashboard } from "@/hooks/queries"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import {
@@ -13,36 +12,32 @@ import {
   Flame, GraduationCap, BookOpen, DollarSign, BarChart3,
 } from "lucide-react"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 import { cn } from "@/lib/utils"
 
 
 
 export default function ParentDashboard() {
-  const [dashboardData, setDashboardData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
   const [selectedChild, setSelectedChild] = useState<string>("")
+  const { data: dashboardData, isLoading } = useParentDashboard()
 
   useEffect(() => {
-    parentService.dashboard().then((res) => {
-      setDashboardData(res.data)
-      if (res.data?.children?.length > 0) {
-        setSelectedChild(res.data.children[0].id)
-      }
-      setLoading(false)
-    }).catch(() => { toast({ title: "Failed to load dashboard", variant: "destructive" }); setLoading(false) })
-  }, [])
+    const children = (dashboardData as any)?.children
+    if (children?.length > 0) {
+      setSelectedChild(children[0].id)
+    }
+  }, [dashboardData])
 
-  const children = dashboardData?.children || []
+  const children = (dashboardData as any)?.children || []
   const childMap: Record<string, any> = {}
   children.forEach((c: any) => { childMap[c.id] = c })
   const data = childMap[selectedChild] || children[0] || {}
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
@@ -50,7 +45,7 @@ export default function ParentDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader
@@ -166,7 +161,7 @@ export default function ParentDashboard() {
           <StaggerItem>
             <KPICard
               title="Parent Name"
-              value={dashboardData?.parent?.full_name || "—"}
+              value={(dashboardData as any)?.parent?.full_name || "—"}
               icon={Wallet}
             />
           </StaggerItem>

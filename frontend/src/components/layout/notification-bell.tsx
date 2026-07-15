@@ -18,7 +18,7 @@ export function NotificationBell() {
     const load = () => {
       fetch(`${API_BASE}/notifications?unread_only=true`, {
         headers: { Authorization: `Bearer ${token}` }
-      }).then(r => r.json()).then(data => { if (Array.isArray(data)) setNotifications(data) }).catch(() => {})
+      }).then((r: any) => r.json()).then((data: any) => { if (Array.isArray(data)) setNotifications(data) }).catch(() => {})
     }
     load()
     const wsUrl = `${WS_BASE}/ws/notifications?token=${token}`
@@ -41,7 +41,7 @@ export function NotificationBell() {
     await fetch(`${API_BASE}/notifications/${id}/read`, {
       method: "POST", headers: { Authorization: `Bearer ${token}` }
     })
-    setNotifications(prev => prev.filter(n => n.id !== id))
+    setNotifications(prev => prev.filter((n: any) => n.id !== id))
   }
 
   return (

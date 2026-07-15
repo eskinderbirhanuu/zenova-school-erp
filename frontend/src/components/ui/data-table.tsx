@@ -101,7 +101,7 @@ export function DataTable<T>({
     })
   }
 
-  const visibleColumns = columns.filter((c) => !c.mobileHidden)
+  const visibleColumns = columns.filter((c: any) => !c.mobileHidden)
 
   return (
     <div className="relative rounded-2xl border border-border/50 bg-card/60 backdrop-blur-sm shadow-sm overflow-hidden">
@@ -125,7 +125,7 @@ export function DataTable<T>({
                   />
                 </th>
               )}
-              {columns.map((col) => (
+              {columns.map((col: any) => (
                 <th
                   key={col.key}
                   className={`px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground ${col.className ?? ""}`}
@@ -194,7 +194,7 @@ export function DataTable<T>({
                         />
                       </td>
                     )}
-                    {columns.map((col) => (
+                    {columns.map((col: any) => (
                       <td key={col.key} className={`px-5 py-3.5 text-sm ${col.className ?? ""}`}>
                         {col.render(item)}
                       </td>
@@ -213,7 +213,7 @@ export function DataTable<T>({
             {emptyMessage || "No data available"}
           </div>
         ) : (
-          sortedData.map((item) => {
+          sortedData.map((item: any) => {
             const key = keyExtractor(item)
             const isExpanded = expandedRows.has(key)
             return (
@@ -239,7 +239,7 @@ export function DataTable<T>({
               >
                 <div className="px-4 py-3 flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0 space-y-1">
-                    {visibleColumns.slice(0, 3).map((col) => (
+                    {visibleColumns.slice(0, 3).map((col: any) => (
                       <div key={col.key} className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground shrink-0 w-20">{col.mobileLabel || col.header}</span>
                         <span className="text-sm font-medium truncate">{col.render(item)}</span>

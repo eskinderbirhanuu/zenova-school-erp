@@ -38,12 +38,13 @@ export default function SuperAdminInstallerPage() {
         super_admin_license: licenseKey,
         email,
         password,
-      })
-      if (res.data.success) {
-        setResult(res.data)
+      } as any)
+      const rd = res.data as any
+      if (rd.success) {
+        setResult(rd)
         setStep("result")
       } else {
-        setError(res.data.message || "Activation failed")
+        setError(rd.message || "Activation failed")
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Activation failed. Check your credentials.")

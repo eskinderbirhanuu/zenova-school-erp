@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import api from "@/services/api";
+import { usePlatformDashboard } from "@/hooks/queries";
 import {
   CreditCard,
   Receipt,
@@ -55,24 +56,9 @@ const MONTHS = [
 ];
 
 export default function PlatformServicesPage() {
-  const [dashboard, setDashboard] = useState<PlatformDashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: _dashboard, isLoading: loading } = usePlatformDashboard();
+  const dashboard = _dashboard as any;
   const [paying, setPaying] = useState(false);
-
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
-
-  const fetchDashboard = async () => {
-    try {
-      const response = await api.get("/platform/dashboard");
-      setDashboard(response.data);
-    } catch {
-      toast({ title: "Failed to load platform dashboard", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePayNow = async (invoiceId: string) => {
     setPaying(true);
@@ -116,7 +102,7 @@ export default function PlatformServicesPage() {
         <div>
           <h1 className="text-3xl font-bold">Platform Services</h1>
           <p className="text-muted-foreground">
-            {MONTHS[dashboard!.current_month - 1]} {dashboard!.current_year}
+            {MONTHS[dashboard.current_month - 1]} {dashboard.current_year}
           </p>
         </div>
       </div>
@@ -228,7 +214,7 @@ export default function PlatformServicesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dashboard.invoice_history.map((inv) => (
+                  {dashboard.invoice_history.map((inv: any) => (
                     <tr key={inv.id} className="border-b last:border-0">
                       <td className="py-3 font-medium">{inv.invoice_number}</td>
                       <td className="py-3">

@@ -33,7 +33,7 @@ export default function NfcScanPage() {
     setScanning(true)
     setResult(null)
     try {
-      const res = await nfcV2Service.scan({ card_uid: cardUid, scan_type: scanType })
+      const res = await nfcV2Service.scan({ card_uid: cardUid, scan_type: scanType } as any)
       setResult(res.data)
     } catch (err: any) {
       setResult({ success: false, message: err.response?.data?.detail || "Card not found" })

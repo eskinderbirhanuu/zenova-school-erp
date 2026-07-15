@@ -1,27 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useUsers } from "@/hooks/queries"
 
 export default function SuperAdminAdmins() {
-  const [admins, setAdmins] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const { data: admins = [], isLoading: loading } = useUsers({ role: "ADMIN", search: search || undefined, limit: 200 } as any)
 
-  const fetchAdmins = () => {
-    setLoading(true)
-    api.get("/users", { params: { role: "ADMIN", search: search || undefined, limit: 200 } })
-      .then(res => setAdmins(res.data || []))
-      .catch(err => toast({ title: "Failed to load admins", description: err.response?.data?.detail || err.message, variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetchAdmins() }, [search])
-
-  const normalized = admins.map(a => ({
+  const normalized = (admins as any[]).map((a: any) => ({
     ...a,
     name: a.full_name,
     schools: "—",

@@ -1,64 +1,31 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { academicService } from "@/services/api"
+import { useState } from "react"
+import { useClasses, useSections, useSubjects, useMarksheet } from "@/hooks/queries"
 import { Loader2, Download } from "lucide-react"
 
 export default function MarkSheetPage() {
-  const [classes, setClasses] = useState<any[]>([])
-  const [subjects, setSubjects] = useState<any[]>([])
-  const [sections, setSections] = useState<any[]>([])
   const [selectedClass, setSelectedClass] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("")
   const [selectedSection, setSelectedSection] = useState("")
-  const [loading, setLoading] = useState(true)
-  const [marksheet, setMarksheet] = useState<any>(null)
-  const [fetching, setFetching] = useState(false)
-  const [error, setError] = useState("")
+  const { data: classesData, isLoading: loadingClasses } = useClasses()
+  const { data: sectionsData, isLoading: loadingSections } = useSections({})
+  const { data: subjectsData } = useSubjects(selectedClass ? { class_id: selectedClass } : {})
+  const { data: marksheet, isLoading: fetching } = useMarksheet(selectedSubject, selectedSection)
+  const marksheetData = marksheet as any
 
-  useEffect(() => {
-    Promise.all([
-      academicService.classes.list(),
-      academicService.sections.list({}),
-    ]).then(([cls, sec]) => {
-      setClasses(cls.data)
-      setSections(sec.data || [])
-    }).finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    if (selectedClass) {
-      academicService.subjects.list({ class_id: selectedClass }).then((r) => setSubjects(r.data || [])).catch(() => setSubjects([]))
-    } else {
-      setSubjects([])
-    }
-  }, [selectedClass])
-
-  const loadMarksheet = async () => {
-    if (!selectedSubject || !selectedSection) return
-    setFetching(true)
-    setError("")
-    try {
-      const res = await academicService.examResults.marksheet(selectedSubject, selectedSection)
-      setMarksheet(res.data)
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || "Failed to load marksheet")
-      setMarksheet(null)
-    }
-    setFetching(false)
-  }
-
-  useEffect(() => {
-    if (selectedSubject && selectedSection) loadMarksheet()
-  }, [selectedSubject, selectedSection])
+  const classes = classesData || []
+  const sections = sectionsData || []
+  const subjects = subjectsData || []
+  const loading = loadingClasses || loadingSections
 
   const exportCSV = () => {
-    if (!marksheet) return
-    const headers = ["Student ID", "Name", ...marksheet.exams.map((e: any) => e.name), "Average"]
-    const rows = marksheet.students.map((s: any) => [
+    if (!marksheetData) return
+    const headers = ["Student ID", "Name", ...marksheetData.exams.map((e: any) => e.name), "Average"]
+    const rows = marksheetData.students.map((s: any) => [
       s.student_id,
       s.full_name,
-      ...marksheet.exams.map((e: any) => s.results[e.id] ?? ""),
+      ...marksheetData.exams.map((e: any) => s.results[e.id] ?? ""),
       s.average ?? "",
     ])
     const csv = [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n")
@@ -80,7 +47,7 @@ export default function MarkSheetPage() {
           <h1 className="text-2xl font-bold">Consolidated Mark Sheet</h1>
           <p className="text-gray-600">View all student exam results for a subject across exams.</p>
         </div>
-        {marksheet && (
+        {marksheetData && (
           <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200">
             <Download className="h-4 w-4" /> Export CSV
           </button>
@@ -122,17 +89,13 @@ export default function MarkSheetPage() {
         </div>
       )}
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>
-      )}
-
-      {marksheet && !fetching && (
+      {marksheetData && !fetching && (
         <>
           <p className="text-sm text-gray-500">
-            Section: <strong>{marksheet.section_name}</strong> — {marksheet.students.length} students, {marksheet.exams.length} exams
+            Section: <strong>{marksheetData.section_name}</strong> — {marksheetData.students.length} students, {marksheetData.exams.length} exams
           </p>
 
-          {marksheet.exams.length === 0 ? (
+          {marksheetData.exams.length === 0 ? (
             <div className="text-center py-12 text-gray-500">No exams found for this subject.</div>
           ) : (
             <div className="overflow-x-auto border rounded-lg">
@@ -141,7 +104,7 @@ export default function MarkSheetPage() {
                   <tr className="bg-gray-50">
                     <th className="p-2 border-b text-left text-gray-600 sticky left-0 bg-gray-50 w-10">#</th>
                     <th className="p-2 border-b text-left text-gray-600 sticky left-10 bg-gray-50 min-w-[180px]">Student</th>
-                    {marksheet.exams.map((e: any) => (
+                    {marksheetData.exams.map((e: any) => (
                       <th key={e.id} className="p-2 border-b text-center text-gray-600 min-w-[80px]">
                         <div className="text-xs font-medium">{e.name}</div>
                         <div className="text-[10px] text-gray-400">/{e.max_score}</div>
@@ -151,11 +114,11 @@ export default function MarkSheetPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {marksheet.students.map((s: any, i: number) => (
+                  {marksheetData.students.map((s: any, i: number) => (
                     <tr key={s.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
                       <td className="p-2 border-b text-gray-500 text-xs sticky left-0 bg-inherit">{i + 1}</td>
                       <td className="p-2 border-b font-medium sticky left-10 bg-inherit">{s.full_name}</td>
-                      {marksheet.exams.map((e: any) => {
+                      {marksheetData.exams.map((e: any) => {
                         const score = s.results[e.id]
                         return (
                           <td key={e.id} className={`p-2 border-b text-center ${score === null || score === undefined ? "text-gray-300" : ""}`}>
@@ -177,7 +140,7 @@ export default function MarkSheetPage() {
         </>
       )}
 
-      {!selectedSubject && !selectedSection && !fetching && !marksheet && (
+      {!selectedSubject && !selectedSection && !fetching && !marksheetData && (
         <div className="text-center py-16 text-gray-500">Select a class, subject, and section to view the mark sheet.</div>
       )}
     </div>

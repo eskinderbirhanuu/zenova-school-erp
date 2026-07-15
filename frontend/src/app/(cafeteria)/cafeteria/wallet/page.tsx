@@ -1,31 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useWalletTransactions } from "@/hooks/queries"
 
 export default function CafeteriaWalletPage() {
-  const [txns, setTxns] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: raw, isLoading } = useWalletTransactions({ limit: 200 })
 
-  useEffect(() => {
-    api.get("/wallet/transactions", { params: { limit: 200 } })
-      .then((res) => {
-        const raw = res.data?.data || res.data || []
-        setTxns(raw.map((t: any) => ({
-          id: t.id,
-          user: t.student_name || t.user_name || t.user || "—",
-          type: t.transaction_type || t.type || "—",
-          amount: t.amount ?? 0,
-          balance: t.balance ?? 0,
-          date: t.date || t.created_at?.split("T")[0] || "—",
-          status: t.status || "completed",
-        })))
-      })
-      .catch(() => toast({ title: "Error", description: "Failed to load wallet transactions", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const txns = (raw || []).map((t: any) => ({
+    id: t.id,
+    user: t.student_name || t.user_name || t.user || "—",
+    type: t.transaction_type || t.type || "—",
+    amount: t.amount ?? 0,
+    balance: t.balance ?? 0,
+    date: t.date || t.created_at?.split("T")[0] || "—",
+    status: t.status || "completed",
+  }))
 
   return (
     <GenericListPage
@@ -38,7 +27,7 @@ export default function CafeteriaWalletPage() {
         { key: "date", header: "Date", render: (t) => <span className="text-muted-foreground">{t.date}</span> },
       ]}
       data={txns} keyExtractor={(t) => t.id}
-      loading={loading} emptyTitle="No transactions"
+      loading={isLoading} emptyTitle="No transactions"
     />
   )
 }

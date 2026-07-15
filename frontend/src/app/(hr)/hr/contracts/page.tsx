@@ -1,35 +1,30 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { hrService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useContracts } from "@/hooks/queries"
 
 export default function HrContractsPage() {
-  const [contracts, setContracts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: contracts, isLoading } = useContracts({ limit: 100 } as any)
   const [search, setSearch] = useState("")
 
-  useEffect(() => {
-    setLoading(true)
-    hrService.contracts.list({ limit: 100 }).then((r: any) => setContracts(r.data)).catch(() => toast({ title: "Failed to load contracts", variant: "destructive" })).finally(() => setLoading(false))
-  }, [])
+  const contractsList = contracts || []
 
-  const filtered = contracts.filter(c => !search || c.employee_name?.toLowerCase().includes(search.toLowerCase()))
+  const filtered = contractsList.filter((c: any) => !search || c.employee_name?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <GenericListPage
       title="Contracts" description="Manage employee contracts"
       columns={[
-        { key: "employee", header: "Employee", render: (c) => <span className="font-medium">{c.employee_name || c.employee?.first_name || "\u2014"}</span> },
-        { key: "type", header: "Type", render: (c) => <span>{c.contract_type || c.type || "\u2014"}</span> },
-        { key: "start", header: "Start Date", render: (c) => <span className="text-muted-foreground">{c.start_date || "\u2014"}</span> },
-        { key: "end", header: "End Date", render: (c) => <span className="text-muted-foreground">{c.end_date || "\u2014"}</span> },
-        { key: "status", header: "Status", render: (c) => <StatusBadge status={c.status || "active"} /> },
+        { key: "employee", header: "Employee", render: (c: any) => <span className="font-medium">{c.employee_name || c.employee?.first_name || "\u2014"}</span> },
+        { key: "type", header: "Type", render: (c: any) => <span>{c.contract_type || c.type || "\u2014"}</span> },
+        { key: "start", header: "Start Date", render: (c: any) => <span className="text-muted-foreground">{c.start_date || "\u2014"}</span> },
+        { key: "end", header: "End Date", render: (c: any) => <span className="text-muted-foreground">{c.end_date || "\u2014"}</span> },
+        { key: "status", header: "Status", render: (c: any) => <StatusBadge status={c.status || "active"} /> },
       ]}
-      data={filtered} keyExtractor={(c) => c.id}
-      loading={loading} searchPlaceholder="Search employee..." onSearch={setSearch}
+      data={filtered} keyExtractor={(c: any) => c.id}
+      loading={isLoading} searchPlaceholder="Search employee..." onSearch={setSearch}
       emptyTitle="No contracts found"
     />
   )

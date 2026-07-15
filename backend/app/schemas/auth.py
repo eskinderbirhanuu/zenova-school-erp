@@ -6,6 +6,7 @@ class LoginRequest(BaseModel):
     email: str | None = Field(None, max_length=255, description="Email or employee_id")
     employee_id: str | None = Field(None, max_length=50, description="Employee number for login")
     password: str = Field(..., min_length=8, max_length=128)
+    device_fingerprint: str | None = Field(None, max_length=64, description="SHA-256 device fingerprint for tracking")
 
 
 class RegisterRequest(BaseModel):

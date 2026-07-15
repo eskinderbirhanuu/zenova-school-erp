@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { authService, teacherService } from "@/services/api"
+import { useMyProfile, useMe } from "@/hooks/queries"
+import { teacherService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { User, Mail, Phone, Building2, BookOpen, Calendar, Loader2, Save } from "lucide-react"
 
@@ -37,41 +38,37 @@ export default function TeacherProfile() {
     qualifications: "",
     address: "",
   })
+  const { data: meData } = useMe()
+  const { data: tp } = useMyProfile()
 
-  const loadProfile = () => {
-    authService.me().then((meRes: any) => {
-      const me = meRes.data
-      teacherService.getMyProfile().then((tpRes: any) => {
-        const tp = tpRes.data || tpRes
-        setProfile({
-          id: tp.id || me.id,
-          first_name: me.full_name?.split(" ")[0] || "",
-          last_name: me.full_name?.split(" ").slice(1).join(" ") || "",
-          email: me.email,
-          phone: me.phone || "",
-          employee_id: tp.teacher_id || me.employee_id || me.id,
-          department: me.department || "",
-          specialization: me.specialization || "",
-          qualifications: me.qualifications || "",
-          join_date: me.created_at,
-          address: me.address || "",
-        })
-        setForm({
-          first_name: me.full_name?.split(" ")[0] || "",
-          last_name: me.full_name?.split(" ").slice(1).join(" ") || "",
-          email: me.email,
-          phone: me.phone || "",
-          department: me.department || "",
-          specialization: me.specialization || "",
-          qualifications: me.qualifications || "",
-          address: me.address || "",
-        })
-      })
-    }).catch(() => toast({ title: "Failed to load profile", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { setLoading(true); loadProfile() }, [])
+  useEffect(() => {
+    if (!meData || !tp) return
+    const me = meData
+    setProfile({
+      id: tp.id || (me as any).id,
+      first_name: (me as any).full_name?.split(" ")[0] || "",
+      last_name: (me as any).full_name?.split(" ").slice(1).join(" ") || "",
+      email: (me as any).email,
+      phone: (me as any).phone || "",
+      employee_id: (tp as any).teacher_id || (me as any).employee_id || (me as any).id,
+      department: (me as any).department || "",
+      specialization: (me as any).specialization || "",
+      qualifications: (me as any).qualifications || "",
+      join_date: (me as any).created_at,
+      address: (me as any).address || "",
+    })
+    setForm({
+      first_name: (me as any).full_name?.split(" ")[0] || "",
+      last_name: (me as any).full_name?.split(" ").slice(1).join(" ") || "",
+      email: (me as any).email,
+      phone: (me as any).phone || "",
+      department: (me as any).department || "",
+      specialization: (me as any).specialization || "",
+      qualifications: (me as any).qualifications || "",
+      address: (me as any).address || "",
+    })
+    setLoading(false)
+  }, [meData, tp])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,10 +80,9 @@ export default function TeacherProfile() {
         phone: form.phone,
         department: form.department,
         qualification: form.qualifications,
-      })
+      } as any)
       toast({ title: "Profile updated" })
       setEditing(false)
-      loadProfile()
     } catch {
       toast({ title: "Failed to update profile", variant: "destructive" })
     }

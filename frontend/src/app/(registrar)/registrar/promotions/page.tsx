@@ -1,15 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { academicService, studentService } from "@/services/api"
+import { studentService } from "@/services/api"
+import { useClasses } from "@/hooks/queries"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { GraduationCap, ArrowRight } from "lucide-react"
 
 export default function PromotionsPage() {
-  const [classes, setClasses] = useState<any[]>([])
+  const { data: classesData } = useClasses()
   const [students, setStudents] = useState<any[]>([])
   const [fromClassId, setFromClassId] = useState("")
   const [toClassId, setToClassId] = useState("")
@@ -17,9 +18,7 @@ export default function PromotionsPage() {
   const [loading, setLoading] = useState(false)
   const [promoting, setPromoting] = useState(false)
 
-  useEffect(() => {
-    academicService.classes.list().then((r: any) => setClasses(r.data)).catch(() => {})
-  }, [])
+  const classes = classesData || []
 
   const loadStudents = async () => {
     if (!fromClassId) return
@@ -40,7 +39,7 @@ export default function PromotionsPage() {
 
   const selectAll = () => {
     if (selectedIds.size === students.length) setSelectedIds(new Set())
-    else setSelectedIds(new Set(students.map(s => s.id)))
+    else setSelectedIds(new Set(students.map((s: any) => s.id)))
   }
 
   const doPromote = async () => {

@@ -1,32 +1,26 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { academicService } from "@/services/api"
+import { useClasses, useSections, useCreateSection } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 
 export default function SectionsPage() {
-  const [classes, setClasses] = useState<any[]>([])
-  const [sections, setSections] = useState<any[]>([])
   const [selectedClass, setSelectedClass] = useState("")
   const [name, setName] = useState("")
   const [capacity, setCapacity] = useState("")
-
-  useEffect(() => { academicService.classes.list().then((r) => setClasses(r.data)) }, [])
-
-  useEffect(() => {
-    if (selectedClass) academicService.sections.list(selectedClass).then((r) => setSections(r.data)).catch(() => {})
-  }, [selectedClass])
+  const { data: classes } = useClasses()
+  const { data: sections } = useSections(selectedClass ? { class_id: selectedClass } : undefined)
+  const createMutation = useCreateSection()
 
   const create = async () => {
     try {
-      await academicService.sections.create({ name, class_id: selectedClass, capacity: capacity ? Number(capacity) : null })
+      await createMutation.mutateAsync({ name, class_id: selectedClass, capacity: capacity ? Number(capacity) : null } as any)
       toast({ title: "Section created" }); setName(""); setCapacity("")
-      if (selectedClass) academicService.sections.list(selectedClass).then((r) => setSections(r.data))
     } catch (e: any) {
       toast({ title: "Error", description: e.response?.data?.detail || "Failed", variant: "destructive" })
     }
@@ -41,7 +35,7 @@ export default function SectionsPage() {
           <Select value={selectedClass} onValueChange={setSelectedClass}>
             <SelectTrigger className="w-48"><SelectValue placeholder="Select class" /></SelectTrigger>
             <SelectContent>
-              {classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              {(classes || []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -65,12 +59,12 @@ export default function SectionsPage() {
               </tr>
             </thead>
             <tbody>
-              {sections.map((s: any) => (
+              {(sections || []).map((s: any) => (
                 <tr key={s.id} className="border-b last:border-0">
                   <td className="py-3">{s.name}</td><td className="py-3">{s.capacity || "—"}</td>
                 </tr>
               ))}
-              {sections.length === 0 && <tr><td colSpan={2} className="py-6 text-center text-muted-foreground">No sections</td></tr>}
+              {(sections || []).length === 0 && <tr><td colSpan={2} className="py-6 text-center text-muted-foreground">No sections</td></tr>}
             </tbody>
           </table>
         </CardContent>

@@ -1,7 +1,8 @@
 """Webhook retry with dead-letter queue for failed payment webhooks."""
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from sqlalchemy.orm import Session
+from app.core.payment_gateway import PaymentGatewayFactory
 from app.models.payment_session import PaymentSession
 
 
@@ -43,11 +44,14 @@ def process_retry_queue(db: Session) -> list[str]:
     processed = []
     for session in pending:
         try:
-            from app.services.chapa_service import verify_transaction
-            verification = verify_transaction(session.session_id)
-            if verification.get("status") == "success":
+            gateway = PaymentGatewayFactory.get_gateway("chapa", db=db)
+            verification = gateway.verify_transaction(session.session_id)
+            if verification.success:
                 from app.services.parent_payment_service import process_chapa_payment
-                process_chapa_payment(db, session.session_id, verification)
+                process_chapa_payment(db, session.session_id, {
+                    "tx_ref": session.session_id,
+                    "reference": verification.gateway_reference,
+                })
                 session.status = "completed"
                 processed.append(session.session_id)
         except Exception:

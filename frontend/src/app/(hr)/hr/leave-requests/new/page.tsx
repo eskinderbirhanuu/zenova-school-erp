@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { hrService } from "@/services/api"
+import { useCreateLeaveRequest } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 
@@ -11,8 +11,10 @@ export default function NewLeaveRequestPage() {
   const [leaveTypes, setLeaveTypes] = useState<any[]>([])
   const [staffProfiles, setStaffProfiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+
+  const { mutateAsync: createLeaveRequest, isPending: saving } = useCreateLeaveRequest()
+
   const [form, setForm] = useState({
     staff_profile_id: "",
     leave_type_id: "",
@@ -23,14 +25,11 @@ export default function NewLeaveRequestPage() {
 
   useEffect(() => {
     Promise.all([
-      hrService.leaveRequests.list({ limit: 1 }).catch(() => ({ data: [] })),
-    ])
-    Promise.all([
       (async () => {
-        const res = await import("@/services/api").then(m => m.default.get("/staff"))
+        const res = await import("@/services/api").then((m: any) => m.default.get("/staff"))
         return res.data || []
       })(),
-      fetch("/api/v1/leave-types").then(r => r.json()),
+      fetch("/api/v1/leave-types").then((r: any) => r.json()),
     ]).then(([staff, types]) => {
       setStaffProfiles(staff || [])
       setLeaveTypes(types || [])
@@ -42,21 +41,19 @@ export default function NewLeaveRequestPage() {
       setError("Please fill in all required fields")
       return
     }
-    setSaving(true)
     setError("")
     try {
-      await hrService.leaveRequests.create({
+      await createLeaveRequest({
         staff_profile_id: form.staff_profile_id,
         leave_type_id: form.leave_type_id,
         start_date: form.start_date,
         end_date: form.end_date,
         reason: form.reason || undefined,
-      })
+      } as any)
       router.push("/hr/leave-requests")
     } catch (e: any) {
       setError(e?.response?.data?.detail || "Failed to create leave request")
     }
-    setSaving(false)
   }
 
   if (loading) {

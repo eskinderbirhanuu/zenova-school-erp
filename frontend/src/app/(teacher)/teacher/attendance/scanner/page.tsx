@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { academicService, hrService } from "@/services/api"
+import { hrService } from "@/services/api"
+import { useClasses, useSections } from "@/hooks/queries"
 import { Html5Qrcode } from "html5-qrcode"
 
 const SCANNER_ID = "qr-reader"
@@ -15,23 +16,14 @@ export default function QRScannerPage() {
   const [scanError, setScanError] = useState("")
   const [scannedList, setScannedList] = useState<{ name: string; time: string }[]>([])
 
-  const [classes, setClasses] = useState<any[]>([])
-  const [sections, setSections] = useState<any[]>([])
   const [selectedClass, setSelectedClass] = useState("")
   const [selectedSection, setSelectedSection] = useState("")
   const [scanDate, setScanDate] = useState(new Date().toISOString().split("T")[0])
+  const { data: classesData } = useClasses()
+  const { data: sectionsData } = useSections({})
 
-  useEffect(() => {
-    academicService.classes.list().then((r) => setClasses(r.data))
-  }, [])
-
-  useEffect(() => {
-    if (selectedClass) {
-      academicService.sections.list({ class_id: selectedClass }).then((r) => setSections(r.data))
-    } else {
-      setSections([])
-    }
-  }, [selectedClass])
+  const classes = classesData || []
+  const sections = selectedClass ? (sectionsData || []).filter((s: any) => s.class_id === selectedClass) : []
 
   const startScanner = async () => {
     setScanResult(null)
@@ -63,7 +55,7 @@ export default function QRScannerPage() {
     await stopScanner()
     try {
       const res = await hrService.scanAttendance({ qr_uuid: decodedText, date: scanDate })
-      const d = res.data
+      const d = res.data as any
       setScanResult({ student_name: d.student_name, message: d.message })
       setScannedList((prev) => [
         { name: d.student_name, time: new Date().toLocaleTimeString() },

@@ -1,26 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Package, AlertTriangle, CheckCircle, Loader2 } from "lucide-react"
-import { inventoryService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useInventoryItems, useInventoryCategories } from "@/hooks/queries"
 
 export default function DirectorInventory() {
-  const [loading, setLoading] = useState(true)
-  const [items, setItems] = useState<any[]>([])
-  const [categories, setCategories] = useState<any[]>([])
+  const { data: items, isLoading: itemsLoading } = useInventoryItems({ limit: 200 } as any)
+  const { data: categories, isLoading: catsLoading } = useInventoryCategories()
 
-  useEffect(() => {
-    Promise.all([
-      inventoryService.items.list({ limit: 200 }).then(r => setItems(r.data || [])),
-      inventoryService.categories.list().then(r => setCategories(r.data || [])),
-    ]).catch(err => toast({ title: "Failed to load inventory", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const loading = itemsLoading || catsLoading
 
-  const lowStock = items.filter((i: any) => i.quantity !== undefined && i.min_stock !== undefined && i.quantity <= i.min_stock)
-  const outOfStock = items.filter((i: any) => i.quantity === 0)
+  const itemsList = items || []
+  const categoriesList = categories || []
+
+  const lowStock = itemsList.filter((i: any) => i.quantity !== undefined && i.min_stock !== undefined && i.quantity <= i.min_stock)
+  const outOfStock = itemsList.filter((i: any) => i.quantity === 0)
 
   if (loading) {
     return (
@@ -35,10 +29,10 @@ export default function DirectorInventory() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Inventory Overview</h1>
       <div className="grid gap-4 md:grid-cols-4">
-        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Items</CardTitle><Package className="h-4 w-4 text-blue-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{items.length}</div></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Items</CardTitle><Package className="h-4 w-4 text-blue-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{itemsList.length}</div></CardContent></Card>
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Low Stock</CardTitle><AlertTriangle className="h-4 w-4 text-orange-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{lowStock.length}</div></CardContent></Card>
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Out of Stock</CardTitle><Package className="h-4 w-4 text-red-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{outOfStock.length}</div></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Categories</CardTitle><CheckCircle className="h-4 w-4 text-green-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{categories.length}</div></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Categories</CardTitle><CheckCircle className="h-4 w-4 text-green-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{categoriesList.length}</div></CardContent></Card>
       </div>
       <Card>
         <CardHeader><CardTitle className="text-lg">Low Stock Items</CardTitle></CardHeader>

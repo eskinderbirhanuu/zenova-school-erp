@@ -1,34 +1,29 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { libraryService } from "@/services/api"
-import { studentService } from "@/services/api"
+import { useBooks, useStudents, useBorrowBook } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { BookOpen, BookUp, Search, User } from "lucide-react"
 
 export default function LibraryBorrowPage() {
-  const [students, setStudents] = useState<any[]>([])
-  const [books, setBooks] = useState<any[]>([])
   const [studentSearch, setStudentSearch] = useState("")
   const [bookSearch, setBookSearch] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [selectedBook, setSelectedBook] = useState<any>(null)
   const [borrowing, setBorrowing] = useState(false)
+  const { data: students } = useStudents({ limit: 50 })
+  const { data: books } = useBooks({ limit: 50 })
+  const borrowMutation = useBorrowBook()
 
-  useEffect(() => {
-    studentService.list({ limit: 50 }).then((r: any) => setStudents(r.data)).catch(() => {})
-    libraryService.books.list({ limit: 50 }).then((r: any) => setBooks(r.data)).catch(() => {})
-  }, [])
-
-  const filteredStudents = students.filter((s: any) =>
+  const filteredStudents = (students || []).filter((s: any) =>
     `${s.first_name} ${s.last_name}`.toLowerCase().includes(studentSearch.toLowerCase()) ||
     s.student_id?.includes(studentSearch)
   )
 
-  const filteredBooks = books.filter((b: any) =>
+  const filteredBooks = (books || []).filter((b: any) =>
     b.title?.toLowerCase().includes(bookSearch.toLowerCase()) ||
     b.author?.toLowerCase().includes(bookSearch.toLowerCase())
   )
@@ -45,11 +40,9 @@ export default function LibraryBorrowPage() {
     }
     setBorrowing(true)
     try {
-      await libraryService.borrowings.borrow({
+      await borrowMutation.mutateAsync({
         book_id: selectedBook.id,
-        borrower_type: "student",
-        borrower_id: selectedStudent.id,
-        due_date: dueDate,
+        member_id: selectedStudent.id,
       })
       toast({ title: "Book borrowed successfully" })
       setSelectedStudent(null)

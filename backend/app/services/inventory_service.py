@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from app.core.exceptions import NotFoundException, BadRequestException
 from app.models.inventory import InventoryCategory, InventoryItem, StockMovement, Supplier
 from app.core.audit import log_audit
 
@@ -42,7 +42,7 @@ def update_item(db: Session, item_id: str, data, user_id: str, school_id: str = 
         q = q.filter(InventoryItem.school_id == school_id)
     item = q.first()
     if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+        raise NotFoundException("Item not found")
     if data.name is not None:
         item.name = data.name
     if data.description is not None:
@@ -73,10 +73,10 @@ def get_items(db: Session, school_id: str, category_id: str = None, low_stock: b
 def record_movement(db: Session, school_id: str, data, user_id: str):
     item = db.query(InventoryItem).filter(InventoryItem.id == data.item_id, InventoryItem.school_id == school_id).first()
     if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+        raise NotFoundException("Item not found")
     qty = Decimal(str(data.quantity))
     if data.movement_type in ("out", "adjustment_down") and item.quantity < qty:
-        raise HTTPException(status_code=400, detail="Insufficient stock")
+        raise BadRequestException("Insufficient stock")
     movement = StockMovement(
         item_id=data.item_id, movement_type=data.movement_type, quantity=qty,
         reference=data.reference, notes=data.notes, school_id=school_id, created_by=user_id,
@@ -125,7 +125,7 @@ def update_category(db: Session, category_id: str, data, user_id: str, school_id
         q = q.filter(InventoryCategory.school_id == school_id)
     cat = q.first()
     if not cat:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise NotFoundException("Category not found")
     if data.name is not None:
         cat.name = data.name
     if data.description is not None:
@@ -144,7 +144,7 @@ def delete_category(db: Session, category_id: str, user_id: str, school_id: str 
         q = q.filter(InventoryCategory.school_id == school_id)
     cat = q.first()
     if not cat:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise NotFoundException("Category not found")
     cat.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "INVENTORY_CATEGORY_DELETED", "inventory_category", category_id, "Category deleted", school_id=school_id)
     db.commit()
@@ -156,7 +156,7 @@ def update_supplier(db: Session, supplier_id: str, data, user_id: str, school_id
         q = q.filter(Supplier.school_id == school_id)
     s = q.first()
     if not s:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+        raise NotFoundException("Supplier not found")
     if data.name is not None:
         s.name = data.name
     if data.contact_person is not None:
@@ -179,7 +179,7 @@ def delete_supplier(db: Session, supplier_id: str, user_id: str, school_id: str 
         q = q.filter(Supplier.school_id == school_id)
     s = q.first()
     if not s:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+        raise NotFoundException("Supplier not found")
     s.deleted_at = datetime.now(timezone.utc)
     log_audit(db, user_id, "SUPPLIER_DELETED", "supplier", supplier_id, "Supplier deleted", school_id=school_id)
     db.commit()

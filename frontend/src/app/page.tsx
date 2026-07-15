@@ -1,10 +1,10 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef } from "react"
 import * as THREE from "three"
 import { useRouter } from "next/navigation"
 import { Sparkles, ArrowRight } from "lucide-react"
-import { setupService } from "@/services/api"
+import { useSetupStatus } from "@/hooks/queries"
 
 function EcosystemScene() {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -105,7 +105,7 @@ function EcosystemScene() {
         group.rotation.y = t * 0.07
         group.rotation.x = Math.sin(t * 0.1) * 0.05
         core.rotation.y = t * 0.12
-        orbits.forEach((o) => {
+        orbits.forEach((o: any) => {
           const angle = t * o.speed + o.offset
           o.node.position.set(
             Math.cos(angle) * o.radius,
@@ -134,7 +134,7 @@ function EcosystemScene() {
     }
     const viewportObserver = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
+        entries.forEach((entry: any) => {
           isInViewport = entry.isIntersecting
           resumeIfNeeded()
         })
@@ -170,26 +170,16 @@ function EcosystemScene() {
 
 export default function ZenovaLanding() {
   const router = useRouter()
-  const [checking, setChecking] = useState(true)
+  const { data: setupStatus, isLoading: checking } = useSetupStatus()
 
   useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await setupService.installerStatus()
-        if (!res.data.server_identity_exists && !res.data.setup_complete) {
-          router.replace("/installer")
-          return
-        }
-        if (res.data.setup_complete || res.data.server_identity_exists) {
-          router.replace("/login")
-          return
-        }
-      } catch {
-      }
-      setChecking(false)
+    if (checking) return
+    if (!setupStatus?.setup_complete) {
+      router.replace("/installer")
+      return
     }
-    check()
-  }, [router])
+    router.replace("/login")
+  }, [checking, setupStatus, router])
 
   if (checking) {
     return <div style={{ height: "100vh", background: "#05080F" }} />

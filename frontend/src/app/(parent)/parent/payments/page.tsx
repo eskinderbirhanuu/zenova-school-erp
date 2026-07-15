@@ -1,53 +1,41 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DollarSign, Loader2 } from "lucide-react"
-import api from "@/services/api"
+import { usePayments, useCreatePayment } from "@/hooks/queries"
 
 export default function ParentPaymentsPage() {
-  const [invoices, setInvoices] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: payments, isLoading } = usePayments({})
+  const createPayment = useCreatePayment()
   const [payingId, setPayingId] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState("")
   const [paySuccess, setPaySuccess] = useState(false)
+  const items = payments || []
 
-  useEffect(() => {
-    api.get("/parent-portal/invoices")
-      .then((res) => setInvoices(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setInvoices([]))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const handlePay = async (invoice: any) => {
+  const handlePay = async (payment: any) => {
     setPaying(true)
     setPayError("")
     setPaySuccess(false)
     try {
-      await api.post("/parent-portal/payments", {
-        invoice_id: invoice.id,
-        amount: invoice.total_amount - invoice.paid_amount,
+      await createPayment.mutateAsync({
+        invoice_id: payment.invoice_id,
+        amount: payment.amount,
         payment_method: "online",
         payment_date: new Date().toISOString().split("T")[0],
-        idempotency_key: `parent_pay_${invoice.id}_${Date.now()}`,
       })
       setPaySuccess(true)
-      setPayingId(invoice.id)
-      setInvoices((prev) =>
-        prev.map((inv) =>
-          inv.id === invoice.id ? { ...inv, paid_amount: inv.total_amount, status: "paid" } : inv
-        )
-      )
+      setPayingId(payment.id)
     } catch (e: any) {
       setPayError(e?.response?.data?.detail || "Payment failed")
     }
     setPaying(false)
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -72,43 +60,27 @@ export default function ParentPaymentsPage() {
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{payError}</div>
       )}
 
-      {invoices.length === 0 ? (
+      {items.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-gray-500">No invoices found for your children.</CardContent>
+          <CardContent className="py-12 text-center text-gray-500">No payment records found.</CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {invoices.map((inv: any) => {
-            const due = (inv.total_amount - inv.paid_amount).toFixed(2)
+          {items.map((p: any) => {
             return (
-              <Card key={inv.id}>
+              <Card key={p.id}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{inv.invoice_number}</p>
+                      <p className="font-medium">Payment #{p.id?.slice(0, 8)}</p>
                       <p className="text-sm text-gray-500">
-                        Due: {inv.due_date} — Status: <StatusBadge status={inv.status} />
+                        Date: {p.payment_date ? new Date(p.payment_date).toLocaleDateString() : "—"} — Status: <StatusBadge status={p.status} />
                       </p>
                       <p className="text-sm text-gray-500">
-                        Total: ${Number(inv.total_amount).toFixed(2)} — Paid: ${Number(inv.paid_amount).toFixed(2)}
+                        Amount: ${Number(p.amount).toFixed(2)}
                       </p>
-                      {Number(due) > 0 && inv.status !== "paid" && (
-                        <p className="text-sm font-semibold text-red-600">Balance due: ${due}</p>
-                      )}
                     </div>
-                    {Number(due) > 0 && inv.status !== "paid" && (
-                      <Button
-                        onClick={() => handlePay(inv)}
-                        disabled={paying}
-                        size="sm"
-                      >
-                        {paying ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <DollarSign className="h-4 w-4 mr-1" />}
-                        Pay ${due}
-                      </Button>
-                    )}
-                    {inv.status === "paid" && (
-                      <StatusBadge status="paid" />
-                    )}
+                    <StatusBadge status={p.status} />
                   </div>
                 </CardContent>
               </Card>

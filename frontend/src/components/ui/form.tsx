@@ -8,6 +8,7 @@ import {
   type Path,
   type RegisterOptions,
 } from "react-hook-form"
+import { cn } from "@/lib/utils"
 
 interface FormProps<T extends FieldValues> {
   form: UseFormReturn<T>
@@ -61,9 +62,11 @@ export function FormField<T extends FieldValues>({
         type={textarea ? undefined : type}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full rounded-md border px-3 py-2 text-sm ${
-          error ? "border-red-500" : "border-gray-300"
-        } ${disabled ? "bg-gray-100" : ""}`}
+        className={cn(
+          "w-full rounded-md border px-3 py-2 text-sm",
+          error ? "border-red-500" : "border-gray-300",
+          disabled && "bg-gray-100",
+        )}
         {...register(name, { required: required ? `${label || name} is required` : undefined, ...options })}
         {...(textarea ? { rows: 3 } : {})}
       />

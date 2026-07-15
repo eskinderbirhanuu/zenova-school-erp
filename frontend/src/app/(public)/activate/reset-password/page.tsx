@@ -39,10 +39,11 @@ export default function ResetPasswordPage() {
         license_key: licenseKey,
         new_password: newPassword,
       })
-      if (res.data.success) {
+      const rd = res.data as any
+      if (rd.success) {
         setSuccess(true)
       } else {
-        setError(res.data.message || "Password reset failed")
+        setError(rd.message || "Password reset failed")
       }
     } catch (err: any) {
       setError(err?.response?.data?.detail || "Password reset failed. Check your Employee ID and License Key.")

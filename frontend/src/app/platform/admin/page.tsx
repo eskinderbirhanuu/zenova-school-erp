@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
-import api from "@/services/api";
+import { usePlatformAdminDashboard } from "@/hooks/queries";
 import {
   TrendingUp,
   Banknote,
@@ -41,23 +39,8 @@ const MONTHS = [
 ];
 
 export default function PlatformAdminPage() {
-  const [dashboard, setDashboard] = useState<AdminDashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
-
-  const fetchDashboard = async () => {
-    try {
-      const response = await api.get("/platform/admin/dashboard");
-      setDashboard(response.data);
-    } catch {
-      toast({ title: "Failed to load platform admin dashboard", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: _dashboard, isLoading: loading } = usePlatformAdminDashboard();
+  const dashboard = _dashboard as any;
 
   if (loading) {
     return (
@@ -74,7 +57,7 @@ export default function PlatformAdminPage() {
         <div>
           <h1 className="text-3xl font-bold">Platform Revenue</h1>
           <p className="text-muted-foreground">
-            {MONTHS[dashboard!.month - 1]} {dashboard!.year}
+            {MONTHS[dashboard.month - 1]} {dashboard.year}
           </p>
         </div>
       </div>
@@ -174,7 +157,7 @@ export default function PlatformAdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dashboard.school_rankings.map((school, index) => (
+                  {dashboard.school_rankings.map((school: any, index: any) => (
                     <tr key={school.school_id} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="py-3">
                         <Badge

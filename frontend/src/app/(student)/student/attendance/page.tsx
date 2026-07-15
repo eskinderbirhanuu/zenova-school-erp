@@ -1,24 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useAttendance } from "@/hooks/queries"
 
 export default function StudentAttendancePage() {
-  const [records, setRecords] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: records, isLoading } = useAttendance({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    api.get("/attendance", { params: { limit: 200 } })
-      .then(res => setRecords(res.data || []))
-      .catch(err => toast({ title: "Failed to load attendance", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const normalized = records.map((r: any) => ({
+  const normalized = ((records as any[]) || []).map((r: any) => ({
     id: r.id,
     date: r.date ? new Date(r.date).toLocaleDateString() : "—",
     subject: r.subject_name || r.class_name || "—",
@@ -36,7 +25,7 @@ export default function StudentAttendancePage() {
         { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
       ]}
       data={normalized} keyExtractor={(r) => r.id}
-      loading={loading} emptyTitle="No attendance records"
+      loading={isLoading} emptyTitle="No attendance records"
     />
   )
 }

@@ -66,7 +66,7 @@ export default function QrScanPage() {
   const doScanWithUid = async (uid: string) => {
     setResult(null)
     try {
-      const res = await nfcV2Service.scan({ card_uid: uid, scan_type: scanType })
+      const res = await nfcV2Service.scan({ card_uid: uid, scan_type: scanType } as any)
       setResult(res.data)
     } catch (err: any) {
       setResult({ success: false, message: err.response?.data?.detail || "Card not found" })

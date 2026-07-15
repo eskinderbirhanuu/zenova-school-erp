@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 SERVER_ID_FILE = os.environ.get(
     "SERVER_ID_FILE",
-    str(Path(__file__).parent.parent / "data" / "server_id.json"),
+    str(Path("/data/server_id.json") if os.name != "nt" else Path(os.environ.get("PROGRAMDATA", "C:\\ProgramData")) / "zenova" / "server_id.json"),
 )
 
 

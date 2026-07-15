@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { PageHeader } from "@/components/ui/page-header"
-import { financeService, studentService, academicService } from "@/services/api"
+import { useStudents, useAcademicYears, useCreateInvoice } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { ArrowLeft, Loader2, Plus, Trash2, Save } from "lucide-react"
 
@@ -16,24 +16,15 @@ interface LineItem { description: string; amount: string }
 
 export default function NewInvoicePage() {
   const router = useRouter()
-  const [submitting, setSubmitting] = useState(false)
+  const { data: students, isLoading: studentsLoading } = useStudents({ limit: 500 } as any)
+  const { data: years, isLoading: yearsLoading } = useAcademicYears()
 
-  const [students, setStudents] = useState<any[]>([])
-  const [years, setYears] = useState<any[]>([])
+  const { mutateAsync: createInvoice, isPending: submitting } = useCreateInvoice()
+
   const [studentId, setStudentId] = useState("")
   const [yearId, setYearId] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [lines, setLines] = useState<LineItem[]>([{ description: "", amount: "" }])
-
-  useEffect(() => {
-    Promise.all([
-      studentService.list({ limit: 500 }),
-      academicService.academicYears.list(),
-    ]).then(([sRes, yRes]) => {
-      setStudents(sRes.data || [])
-      setYears(yRes.data || [])
-    }).catch(() => toast({ title: "Failed to load data", variant: "destructive" }))
-  }, [])
 
   const addLine = () => setLines(prev => [...prev, { description: "", amount: "" }])
   const removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx))
@@ -48,28 +39,28 @@ export default function NewInvoicePage() {
       toast({ title: "Please fill all required fields", variant: "destructive" })
       return
     }
-    const validLines = lines.filter(l => l.description && l.amount)
+    const validLines = lines.filter((l: any) => l.description && l.amount)
     if (validLines.length === 0) {
       toast({ title: "Add at least one line item", variant: "destructive" })
       return
     }
 
-    setSubmitting(true)
     try {
-      await financeService.invoices.create({
+      await createInvoice({
         student_id: studentId,
         academic_year_id: yearId,
         due_date: dueDate,
-        lines: validLines.map(l => ({ description: l.description, amount: parseFloat(l.amount) })),
-      })
+        lines: validLines.map((l: any) => ({ description: l.description, amount: parseFloat(l.amount) })),
+      } as any)
       toast({ title: "Invoice created successfully" })
       router.push("/finance/invoices")
     } catch (err: any) {
       toast({ title: err.response?.data?.detail || "Failed to create invoice", variant: "destructive" })
-    } finally {
-      setSubmitting(false)
     }
   }
+
+  const studentsList = students || []
+  const yearsList = years || []
 
   return (
     <div className="space-y-6">
@@ -90,10 +81,10 @@ export default function NewInvoicePage() {
               <Label>Student</Label>
               <Select value={studentId} onValueChange={setStudentId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select student..." />
+                  <SelectValue placeholder={studentsLoading ? "Loading..." : "Select student..."} />
                 </SelectTrigger>
                 <SelectContent>
-                  {students.map(s => (
+                  {studentsList.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>{s.full_name || s.student_id}</SelectItem>
                   ))}
                 </SelectContent>
@@ -103,10 +94,10 @@ export default function NewInvoicePage() {
               <Label>Academic Year</Label>
               <Select value={yearId} onValueChange={setYearId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select year..." />
+                  <SelectValue placeholder={yearsLoading ? "Loading..." : "Select year..."} />
                 </SelectTrigger>
                 <SelectContent>
-                  {years.map(y => (
+                  {yearsList.map((y: any) => (
                     <SelectItem key={y.id} value={y.id}>{y.name}</SelectItem>
                   ))}
                 </SelectContent>

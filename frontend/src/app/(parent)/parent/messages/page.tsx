@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,32 +9,21 @@ import { GenericListPage } from "@/components/ui/generic-list-page"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Loader2, Send, Plus, X } from "lucide-react"
+import { useMessages } from "@/hooks/queries"
 
 export default function ParentMessagesPage() {
-  const [messages, setMessages] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [showCompose, setShowCompose] = useState(false)
   const [sending, setSending] = useState(false)
   const [form, setForm] = useState({ recipient_email: "", subject: "", message: "" })
+  const { data: messagesData, isLoading: loading, refetch } = useMessages({ limit: 200 })
 
-  const fetchMessages = () => {
-    setLoading(true)
-    api.get("/messages", { params: { limit: 200 } })
-      .then((res) => {
-        const data = Array.isArray(res.data) ? res.data : res.data?.data || res.data?.messages || []
-        setMessages(data.map((m: any) => ({
-          id: m.id,
-          from: m.sender_name || m.sender_id || "System",
-          subject: m.subject || "(No Subject)",
-          message: m.message || m.body || "",
-          date: m.date || m.created_at || m.sent_at || "—",
-        })))
-      })
-      .catch(() => setMessages([]))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetchMessages() }, [])
+  const messages = (messagesData ?? []).map((m: any) => ({
+    id: m.id,
+    from: m.sender_name || m.sender_id || "System",
+    subject: m.subject || "(No Subject)",
+    message: m.message || m.body || "",
+    date: m.date || m.created_at || m.sent_at || "—",
+  }))
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,7 +37,7 @@ export default function ParentMessagesPage() {
       toast({ title: "Message sent" })
       setShowCompose(false)
       setForm({ recipient_email: "", subject: "", message: "" })
-      fetchMessages()
+      refetch()
     } catch (err: any) {
       toast({ title: err.response?.data?.detail || "Failed to send", variant: "destructive" })
     } finally {

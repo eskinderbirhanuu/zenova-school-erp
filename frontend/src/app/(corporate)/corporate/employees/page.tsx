@@ -1,46 +1,38 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { corporateService } from "@/services/api"
+import { useCorporateEmployees, useDeleteCorporateEmployee } from "@/hooks/queries"
 import { Loader2, Plus, Search, Pencil, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/hooks/use-toast"
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const router = useRouter()
-
-  const fetch = () => {
-    setLoading(true)
-    corporateService.employees.list().then((res) => setEmployees(res.data)).catch(() => {}).finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetch() }, [])
+  const { data: employees, isLoading } = useCorporateEmployees()
+  const deleteMutation = useDeleteCorporateEmployee()
 
   const doDelete = async (id: string) => {
     if (!confirm("Delete this employee?")) return
     try {
-      await corporateService.employees.delete(id)
+      await deleteMutation.mutateAsync(id)
       toast({ title: "Employee deleted" })
-      fetch()
     } catch {
       toast({ title: "Delete failed", variant: "destructive" })
     }
   }
 
-  const filtered = employees.filter((e: any) =>
+  const filtered = (employees || []).filter((e: any) =>
     !search || e.full_name?.toLowerCase().includes(search.toLowerCase()) || e.employee_id?.toLowerCase().includes(search.toLowerCase()) || e.email?.toLowerCase().includes(search.toLowerCase())
   )
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
   }
 

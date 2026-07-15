@@ -1,25 +1,24 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { studentService, academicService } from "@/services/api"
+import { studentService } from "@/services/api"
+import { useClasses } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { Search, ArrowRightLeft } from "lucide-react"
 
 export default function TransfersPage() {
   const [students, setStudents] = useState<any[]>([])
-  const [classes, setClasses] = useState<any[]>([])
   const [search, setSearch] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null)
   const [targetClassId, setTargetClassId] = useState("")
   const [reason, setReason] = useState("")
   const [transferring, setTransferring] = useState(false)
+  const { data: classesData } = useClasses()
 
-  useEffect(() => {
-    academicService.classes.list().then((r: any) => setClasses(r.data)).catch(() => {})
-  }, [])
+  const classes = classesData || []
 
   const searchStudents = async () => {
     if (!search.trim()) return
@@ -33,7 +32,7 @@ export default function TransfersPage() {
     if (!selectedStudent || !targetClassId) { toast({ title: "Select a student and target class", variant: "destructive" }); return }
     setTransferring(true)
     try {
-      await studentService.transfer(selectedStudent.id, { to_class_id: targetClassId, reason: reason || undefined })
+      await studentService.transfer(selectedStudent.id, { to_class_id: targetClassId, reason: reason || undefined } as any)
       toast({ title: "Transfer successful", description: `${selectedStudent.first_name} moved to new class` })
       setSelectedStudent(null)
       setTargetClassId("")

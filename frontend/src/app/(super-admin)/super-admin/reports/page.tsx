@@ -1,23 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useSystemReports } from "@/hooks/queries"
 
 export default function SuperAdminReports() {
-  const [reports, setReports] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api.get("/reports/system").then((res: any) => {
-      setReports(res.data ?? res)
-    }).catch(() => {
-      toast({ title: "Error", description: "Failed to load reports", variant: "destructive" })
-    }).finally(() => {
-      setLoading(false)
-    })
-  }, [])
+  const { data: reports = [], isLoading: loading } = useSystemReports()
 
   return (
     <GenericListPage

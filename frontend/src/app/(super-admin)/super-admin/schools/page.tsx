@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
 import { Eye, Edit3, Ban, CheckCircle } from "lucide-react"
-import { schoolService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useSchoolList } from "@/hooks/queries"
 
 interface School {
   id: string
@@ -20,33 +19,19 @@ interface School {
 }
 
 export default function SuperAdminSchools() {
-  const [schools, setSchools] = useState<School[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("All")
 
-  const fetchSchools = () => {
-    setLoading(true)
-    schoolService.list({ search: search || undefined })
-      .then(res => {
-        const data = res.data.schools || []
-        setSchools(data)
-      })
-      .catch(err => {
-        toast({ title: "Failed to load schools", description: err.response?.data?.detail || err.message, variant: "destructive" })
-      })
-      .finally(() => setLoading(false))
-  }
+  const { data: schoolData, isLoading } = useSchoolList(search ? { search } : undefined)
+  const schools = ((schoolData as any)?.schools ?? schoolData ?? []) as School[]
 
-  useEffect(() => { fetchSchools() }, [search])
-
-  const filtered = schools.filter(s => {
+  const filtered = schools.filter((s: any) => {
     const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.code.toLowerCase().includes(search.toLowerCase())
     const matchFilter = filter === "All" || (filter === "Active" && s.is_active) || (filter === "Inactive" && !s.is_active)
     return matchSearch && matchFilter
   })
 
-  const normalized = filtered.map(s => ({
+  const normalized = filtered.map((s: any) => ({
     id: s.id,
     name: s.name,
     code: s.code,
@@ -69,7 +54,7 @@ export default function SuperAdminSchools() {
         { key: "actions", header: "", render: () => <div className="flex gap-1"><Button variant="ghost" size="sm"><Eye className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="sm"><Edit3 className="h-3.5 w-3.5" /></Button></div> },
       ]}
       data={normalized} keyExtractor={(s) => s.id}
-      loading={loading} searchPlaceholder="Search by name or code..." onSearch={setSearch}
+      loading={isLoading} searchPlaceholder="Search by name or code..." onSearch={setSearch}
       onCreateLabel="Create School" onCreateClick={() => window.location.href = "/super-admin/schools/new"}
       emptyTitle="No schools found"
       extraFilters={

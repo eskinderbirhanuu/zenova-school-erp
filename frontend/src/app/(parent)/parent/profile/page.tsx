@@ -10,14 +10,13 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { authService, parentService } from "@/services/api"
+import { useMe, useParents } from "@/hooks/queries"
+import { parentService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import {
   User,
   Mail,
   Phone,
-  MapPin,
-  Calendar,
   Loader2,
   Save,
   Users,
@@ -35,8 +34,9 @@ interface ParentProfile {
 }
 
 export default function ParentProfile() {
+  const { data: meData, isLoading: meLoading } = useMe()
+  const { data: parentsData, isLoading: parentsLoading } = useParents()
   const [profile, setProfile] = useState<ParentProfile | null>(null)
-  const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -49,30 +49,28 @@ export default function ParentProfile() {
     relationship: "",
   })
 
+  const loading = meLoading || parentsLoading
+
   useEffect(() => {
-    setLoading(true)
-    Promise.all([authService.me(), parentService.list()])
-      .then(([meRes, parentRes]: any[]) => {
-        const me = meRes.data
-        const parents = parentRes.data || []
-        const parent = parents.find((p: any) => p.email === me.email) || {
-          ...me,
-          id: me.id,
-        }
-        setProfile(parent)
-        setForm({
-          first_name: parent.first_name || "",
-          last_name: parent.last_name || "",
-          email: parent.email || "",
-          phone: parent.phone || "",
-          address: parent.address || "",
-          occupation: parent.occupation || "",
-          relationship: parent.relationship || "",
-        })
+    if (meData && parentsData && !profile) {
+      const parentArr = Array.isArray(parentsData) ? parentsData : []
+      const parent = parentArr.find((p: any) => p.email === meData.email) || {
+        ...meData,
+        id: meData.id,
+      }
+      setProfile(parent as ParentProfile)
+      const p = parent as any
+      setForm({
+        first_name: p.first_name || "",
+        last_name: p.last_name || "",
+        email: p.email || "",
+        phone: p.phone || "",
+        address: p.address || "",
+        occupation: p.occupation || "",
+        relationship: p.relationship || "",
       })
-      .catch(() => toast({ title: "Failed to load profile", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+    }
+  }, [meData, parentsData, profile])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()

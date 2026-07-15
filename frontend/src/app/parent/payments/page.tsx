@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import api from "@/services/api";
+import { useParentPaymentsDashboard } from "@/hooks/queries";
 import {
   CreditCard,
   Receipt,
@@ -66,26 +67,11 @@ interface DashboardData {
 
 export default function ParentPaymentsPage() {
   const router = useRouter();
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: _dashboard, isLoading: loading } = useParentPaymentsDashboard();
+  const dashboard = _dashboard as DashboardData | null;
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("chapa");
-
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
-
-  const fetchDashboard = async () => {
-    try {
-      const response = await api.get("/parent-payments/dashboard");
-      setDashboard(response.data);
-    } catch (error) {
-      toast({ title: "Failed to load payment dashboard", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePayNow = async (invoice: Invoice) => {
     try {
@@ -193,7 +179,7 @@ export default function ParentPaymentsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {dashboard?.recent_invoices.map((invoice) => (
+                {dashboard?.recent_invoices.map((invoice: any) => (
                   <div
                     key={invoice.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
@@ -209,7 +195,7 @@ export default function ParentPaymentsPage() {
                         {invoice.student_name} • Due {new Date(invoice.due_date).toLocaleDateString()}
                       </p>
                       <div className="text-sm">
-                        {invoice.lines.map((line, idx) => (
+                        {invoice.lines.map((line: any, idx: number) => (
                           <span key={idx} className="text-muted-foreground">
                             {line.description}: ETB {line.amount.toLocaleString()}
                           </span>
@@ -278,7 +264,7 @@ export default function ParentPaymentsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {dashboard?.payment_history.map((payment) => (
+                {dashboard?.payment_history.map((payment: any) => (
                   <div
                     key={payment.id}
                     className="flex items-center justify-between p-4 border rounded-lg"
@@ -323,7 +309,7 @@ export default function ParentPaymentsPage() {
 
         <TabsContent value="children">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {dashboard?.children.map((child) => (
+            {dashboard?.children.map((child: any) => (
               <Card key={child.id}>
                 <CardHeader>
                   <CardTitle>{child.name}</CardTitle>

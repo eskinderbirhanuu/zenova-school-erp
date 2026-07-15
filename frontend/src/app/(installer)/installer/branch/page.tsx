@@ -45,11 +45,12 @@ export default function BranchInstallerPage() {
         payload.admin_password = adminPassword
       }
       const res = await setupService.installerInitBranch(payload)
-      if (res.data.success) {
-        setResult(res.data)
+      const rd = res.data as any
+      if (rd.success) {
+        setResult(rd)
         setStep("result")
       } else {
-        setError(res.data.message || "Activation failed")
+        setError(rd.message || "Activation failed")
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Activation failed. Check your details.")

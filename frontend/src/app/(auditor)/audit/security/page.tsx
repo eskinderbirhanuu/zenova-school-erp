@@ -1,31 +1,22 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { auditService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useAuditLogs } from "@/hooks/queries"
 
 export default function AuditorSecurity() {
-  const [events, setEvents] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const { data: raw, isLoading } = useAuditLogs({ limit: 200, type: "security" })
 
-  useEffect(() => {
-    auditService.list({ limit: 200, type: "security" })
-      .then((res) => {
-        const raw = res.data?.data || res.data || []
-        setEvents(raw.map((l: any) => ({
-          id: l.id,
-          event: l.action || l.event || l.description || "—",
-          source: l.ip_address || l.source || "—",
-          user: l.user || "—",
-          severity: l.severity || "info",
-          timestamp: l.created_at ? new Date(l.created_at).toLocaleString() : l.timestamp || "—",
-        })))
-      })
-      .catch(() => toast({ title: "Error", description: "Failed to load security events", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const events = ((raw || []) as any[]).map((l: any) => ({
+    id: l.id,
+    event: l.action || l.event || l.description || "—",
+    source: l.ip_address || l.source || "—",
+    user: l.user || "—",
+    severity: l.severity || "info",
+    timestamp: l.created_at ? new Date(l.created_at).toLocaleString() : l.timestamp || "—",
+  }))
 
   return (
     <GenericListPage
@@ -38,7 +29,7 @@ export default function AuditorSecurity() {
         { key: "timestamp", header: "Timestamp", render: (e) => <span className="text-muted-foreground">{e.timestamp}</span> },
       ]}
       data={events} keyExtractor={(e) => e.id}
-      loading={loading} emptyTitle="No security events"
+      loading={isLoading} emptyTitle="No security events"
     />
   )
 }

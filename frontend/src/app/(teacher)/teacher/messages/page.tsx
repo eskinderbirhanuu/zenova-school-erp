@@ -1,22 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useMessages } from "@/hooks/queries"
 
 export default function TeacherMessagesPage() {
-  const [messages, setMessages] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: messagesData, isLoading } = useMessages({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    api.get("/messages", { params: { limit: 200 } })
-      .then(res => setMessages(res.data || []))
-      .catch(err => toast({ title: "Failed to load messages", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const messages = messagesData || []
+  const loading = isLoading
 
   const normalized = messages.map((m: any) => ({
     id: m.id,

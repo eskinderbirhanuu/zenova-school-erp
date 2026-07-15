@@ -1,32 +1,23 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Shield, Building2, ArrowRight, Loader2 } from "lucide-react"
 import { Logo } from "@/components/branding"
-import { setupService } from "@/services/api"
+import { useInstallerStatus } from "@/hooks/queries"
 
 export default function InstallerSelectPage() {
   const router = useRouter()
-  const [checking, setChecking] = useState(true)
+  const { data, isLoading } = useInstallerStatus()
 
   useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await setupService.installerStatus()
-        if (res.data.setup_complete || res.data.server_identity_exists) {
-          router.push("/login")
-          return
-        }
-      } catch {
-      }
-      setChecking(false)
+    if (data && (data.setup_complete || data.server_identity_exists)) {
+      router.push("/login")
     }
-    check()
-  }, [router])
+  }, [data, router])
 
-  if (checking) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#05080F]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-400" />

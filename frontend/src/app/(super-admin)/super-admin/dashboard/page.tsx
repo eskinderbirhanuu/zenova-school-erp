@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MappedStatusBadge } from "@/components/ui/status-badge"
 import { PageHeader } from "@/components/ui/page-header"
-import api from "@/services/api"
+import { useState } from "react"
+import { usePlatformAdminDashboard } from "@/hooks/queries"
 import {
   Building2, Users, Key, Activity, Cloud, DollarSign,
   Plus, BarChart3, LineChart, Shield, Zap, Loader2, Server,
@@ -19,7 +19,7 @@ import {
   AreaChart, Area
 } from "recharts"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 const monthlySchools = [
@@ -95,59 +95,26 @@ const formatNumber = (n: number) =>
   new Intl.NumberFormat("en-US").format(n)
 
 export default function SuperAdminDashboard() {
-  const [stats, setStats] = useState({
-    schools: "—",
+  const { data: dashboard, isLoading } = usePlatformAdminDashboard()
+  const [healthChecks] = useState<Record<string, any>>({})
+  const [alerts] = useState<any[]>([])
+  const [activity] = useState<any[]>([])
+
+  const stats = {
+    schools: (dashboard as any)?.school_rankings?.length ? formatNumber((dashboard as any).school_rankings.length) : "—",
     licenses: "—",
-    revenue: "—",
+    revenue: (dashboard as any)?.total_revenue ? formatCurrency((dashboard as any).total_revenue) : "—",
     uptime: "—",
     activeUsers: "—",
     alerts: "—",
     apiLatency: "—",
     dbSize: "—",
-  })
-  const [activity, setActivity] = useState<any[]>([])
-  const [schoolGrowth, setSchoolGrowth] = useState<any[]>([])
-  const [revenueTrend, setRevenueTrend] = useState<any[]>([])
-  const [healthChecks, setHealthChecks] = useState<Record<string, { status: string; latency?: string; role?: string }>>({})
-  const [alerts, setAlerts] = useState<Array<{ message: string; severity: string; time: string }>>([])
-  const [loading, setLoading] = useState(true)
+  }
 
-  useEffect(() => {
-    Promise.all([
-      api.get("/dashboard/overview"),
-      api.get("/dashboard/trends"),
-      api.get("/health"),
-    ]).then(([overview, trends, health]) => {
-      const d = overview.data
-      const totals = d.totals || {}
-      const finance = d.finance || {}
-      const sa = d.super_admin || {}
-      const hc = health.data?.checks || {}
-      setStats({
-        schools: formatNumber(sa.total_schools ?? 0),
-        licenses: formatNumber(sa.active_licenses ?? 0),
-        revenue: formatCurrency(finance.revenue ?? 0),
-        uptime: health.data?.status === "ok" ? "100%" : "—",
-        activeUsers: formatNumber((totals.teachers ?? 0) + (totals.staff ?? 0)),
-        alerts: String(d.alerts?.length || 0),
-        apiLatency: hc.api?.latency || "—",
-        dbSize: "—",
-      })
-      setActivity(d.recent_activity || [])
-      setAlerts(d.alerts || [])
-      if (trends.data) {
-        setSchoolGrowth(trends.data.school_growth || [])
-        setRevenueTrend(trends.data.revenue_trend || [])
-      }
-      setHealthChecks(hc)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
@@ -155,7 +122,7 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader
@@ -270,7 +237,7 @@ export default function SuperAdminDashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={schoolGrowth.length > 0 ? schoolGrowth : monthlySchools}>
+                <BarChart data={monthlySchools}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                   <XAxis dataKey="month" />
                   <YAxis />
@@ -292,7 +259,7 @@ export default function SuperAdminDashboard() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={revenueTrend.length > 0 ? revenueTrend : revenueTrendMock}>
+                <AreaChart data={revenueTrendMock}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
@@ -322,7 +289,7 @@ export default function SuperAdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {Object.entries(healthChecks).length === 0 && systemServices.map((s) => (
+                {Object.entries(healthChecks).length === 0 && systemServices.map((s: any) => (
                   <div
                     key={s.service}
                     className={`rounded-xl border border-l-4 ${statusBorderColors[s.status]} bg-card/80 p-4 flex flex-col gap-2`}

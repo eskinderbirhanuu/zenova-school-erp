@@ -1,26 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookOpen, BookCheck, Users, Loader2 } from "lucide-react"
-import { libraryService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useBooks, useBorrowings } from "@/hooks/queries"
 
 export default function DirectorLibrary() {
-  const [loading, setLoading] = useState(true)
-  const [books, setBooks] = useState<any[]>([])
-  const [borrowings, setBorrowings] = useState<any[]>([])
+  const { data: books, isLoading: booksLoading } = useBooks({ limit: 100 } as any)
+  const { data: borrowings, isLoading: borrowLoading } = useBorrowings({ limit: 100 } as any)
 
-  useEffect(() => {
-    Promise.all([
-      libraryService.books.list({ limit: 100 }).then(r => setBooks(r.data || [])),
-      libraryService.borrowings.list({ limit: 100 }).then(r => setBorrowings(r.data || [])),
-    ]).catch(err => toast({ title: "Failed to load library data", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const loading = booksLoading || borrowLoading
 
-  const borrowedCount = borrowings.filter((b: any) => b.status === "borrowed" || !b.returned_at).length
-  const availableCount = books.length - borrowedCount
+  const booksList = books || []
+  const borrowingsList = borrowings || []
+
+  const borrowedCount = borrowingsList.filter((b: any) => b.status === "borrowed" || !b.returned_at).length
+  const availableCount = booksList.length - borrowedCount
 
   if (loading) {
     return (
@@ -35,7 +29,7 @@ export default function DirectorLibrary() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Library Overview</h1>
       <div className="grid gap-4 md:grid-cols-3">
-        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Books</CardTitle><BookOpen className="h-4 w-4 text-blue-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{books.length.toLocaleString()}</div></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Books</CardTitle><BookOpen className="h-4 w-4 text-blue-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{booksList.length.toLocaleString()}</div></CardContent></Card>
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Borrowed</CardTitle><BookCheck className="h-4 w-4 text-orange-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{borrowedCount}</div></CardContent></Card>
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Available</CardTitle><BookOpen className="h-4 w-4 text-green-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{availableCount.toLocaleString()}</div></CardContent></Card>
       </div>
@@ -53,9 +47,9 @@ export default function DirectorLibrary() {
               </tr>
             </thead>
             <tbody>
-              {borrowings.length === 0 ? (
+              {borrowingsList.length === 0 ? (
                 <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">No borrowings yet</td></tr>
-              ) : borrowings.slice(0, 5).map((b: any, i: number) => (
+              ) : borrowingsList.slice(0, 5).map((b: any, i: number) => (
                 <tr key={i} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-4 font-medium">{b.book_title || b.book_id || "Unknown"}</td>
                   <td className="p-4 text-muted-foreground">{b.borrower_name || b.student_id || "—"}</td>

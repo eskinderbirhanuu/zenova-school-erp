@@ -89,12 +89,84 @@ def _clear_brute_force(redis, ip: str, identifier: str) -> None:
         pass
 
 
+MAX_CONCURRENT_SESSIONS = 5
+
+
+def _check_concurrent_sessions(redis, user_id: str) -> None:
+    """Check user has not exceeded max concurrent sessions. Prune expired first."""
+    now = int(datetime.now(timezone.utc).timestamp())
+    redis.zremrangebyscore(f"sessions:{user_id}", "-inf", now)
+    count = redis.zcard(f"sessions:{user_id}")
+    if count is not None and count >= MAX_CONCURRENT_SESSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Maximum {MAX_CONCURRENT_SESSIONS} concurrent sessions reached. Log out from another device first.",
+        )
+
+
+def _register_session(redis, user_id: str, refresh_token_str: str) -> None:
+    """Register a new session for a user after login."""
+    payload = auth_service.decode_token(refresh_token_str)
+    if payload is None:
+        return
+    jti = payload.get("jti", "")
+    exp = payload.get("exp", 0)
+    redis.zadd(f"sessions:{user_id}", {jti: exp})
+    redis.expire(f"sessions:{user_id}", 60 * 60 * 24 * 7)  # match refresh token lifetime
+
+
+def _unregister_session(redis, user_id: str, jti: str) -> None:
+    """Remove a session when a user logs out or token is blacklisted."""
+    try:
+        redis.zrem(f"sessions:{user_id}", jti)
+    except Exception:
+        pass
+
+
 def _blacklist_token(redis, jti: str, exp: int) -> None:
     try:
         ttl = max(exp - int(datetime.now(timezone.utc).timestamp()), 1)
         redis.setex(f"token:bl:{jti}", ttl, "1")
     except Exception:
         pass
+
+
+def _track_device(db: Session, user_id: str, fingerprint: str, ip: str, request: Request) -> None:
+    from app.models.device_fingerprint import DeviceFingerprint
+    from datetime import date
+
+    existing = db.query(DeviceFingerprint).filter(
+        DeviceFingerprint.user_id == user_id,
+        DeviceFingerprint.fingerprint_hash == fingerprint,
+    ).first()
+
+    if existing:
+        existing.last_seen_at = datetime.now(timezone.utc)
+        existing.ip_address = ip
+        db.commit()
+        return
+
+    device = DeviceFingerprint(
+        user_id=user_id,
+        fingerprint_hash=fingerprint,
+        ip_address=ip,
+        user_agent=request.headers.get("user-agent", ""),
+        is_trusted=False,
+    )
+    db.add(device)
+    db.commit()
+
+    _alert_new_device(db, user_id, fingerprint, ip, request)
+
+
+def _alert_new_device(db: Session, user_id: str, fingerprint: str, ip: str, request: Request) -> None:
+    from app.core.notifications import send_notification
+
+    send_notification(
+        db, user_id, "NEW_DEVICE_LOGIN",
+        f"New device logged into your account from {ip}",
+        {"fingerprint": fingerprint[-8:], "ip": ip, "user_agent": request.headers.get("user-agent", "")},
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -143,8 +215,15 @@ def login(
             role_name=role_name,
         )
 
+    if data.device_fingerprint:
+        _track_device(db, user.id, data.device_fingerprint, ip, request)
+
     access_token = auth_service.create_access_token({"sub": user.id, "role": role_name})
     refresh_token_str = auth_service.create_refresh_token({"sub": user.id})
+
+    if redis:
+        _check_concurrent_sessions(redis, user.id)
+        _register_session(redis, user.id, refresh_token_str)
 
     auth_service.update_last_login(db, user.id)
     auth_service.log_login_audit(

@@ -1,32 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
 import { MapPin, Phone, User, Pencil } from "lucide-react"
-import { branchService } from "@/services/api"
 import Link from "next/link"
-import { toast } from "@/hooks/use-toast"
+import { useBranches } from "@/hooks/queries"
 
 export default function AdminBranches() {
-  const [branches, setBranches] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const { data: branchesData, isLoading } = useBranches()
+  const branches = (branchesData || []).map((b: any) => ({ ...b, students: b.student_count ?? b.students ?? 0 }))
 
-  useEffect(() => {
-    branchService.list()
-      .then((res) => {
-        const data = res.data?.data || res.data || []
-        setBranches(data.map((b: any) => ({ ...b, students: b.student_count ?? b.students ?? 0 })))
-      })
-      .catch((err) => {
-        toast({ title: "Failed to load branches", description: err?.response?.data?.detail || err.message, variant: "destructive" })
-      })
-      .finally(() => setLoading(false))
-  }, [])
-
-  const filtered = branches.filter(b => !search || b.name.toLowerCase().includes(search.toLowerCase()) || b.code.toLowerCase().includes(search.toLowerCase()))
+  const filtered = branches.filter((b: any) => !search || b.name.toLowerCase().includes(search.toLowerCase()) || b.code.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <GenericListPage
@@ -44,7 +31,7 @@ export default function AdminBranches() {
       ]}
       data={filtered}
       keyExtractor={(b) => b.id}
-      loading={loading}
+      loading={isLoading}
       searchPlaceholder="Search branches..."
       onSearch={setSearch}
       onCreateLabel="New Branch"

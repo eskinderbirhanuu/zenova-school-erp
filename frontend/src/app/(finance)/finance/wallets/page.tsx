@@ -1,33 +1,23 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useWalletTransactions } from "@/hooks/queries"
 
 export default function FinanceWalletsPage() {
-  const [wallets, setWallets] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const { data: raw, isLoading } = useWalletTransactions({ limit: 200, group_by: "student" })
 
-  useEffect(() => {
-    api.get("/wallet/transactions", { params: { limit: 200, group_by: "student" } })
-      .then((res) => {
-        const raw = res.data?.data || res.data || []
-        setWallets(raw.map((w: any) => ({
-          id: w.id,
-          user: w.student_name || w.user_name || w.user || "—",
-          type: w.account_type || w.type || "Student",
-          balance: w.balance ?? 0,
-          status: w.status || "active",
-          lastTxn: w.last_transaction_date || w.last_txn || w.date || "—",
-        })))
-      })
-      .catch(() => toast({ title: "Error", description: "Failed to load wallets", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const wallets = (raw || []).map((w: any) => ({
+    id: w.id,
+    user: w.student_name || w.user_name || w.user || "—",
+    type: w.account_type || w.type || "Student",
+    balance: w.balance ?? 0,
+    status: w.status || "active",
+    lastTxn: w.last_transaction_date || w.last_txn || w.date || "—",
+  }))
 
-  const filtered = wallets.filter(w => !search || w.user?.toLowerCase().includes(search.toLowerCase()))
+  const filtered = wallets.filter((w: any) => !search || w.user?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <GenericListPage
@@ -39,7 +29,7 @@ export default function FinanceWalletsPage() {
         { key: "lastTxn", header: "Last Activity", render: (w) => <span className="text-muted-foreground">{w.lastTxn || "\u2014"}</span> },
       ]}
       data={filtered} keyExtractor={(w) => w.id}
-      loading={loading} searchPlaceholder="Search user..." onSearch={setSearch}
+      loading={isLoading} searchPlaceholder="Search user..." onSearch={setSearch}
       emptyTitle="No wallets found"
     />
   )

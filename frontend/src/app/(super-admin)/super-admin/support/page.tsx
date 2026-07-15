@@ -1,14 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
 import { MessageSquare, Loader2, Search, CheckCircle, Clock, AlertCircle } from "lucide-react"
+import { useSupportTickets, useSupportTicketCounts } from "@/hooks/queries"
 
 const priorityBadge = (p: string) => {
   const styles: Record<string, string> = {
@@ -29,24 +28,14 @@ const statusBadge = (s: string) => {
 }
 
 export default function SuperAdminSupport() {
-  const [tickets, setTickets] = useState<any[]>([])
-  const [counts, setCounts] = useState({ total: 0, open: 0, in_progress: 0, resolved: 0 })
-  const [loading, setLoading] = useState(true)
+  const { data: tickets = [], isLoading: loading } = useSupportTickets()
+  const { data: countsData } = useSupportTicketCounts()
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("All")
 
-  useEffect(() => {
-    setLoading(true)
-    api.get("/support/tickets", { params: { limit: 200 } })
-      .then(res => setTickets(res.data || []))
-      .catch(err => toast({ title: "Failed to load tickets", variant: "destructive" }))
-      .finally(() => setLoading(false))
-    api.get("/support/tickets/counts")
-      .then(res => setCounts(res.data))
-      .catch(() => {})
-  }, [])
+  const counts = { total: 0, open: 0, in_progress: 0, resolved: 0, ...(countsData as object || {}) } as any
 
-  const filtered = tickets.filter((t) => {
+  const filtered = (tickets as any[]).filter((t: any) => {
     const matchesSearch = !search || t.subject?.toLowerCase().includes(search.toLowerCase()) || t.school_name?.toLowerCase().includes(search.toLowerCase()) || t.ticket_number?.toLowerCase().includes(search.toLowerCase())
     const matchesFilter = filter === "All" || t.status === filter || t.priority === filter
     return matchesSearch && matchesFilter
@@ -70,7 +59,7 @@ export default function SuperAdminSupport() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {["All", "Open", "In Progress", "Resolved", "High", "Medium", "Low"].map((f) => (
+          {["All", "Open", "In Progress", "Resolved", "High", "Medium", "Low"].map((f: any) => (
             <Button key={f} variant={filter === f ? "default" : "outline"} size="sm" onClick={() => setFilter(f)}>{f}</Button>
           ))}
         </div>
@@ -100,7 +89,7 @@ export default function SuperAdminSupport() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((t) => (
+                {filtered.map((t: any) => (
                   <tr key={t.id} className="border-b last:border-0 hover:bg-muted/50">
                     <td className="p-4 font-mono text-xs">{t.ticket_number}</td>
                     <td className="p-4 text-muted-foreground">{t.school_name || "—"}</td>

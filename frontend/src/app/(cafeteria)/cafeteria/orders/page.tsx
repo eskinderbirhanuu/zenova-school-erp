@@ -1,31 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { cafeteriaService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useCafeteriaOrders } from "@/hooks/queries"
 
 export default function CafeteriaOrdersPage() {
-  const [orders, setOrders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: rawOrders, isLoading } = useCafeteriaOrders({ limit: 200 })
 
-  useEffect(() => {
-    cafeteriaService.orders.list({ limit: 200 })
-      .then((res) => {
-        const raw = res.data?.data || res.data || []
-        setOrders(raw.map((o: any) => ({
-          id: o.id,
-          customer: o.student_name || o.customer_name || o.customer || "—",
-          items: o.items ? (Array.isArray(o.items) ? o.items.map((i: any) => i.name || i).join(", ") : o.items) : "—",
-          total: o.total ?? o.total_amount ?? 0,
-          status: o.status || "pending",
-          time: o.time || o.created_at ? new Date(o.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
-        })))
-      })
-      .catch(() => toast({ title: "Error", description: "Failed to load orders", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const orders = (rawOrders || []).map((o: any) => ({
+    id: o.id,
+    customer: o.student_name || o.customer_name || o.customer || "—",
+    items: o.items ? (Array.isArray(o.items) ? o.items.map((i: any) => i.name || i).join(", ") : o.items) : "—",
+    total: o.total ?? o.total_amount ?? 0,
+    status: o.status || "pending",
+    time: o.time || o.created_at ? new Date(o.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
+  }))
 
   return (
     <GenericListPage
@@ -38,7 +28,7 @@ export default function CafeteriaOrdersPage() {
         { key: "status", header: "Status", render: (o) => <StatusBadge status={o.status} /> },
       ]}
       data={orders} keyExtractor={(o) => o.id}
-      loading={loading} emptyTitle="No orders"
+      loading={isLoading} emptyTitle="No orders"
     />
   )
 }

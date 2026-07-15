@@ -1,28 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useLibraryMembers } from "@/hooks/queries"
 
 const statusColor: Record<string, string> = {
   Active: "bg-green-100 text-green-700", Inactive: "bg-gray-100 text-gray-700", Suspended: "bg-red-100 text-red-700",
 }
 
 export default function LibraryMembersPage() {
-  const [members, setMembers] = useState<any[]>([])
   const [search, setSearch] = useState("")
-  const [loading, setLoading] = useState(true)
+  const { data: members, isLoading: loading } = useLibraryMembers({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    api.get("/library/members", { params: { limit: 200 } })
-      .then(res => setMembers(res.data || []))
-      .catch(err => toast({ title: "Failed to load members", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const filtered = members.filter(m => !search || m.name?.toLowerCase().includes(search.toLowerCase()) || m.email?.toLowerCase().includes(search.toLowerCase()))
+  const filtered = (members ?? []).filter((m: any) => !search || m.name?.toLowerCase().includes(search.toLowerCase()) || m.email?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <GenericListPage

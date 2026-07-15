@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { studentService, parentService } from "@/services/api"
+import { useStudents, useParents } from "@/hooks/queries"
 import Link from "next/link"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
@@ -17,7 +17,7 @@ import {
   ClipboardList, Clock, ShieldAlert, CreditCard, TrendingUp
 } from "lucide-react"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 function getSeason() {
@@ -86,42 +86,28 @@ const urgencyStyles: Record<string, string> = {
 }
 
 export default function RegistrarDashboard() {
-  const [students, setStudents] = useState<number | string>("-")
-  const [parents, setParents] = useState<number | string>("-")
-  const [loading, setLoading] = useState(true)
+  const { data: studentsData, isLoading: loadingStudents } = useStudents({ limit: 200 })
+  const { data: parentsData, isLoading: loadingParents } = useParents({ limit: 200 })
+  const loading = loadingStudents || loadingParents
 
-  useEffect(() => {
-    Promise.all([
-      studentService.list({ limit: 1 }).then((r) => {
-        const total = r.headers?.["x-total-count"]
-        return total ? Number(total) : r.data?.length ?? "-"
-      }).catch(() => "-"),
-      parentService.list({ limit: 1 }).then((r) => {
-        const total = r.headers?.["x-total-count"]
-        return total ? Number(total) : r.data?.length ?? "-"
-      }).catch(() => "-"),
-    ]).then(([students, parents]) => {
-      setStudents(students)
-      setParents(parents)
-      setLoading(false)
-    })
-  }, [])
+  const students = studentsData?.length ?? "-"
+  const parents = parentsData?.length ?? "-"
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
-  const maxGradeCount = Math.max(...gradeLevelData.map(g => g.count))
+  const maxGradeCount = Math.max(...gradeLevelData.map((g: any) => g.count))
   const funnelMax = funnelData[0].count
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader
@@ -245,7 +231,7 @@ export default function RegistrarDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {gradeLevelData.map((g) => (
+                {gradeLevelData.map((g: any) => (
                   <div key={g.grade} className="flex items-center gap-3">
                     <span className="w-12 text-xs font-medium text-muted-foreground text-right shrink-0">{g.grade}</span>
                     <div className="flex-1 h-6 bg-muted/30 rounded-full overflow-hidden relative">

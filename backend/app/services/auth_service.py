@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.core.security import verify_password, get_password_hash, validate_password_strength
-from app.models.user import User
+from app.models.user import User, PasswordHistory, PASSWORD_HISTORY_LIMIT
 from app.models.role import Role
 from app.models.audit_log import AuditLog
 from app.services.sync_service import enqueue_sync
@@ -47,6 +47,8 @@ def create_user(
         is_superuser=is_superuser,
     )
     db.add(user)
+    db.flush()
+    _record_password_history(db, user.id, user.hashed_password)
     db.commit()
     db.refresh(user)
     enqueue_sync(db, "users", user.id, "CREATE",
@@ -55,11 +57,19 @@ def create_user(
     return user
 
 
+def _jwt_key() -> tuple[str, list[str]]:
+    """Return (signing_key, algorithms) — RS256 if keys configured, else HS256."""
+    if settings.jwt_private_key and settings.jwt_public_key:
+        return settings.jwt_private_key, ["RS256"]
+    return settings.secret_key, [settings.algorithm]
+
+
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
     to_encode.update({"exp": expire, "type": "access", "jti": secrets.token_hex(16)})
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    signing_key, algos = _jwt_key()
+    return jwt.encode(to_encode, signing_key, algorithm=algos[0])
 
 
 def create_mfa_token(data: dict) -> str:
@@ -67,7 +77,8 @@ def create_mfa_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=5)
     to_encode.update({"exp": expire, "type": "mfa_step_up", "jti": secrets.token_hex(16)})
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    signing_key, algos = _jwt_key()
+    return jwt.encode(to_encode, signing_key, algorithm=algos[0])
 
 
 def create_refresh_token(data: dict) -> str:
@@ -75,12 +86,20 @@ def create_refresh_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
     to_encode.update({"exp": expire, "type": "refresh", "jti": secrets.token_hex(16)})
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    signing_key, algos = _jwt_key()
+    return jwt.encode(to_encode, signing_key, algorithm=algos[0])
 
 
 def decode_token(token: str) -> dict | None:
+    """Try RS256 first, fall back to HS256 for backward compatibility."""
+    if settings.jwt_public_key:
+        try:
+            payload = jwt.decode(token, settings.jwt_public_key, algorithms=["RS256", "HS256"])
+            return payload
+        except JWTError:
+            pass
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
         return payload
     except JWTError:
         return None
@@ -147,17 +166,41 @@ def update_last_login(db: Session, user_id: str):
         db.commit()
 
 
+def _check_password_history(db: Session, user_id: str, new_password: str):
+    """Ensure new_password is not in the user's recent password history."""
+    history = db.query(PasswordHistory).filter(
+        PasswordHistory.user_id == user_id,
+    ).order_by(PasswordHistory.created_at.desc()).limit(PASSWORD_HISTORY_LIMIT).all()
+    for entry in history:
+        if verify_password(new_password, entry.hashed_password):
+            raise ValueError(f"Password has been used recently. Choose a different password.")
+
+
+def _record_password_history(db: Session, user_id: str, hashed_password: str):
+    """Record a password hash and prune old entries beyond the limit."""
+    entry = PasswordHistory(user_id=user_id, hashed_password=hashed_password)
+    db.add(entry)
+    # Keep only the most recent PASSWORD_HISTORY_LIMIT entries
+    old = db.query(PasswordHistory).filter(
+        PasswordHistory.user_id == user_id,
+    ).order_by(PasswordHistory.created_at.desc()).offset(PASSWORD_HISTORY_LIMIT).all()
+    for o in old:
+        db.delete(o)
+
+
 def reset_password(db: Session, user_id: str, new_password: str):
     valid, msg = validate_password_strength(new_password)
     if not valid:
         raise ValueError(msg)
     user = db.query(User).filter(User.id == user_id).first()
     if user:
-        # Prevent password reuse to block reset-token replay.
         if verify_password(new_password, user.hashed_password):
             raise ValueError("New password must be different from the current password")
-        user.hashed_password = get_password_hash(new_password)
+        _check_password_history(db, user_id, new_password)
+        new_hash = get_password_hash(new_password)
+        user.hashed_password = new_hash
         user.must_change_password = False
+        _record_password_history(db, user_id, new_hash)
         db.commit()
 
 

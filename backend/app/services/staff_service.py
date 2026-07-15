@@ -4,7 +4,7 @@ from app.models.user import User
 from app.models.role import Role
 from app.models.staff_profile import StaffProfile
 from app.core.security import get_password_hash
-from fastapi import HTTPException
+from app.core.exceptions import NotFoundException, ConflictException, BadRequestException
 from app.core.audit import log_audit
 
 
@@ -89,35 +89,37 @@ def create_staff(
 
 
 def list_staff(db: Session, school_id: str | None = None, role_name: str | None = None, include_deleted: bool = False) -> list[dict]:
-    query = db.query(User).join(StaffProfile, User.id == StaffProfile.user_id).filter(User.is_active == True)
+    from app.models.staff_profile import StaffProfile
+    query = db.query(User, StaffProfile).join(StaffProfile, User.id == StaffProfile.user_id).filter(User.is_active == True)
     if include_deleted:
         query = query.execution_options(include_deleted=True)
     if school_id:
         query = query.filter(User.school_id == school_id)
     if role_name:
-        role = db.query(Role).filter(Role.name == role_name).first()
-        if role:
-            query = query.filter(User.role_id == role.id)
+        matching_role = db.query(Role).filter(Role.name == role_name).first()
+        if matching_role:
+            query = query.filter(User.role_id == matching_role.id)
 
-    users = query.all()
+    rows = query.all()
 
-    result = []
-    for user in users:
-        profile = db.query(StaffProfile).filter(StaffProfile.user_id == user.id).first()
-        role = db.query(Role).filter(Role.id == user.role_id).first()
-        if profile and role:
-            result.append({
-                "id": profile.id,
-                "staff_id": profile.staff_id,
-                "user_id": user.id,
-                "full_name": user.full_name,
-                "email": user.email,
-                "phone": user.phone,
-                "role_name": role.name,
-                "department": profile.department,
-                "is_active": user.is_active,
-            })
-    return result
+    role_ids = {user.role_id for user, _ in rows if user.role_id}
+    roles = {r.id: r.name for r in db.query(Role).filter(Role.id.in_(role_ids)).all()} if role_ids else {}
+
+    return [
+        {
+            "id": profile.id,
+            "staff_id": profile.staff_id,
+            "user_id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone": user.phone,
+            "role_name": roles.get(user.role_id) if user.role_id else "",
+            "department": profile.department,
+            "is_active": user.is_active,
+        }
+        for user, profile in rows
+        if profile
+    ]
 
 
 def get_staff_by_user_id(db: Session, user_id: str) -> StaffProfile | None:
@@ -157,16 +159,16 @@ def update_staff(db: Session, profile_id: str, school_id: str, data, user_id: st
         q = q.execution_options(include_deleted=True)
     profile = q.first()
     if not profile:
-        raise HTTPException(404, "Staff not found")
+        raise NotFoundException("Staff not found")
     user = db.query(User).filter(User.id == profile.user_id, User.school_id == school_id).first()
     if not user:
-        raise HTTPException(404, "Staff not found in this school")
+        raise NotFoundException("Staff not found in this school")
     if data.full_name is not None:
         user.full_name = data.full_name
     if data.email is not None:
         existing = db.query(User).filter(User.email == data.email, User.id != user.id).first()
         if existing:
-            raise HTTPException(409, "Email already in use")
+            raise ConflictException("Email already in use")
         user.email = data.email
     if data.phone is not None:
         user.phone = data.phone
@@ -203,10 +205,10 @@ def deactivate_staff(db: Session, profile_id: str, school_id: str, user_id: str,
         q = q.execution_options(include_deleted=True)
     profile = q.first()
     if not profile:
-        raise HTTPException(404, "Staff not found")
+        raise NotFoundException("Staff not found")
     user = db.query(User).filter(User.id == profile.user_id, User.school_id == school_id).first()
     if not user:
-        raise HTTPException(404, "Staff not found in this school")
+        raise NotFoundException("Staff not found in this school")
     user.is_active = False
     log_audit(db, user_id, "STAFF_DEACTIVATED", "users", user.id, f"Deactivated {user.full_name}", school_id=school_id)
     db.commit()

@@ -1,6 +1,6 @@
 import httpx
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from app.core.exceptions import NotFoundException, BadRequestException
 from app.models.telegram_bot import SchoolTelegramBot
 from app.models.notification_preference import NotificationPreference
 from app.config import settings
@@ -16,17 +16,17 @@ async def _telegram_api(method: str, token: str, payload: dict | None = None) ->
     async with httpx.AsyncClient() as client:
         r = await client.post(url, json=payload or {}, timeout=10)
     if r.status_code != 200:
-        raise HTTPException(400, f"Telegram API error: {r.text}")
+        raise BadRequestException(f"Telegram API error: {r.text}")
     data = r.json()
     if not data.get("ok"):
-        raise HTTPException(400, f"Telegram API error: {data.get('description', 'unknown')}")
+        raise BadRequestException(f"Telegram API error: {data.get('description', 'unknown')}")
     return data["result"]
 
 
 async def connect_bot(db: Session, school_id: str, bot_token: str) -> SchoolTelegramBot:
     existing = db.query(SchoolTelegramBot).filter(SchoolTelegramBot.school_id == school_id).first()
     if existing:
-        raise HTTPException(400, "School already has a Telegram bot configured. Disconnect first.")
+        raise BadRequestException("School already has a Telegram bot configured. Disconnect first.")
 
     bot_info = await _telegram_api("getMe", bot_token)
     bot_username = bot_info.get("username")
@@ -56,7 +56,7 @@ async def disconnect_bot(db: Session, school_id: str):
         SchoolTelegramBot.is_active == True,
     ).first()
     if not bot:
-        raise HTTPException(404, "No active Telegram bot found")
+        raise NotFoundException("No active Telegram bot found")
     try:
         await _telegram_api("deleteWebhook", bot.bot_token)
     except Exception:

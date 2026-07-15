@@ -1,45 +1,33 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/ui/page-header"
+import { useNfcPrintRequests, useNfcCreatePrintRequest } from "@/hooks/queries"
 import { nfcV2Service } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Printer, Plus, Loader2, CheckCircle, XCircle, Clock, Download } from "lucide-react"
 
 export default function CardPrintingPage() {
-  const [requests, setRequests] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState("")
   const [showForm, setShowForm] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({ card_type: "student", reference_id: "", notes: "" })
-
-  const fetch = (status?: string) => {
-    setLoading(true)
-    nfcV2Service.listPrintRequests(status || undefined).then(r => setRequests(r.data)).catch(() => {}).finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetch() }, [])
-
-  useEffect(() => { fetch(filterStatus) }, [filterStatus])
+  const { data: requests, isLoading } = useNfcPrintRequests(filterStatus || undefined)
+  const createMutation = useNfcCreatePrintRequest()
 
   const doSubmit = async () => {
     if (!form.reference_id) { toast({ title: "Reference ID is required", variant: "destructive" }); return }
-    setSubmitting(true)
     try {
-      await nfcV2Service.createPrintRequest(form)
+      await createMutation.mutateAsync(form as any)
       toast({ title: "Print request created" })
       setShowForm(false)
       setForm({ card_type: "student", reference_id: "", notes: "" })
-      fetch(filterStatus)
     } catch (err: any) {
       toast({ title: "Failed", description: err.response?.data?.detail, variant: "destructive" })
     }
-    setSubmitting(false)
   }
 
   const downloadPdf = async (cardType: string, referenceId: string) => {
@@ -58,7 +46,6 @@ export default function CardPrintingPage() {
     try {
       await nfcV2Service.processPrintRequest(id, action)
       toast({ title: action === "approve" ? "Request approved" : action === "print" ? "Marked as printed" : "Request rejected" })
-      fetch(filterStatus)
     } catch { toast({ title: "Action failed", variant: "destructive" }) }
   }
 
@@ -105,7 +92,7 @@ export default function CardPrintingPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={doSubmit} disabled={submitting}>{submitting ? "Submitting..." : "Submit Request"}</Button>
+              <Button onClick={doSubmit} disabled={createMutation.isPending}>{createMutation.isPending ? "Submitting..." : "Submit Request"}</Button>
               <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
             </div>
           </CardContent>
@@ -129,7 +116,7 @@ export default function CardPrintingPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : (
             <table className="w-full text-sm">
@@ -143,9 +130,9 @@ export default function CardPrintingPage() {
                 </tr>
               </thead>
               <tbody>
-                {requests.length === 0 ? (
+                {(requests || []).length === 0 ? (
                   <tr><td className="py-8 text-center text-muted-foreground" colSpan={5}>No print requests</td></tr>
-                ) : requests.map((r: any) => (
+                ) : (requests || []).map((r: any) => (
                   <tr key={r.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="py-3 capitalize">{r.card_type}</td>
                     <td className="py-3 font-mono text-xs">{r.reference_id}</td>

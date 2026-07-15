@@ -1,13 +1,16 @@
 import os
 import threading
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from app.api.v1.router import router as v1_router
 from app.database import Base, engine, SessionLocal
 from app.config import settings
+from app.core.exceptions import AppException
 from app.core.rate_limit_middleware import RateLimitMiddleware
 from app.core.upload_limit_middleware import UploadLimitMiddleware
 from app.core.logging_config import configure_logging
@@ -114,6 +117,27 @@ app.add_middleware(CSRFMiddleware)
 app.include_router(v1_router)
 
 
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException):
+    """Centralized handler for all application-level exceptions."""
+    logger.warning("AppException %s: %s", exc.status_code, exc.detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return a clean 422 response for request validation failures."""
+    errors = exc.errors()
+    logger.warning("Validation error on %s %s: %s", request.method, request.url.path, errors)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": errors[0]["msg"] if errors else "Validation error", "errors": errors},
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all exception handler to prevent stack trace leaks.
@@ -154,6 +178,15 @@ async def watermark_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 def startup():
+    try:
+        db = SessionLocal()
+        from app.services.currency_service import seed_currencies
+        seed_currencies(db)
+        db.commit()
+    except Exception as exc:
+        logger.warning("Currency seeding skipped: %s", exc)
+    finally:
+        db.close()
     for origin in ALLOWED_ORIGINS:
         if origin == "*":
             raise RuntimeError("ALLOWED_ORIGINS must not contain wildcard '*'")

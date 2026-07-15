@@ -1,24 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useStudentAssignments } from "@/hooks/queries"
 
 export default function StudentAssignmentsPage() {
-  const [assignments, setAssignments] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: assignments, isLoading: loading } = useStudentAssignments({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    api.get("/assignments", { params: { limit: 200 } })
-      .then(res => setAssignments(res.data || []))
-      .catch(err => toast({ title: "Failed to load assignments", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const normalized = assignments.map((a: any) => ({
+  const normalized = (assignments ?? []).map((a: any) => ({
     id: a.id,
     title: a.title || "—",
     subject: a.subject || "—",

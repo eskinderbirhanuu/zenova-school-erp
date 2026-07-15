@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation"
 import { GenericFormCard } from "@/components/ui/generic-form-card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { branchService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Loader2, CheckCircle2, Key, Building2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useCreateBranch } from "@/hooks/queries"
 
 export default function NewBranchPage() {
   const router = useRouter()
+  const createBranch = useCreateBranch()
   const [form, setForm] = useState({ name: "", code: "", address: "", phone: "", principal: "", licenseKey: "" })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -21,12 +22,12 @@ export default function NewBranchPage() {
   const handleSubmit = async () => {
     setLoading(true)
     try {
-      await branchService.create({
+      await createBranch.mutateAsync({
         name: form.name, code: form.code,
         address: form.address || null, phone: form.phone || null,
         principal: form.principal || null,
         license_key: form.licenseKey,
-      })
+      } as any)
       setSuccess(true)
       toast({ title: "Branch created successfully" })
       setTimeout(() => router.push("/admin/branches"), 1500)

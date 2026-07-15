@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,24 +8,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageHeader } from "@/components/ui/page-header"
-import { corporateService } from "@/services/api"
+import { useCorporateEmployees, useCreateCorporateEmployee, useCorporateDepartments } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
 export default function NewEmployeePage() {
   const router = useRouter()
-  const [departments, setDepartments] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     user_id: "", full_name: "", email: "", phone: "",
     department_id: "", position: "", employment_type: "full-time",
     employment_date: "", photo_url: "",
   })
-
-  useEffect(() => {
-    corporateService.departments.list().then((res) => setDepartments(res.data)).catch(() => {})
-  }, [])
+  const { data: departments } = useCorporateDepartments()
+  const createMutation = useCreateCorporateEmployee()
 
   const handleChange = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }))
 
@@ -36,11 +33,11 @@ export default function NewEmployeePage() {
     }
     setSaving(true)
     try {
-      const payload = { ...form }
+      const payload = { ...form } as any
       if (form.employment_date) payload.employment_date = form.employment_date
-      else delete (payload as any).employment_date
-      if (!form.photo_url) delete (payload as any).photo_url
-      await corporateService.employees.create(payload)
+      else delete payload.employment_date
+      if (!form.photo_url) delete payload.photo_url
+      await createMutation.mutateAsync(payload)
       toast({ title: "Employee created" })
       router.push("/corporate/employees")
     } catch (err: any) {
@@ -83,7 +80,7 @@ export default function NewEmployeePage() {
               <Select value={form.department_id} onValueChange={v => handleChange("department_id", v)}>
                 <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                 <SelectContent>
-                  {departments.map((d: any) => (
+                  {(departments || []).map((d: any) => (
                     <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                   ))}
                 </SelectContent>

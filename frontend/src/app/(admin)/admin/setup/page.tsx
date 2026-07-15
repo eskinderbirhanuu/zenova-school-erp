@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { academicService, teacherService, setupWizardService } from "@/services/api"
+import { academicService, teacherService } from "@/services/api"
+import { useSetupWizardStatus } from "@/hooks/queries"
 
 const STEPS = [
   { id: "academic_year", label: "Academic Year" },
@@ -15,6 +16,7 @@ const STEPS = [
 
 export default function SetupWizardPage() {
   const router = useRouter()
+  const { data: wizardStatus, isLoading: statusLoading } = useSetupWizardStatus()
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -30,18 +32,14 @@ export default function SetupWizardPage() {
   const [createdSubjectIds, setCreatedSubjectIds] = useState<string[]>([])
 
   useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await setupWizardService.status()
-        if (res.data.all_done) {
-          router.replace("/admin/dashboard")
-          return
-        }
-      } catch {}
-      setLoading(false)
+    if (!statusLoading) {
+      if (wizardStatus?.all_done) {
+        router.replace("/admin/dashboard")
+      } else {
+        setLoading(false)
+      }
     }
-    check()
-  }, [router])
+  }, [wizardStatus, statusLoading, router])
 
   const addClass = () => setClasses([...classes, { name: "", code: "" }])
   const removeClass = (i: number) => {
@@ -96,7 +94,7 @@ export default function SetupWizardPage() {
         }
         await academicService.academicYears.create(academicYear)
       } else if (step === 1) {
-        const invalid = classes.find((c) => !c.name || !c.code)
+        const invalid = classes.find((c: any) => !c.name || !c.code)
         if (invalid) { setError("Please fill in all class fields"); setSaving(false); return }
         const ids: string[] = []
         for (const c of classes) {
@@ -107,17 +105,17 @@ export default function SetupWizardPage() {
         setSections(ids.map((_, i) => ({ classIndex: i, name: "A", capacity: 40 })))
         setSubjects(ids.map((_, i) => ({ classIndex: i, name: "", code: "" })))
       } else if (step === 2) {
-        const invalid = sections.find((s) => !s.name)
+        const invalid = sections.find((s: any) => !s.name)
         if (invalid) { setError("Please fill in all section names"); setSaving(false); return }
         for (const s of sections) {
           await academicService.sections.create({
             name: s.name,
             class_id: createdClassIds[s.classIndex],
             capacity: s.capacity,
-          })
+          } as any)
         }
       } else if (step === 3) {
-        const invalid = subjects.find((s) => !s.name || !s.code)
+        const invalid = subjects.find((s: any) => !s.name || !s.code)
         if (invalid) { setError("Please fill in all subject fields"); setSaving(false); return }
         const ids: string[] = []
         for (const s of subjects) {
@@ -125,20 +123,20 @@ export default function SetupWizardPage() {
             name: s.name,
             code: s.code,
             class_id: createdClassIds[s.classIndex],
-          })
+          } as any)
           ids.push(res.data.id)
         }
         setCreatedSubjectIds(ids)
         setTeachers(ids.length > 0 ? [{ full_name: "", email: "", password: "changeme123", subjectIndex: 0 }] : [])
       } else if (step === 4) {
-        const invalid = teachers.find((t) => !t.full_name || !t.email)
+        const invalid = teachers.find((t: any) => !t.full_name || !t.email)
         if (invalid) { setError("Please fill in teacher name and email"); setSaving(false); return }
         for (const t of teachers) {
           const res = await teacherService.create({
             full_name: t.full_name,
             email: t.email,
             password: t.password,
-          })
+          } as any)
           const teacherId = res.data.id
           const subjectId = createdSubjectIds[t.subjectIndex]
           if (subjectId) {

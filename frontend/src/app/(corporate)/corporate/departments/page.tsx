@@ -1,42 +1,35 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { useCorporateDepartments } from "@/hooks/queries"
 import { corporateService } from "@/services/api"
-import { Loader2, Plus, Search, Pencil } from "lucide-react"
+import { Loader2, Plus, Search } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { toast } from "@/hooks/use-toast"
 
 export default function DepartmentsPage() {
-  const [departments, setDepartments] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const router = useRouter()
-
-  useEffect(() => {
-    corporateService.departments.list(true).then((res) => setDepartments(res.data)).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const { data: departments, isLoading } = useCorporateDepartments(true)
 
   const doToggle = async (id: string, current: boolean) => {
     try {
       await corporateService.departments.update(id, { is_active: !current })
       toast({ title: current ? "Department deactivated" : "Department activated" })
-      setDepartments(prev => prev.map(d => d.id === id ? { ...d, is_active: !current } : d))
     } catch {
       toast({ title: "Update failed", variant: "destructive" })
     }
   }
 
-  const filtered = departments.filter((d: any) =>
+  const filtered = (departments || []).filter((d: any) =>
     !search || d.name?.toLowerCase().includes(search.toLowerCase()) || d.code?.toLowerCase().includes(search.toLowerCase())
   )
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
   }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 import {
   Card,
   CardContent,
@@ -8,8 +8,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card"
-import { authService, studentService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useMe, useStudents } from "@/hooks/queries"
 import {
   User,
   Mail,
@@ -40,45 +39,40 @@ interface StudentProfile {
   enrollment_date?: string
 }
 
-export default function StudentProfile() {
-  const [profile, setProfile] = useState<StudentProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+const FALLBACK_PROFILE: StudentProfile = {
+  id: "1",
+  student_id: "STU-001",
+  first_name: "John",
+  last_name: "Doe",
+  email: "john.doe@example.com",
+  phone: "+1 555-123-4567",
+  date_of_birth: "2008-05-15",
+  gender: "Male",
+  address: "123 School Street, City",
+  class_name: "Grade 10",
+  section_name: "Section A",
+  status: "active",
+  enrollment_date: "2023-09-01",
+}
 
-  useEffect(() => {
-    setLoading(true)
-    Promise.all([authService.me(), studentService.list({ limit: 1 })])
-      .then(([meRes, studentRes]: any[]) => {
-        const me = meRes.data
-        const students = studentRes.data || []
-        const student = students.find(
-          (s: any) => s.email === me.email || s.student_id === me.student_id
-        ) || {
-          ...me,
-          student_id: me.student_id || me.id?.slice(0, 8).toUpperCase(),
-          id: me.id,
-        }
-        setProfile(student)
-      })
-      .catch(() => {
-        const fallback: StudentProfile = {
-          id: "1",
-          student_id: "STU-001",
-          first_name: "John",
-          last_name: "Doe",
-          email: "john.doe@example.com",
-          phone: "+1 555-123-4567",
-          date_of_birth: "2008-05-15",
-          gender: "Male",
-          address: "123 School Street, City",
-          class_name: "Grade 10",
-          section_name: "Section A",
-          status: "active",
-          enrollment_date: "2023-09-01",
-        }
-        setProfile(fallback)
-      })
-      .finally(() => setLoading(false))
-  }, [])
+export default function StudentProfile() {
+  const { data: me, isLoading: meLoading, error: meError } = useMe()
+  const { data: students, isLoading: studentsLoading, error: studentsError } = useStudents({ limit: 1 })
+
+  const loading = meLoading || studentsLoading
+
+  const profile = useMemo(() => {
+    if (meError || studentsError) return FALLBACK_PROFILE
+    if (!me || !students) return null
+    const student = students.find(
+      (s: any) => s.email === me.email || s.student_id === (me as any).student_id
+    ) || {
+      ...me,
+      student_id: (me as any).student_id || me.id?.slice(0, 8).toUpperCase(),
+      id: me.id,
+    }
+    return student as StudentProfile
+  }, [me, students, meError, studentsError])
 
   if (loading) {
     return (

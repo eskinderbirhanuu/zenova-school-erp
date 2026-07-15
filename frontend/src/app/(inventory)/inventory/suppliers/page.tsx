@@ -1,31 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { inventoryService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useSuppliers } from "@/hooks/queries"
 
 export default function InventorySuppliersPage() {
-  const [suppliers, setSuppliers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const { data: suppliersData, isLoading } = useSuppliers()
 
-  useEffect(() => {
-    setLoading(true)
-    inventoryService.suppliers.list()
-      .then(res => setSuppliers(res.data || []))
-      .catch(err => toast({ title: "Failed to load suppliers", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const normalized = suppliers.map((s: any) => ({
+  const normalized = (suppliersData || []).map((s: any) => ({
     ...s,
     contact: s.phone || s.contact_person || "—",
     status: s.is_active ? "active" : "inactive",
   }))
 
-  const filtered = normalized.filter(s => !search || s.name?.toLowerCase().includes(search.toLowerCase()))
+  const filtered = normalized.filter((s: any) => !search || s.name?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <GenericListPage
@@ -37,7 +27,7 @@ export default function InventorySuppliersPage() {
         { key: "status", header: "Status", render: (s) => <StatusBadge status={s.is_active ? "active" : "inactive"} /> },
       ]}
       data={filtered} keyExtractor={(s) => s.id}
-      loading={loading} searchPlaceholder="Search suppliers..." onSearch={setSearch}
+      loading={isLoading} searchPlaceholder="Search suppliers..." onSearch={setSearch}
       emptyTitle="No suppliers found"
     />
   )

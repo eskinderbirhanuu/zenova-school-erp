@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from app.core.exceptions import NotFoundException
 from app.models.communication import Announcement, Notification, Message
 from app.models.user import User
 from app.core.audit import log_audit
@@ -29,7 +29,7 @@ def get_notifications(db: Session, user_id: str, unread_only: bool = False):
 
 def mark_notification_read(db: Session, notification_id: str, user_id: str):
     n = db.query(Notification).filter(Notification.id == notification_id, Notification.user_id == user_id).first()
-    if not n: raise HTTPException(404, "Notification not found")
+    if not n: raise NotFoundException("Notification not found")
     n.is_read = True
     db.commit()
     return n
@@ -75,22 +75,25 @@ def get_messages(db: Session, user_id: str, include_sent: bool = False):
         (Message.recipient_id == user_id) | (Message.sender_id == user_id) if include_sent else (Message.recipient_id == user_id)
     )
     messages = q.order_by(Message.created_at.desc()).limit(50).all()
-    result = []
-    for m in messages:
-        sender = db.query(User).filter(User.id == m.sender_id).first()
-        result.append({
+    sender_ids = {m.sender_id for m in messages}
+    senders = {
+        u.id: u.full_name for u in db.query(User).filter(User.id.in_(sender_ids)).all()
+    } if sender_ids else {}
+    return [
+        {
             "id": m.id, "sender_id": m.sender_id, "recipient_id": m.recipient_id,
             "subject": m.subject, "message": m.message, "is_read": m.is_read,
-            "read_at": m.read_at, "sender_name": sender.full_name if sender else None,
+            "read_at": m.read_at, "sender_name": senders.get(m.sender_id),
             "created_at": m.created_at,
-        })
-    return result
+        }
+        for m in messages
+    ]
 
 
 def mark_message_read(db: Session, message_id: str, user_id: str):
     m = db.query(Message).filter(Message.id == message_id, Message.recipient_id == user_id).first()
     if not m:
-        raise HTTPException(404, "Message not found")
+        raise NotFoundException("Message not found")
     m.is_read = True
     from datetime import datetime, timezone
     m.read_at = datetime.now(timezone.utc)

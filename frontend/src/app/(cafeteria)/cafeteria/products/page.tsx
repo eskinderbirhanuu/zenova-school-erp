@@ -1,32 +1,25 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { cafeteriaService } from "@/services/api"
+import { useCafeteriaProducts, useCreateCafeteriaProduct } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { Plus } from "lucide-react"
 
 export default function CafeteriaProductsPage() {
-  const [products, setProducts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: products, isLoading } = useCafeteriaProducts({ limit: 100 })
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: "", price: "", category: "", description: "" })
-
-  const load = () => {
-    setLoading(true)
-    cafeteriaService.products.list({ limit: 100 }).then((r: any) => setProducts(r.data)).catch(() => toast({ title: "Failed to load products", variant: "destructive" })).finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load() }, [])
+  const createProductMutation = useCreateCafeteriaProduct()
 
   const handleCreate = async () => {
     if (!form.name || !form.price) { toast({ title: "Name and price are required", variant: "destructive" }); return }
     try {
-      await cafeteriaService.products.create({ name: form.name, price: Number(form.price), category: form.category || undefined, description: form.description || undefined })
-      toast({ title: "Product created" }); setShowForm(false); setForm({ name: "", price: "", category: "", description: "" }); load()
+      await createProductMutation.mutateAsync({ name: form.name, price: Number(form.price), category: form.category || undefined, description: form.description || undefined } as any)
+      toast({ title: "Product created" }); setShowForm(false); setForm({ name: "", price: "", category: "", description: "" })
     } catch { toast({ title: "Failed to create product", variant: "destructive" }) }
   }
 
@@ -37,11 +30,11 @@ export default function CafeteriaProductsPage() {
         columns={[
           { key: "name", header: "Name", render: (p) => <span className="font-medium">{p.name}</span> },
           { key: "category", header: "Category", render: (p) => <span>{p.category || "\u2014"}</span> },
-          { key: "price", header: "Price", render: (p) => <span className="font-mono">${Number(p.price || p.unit_price || 0).toFixed(2)}</span> },
-          { key: "desc", header: "Description", render: (p) => <span className="text-muted-foreground">{p.description || "\u2014"}</span> },
+          { key: "price", header: "Price", render: (p: any) => <span className="font-mono">${Number(p.price || p.unit_price || 0).toFixed(2)}</span> },
+          { key: "desc", header: "Description", render: (p: any) => <span className="text-muted-foreground">{p.description || "\u2014"}</span> },
         ]}
-        data={products} keyExtractor={(p) => p.id}
-        loading={loading} emptyTitle="No products found"
+        data={products || []} keyExtractor={(p) => p.id}
+        loading={isLoading} emptyTitle="No products found"
         actions={<Button onClick={() => setShowForm(!showForm)}><Plus className="mr-2 h-4 w-4" />Add Product</Button>}
       />
       {showForm && (

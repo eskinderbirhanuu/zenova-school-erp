@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useParams } from "next/navigation"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericDetailCard } from "@/components/ui/generic-detail-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { studentService } from "@/services/api"
+import { useStudent } from "@/hooks/queries"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { QrCode, CreditCard, CheckCircle, XCircle } from "lucide-react"
@@ -14,21 +14,10 @@ import { QrCode, CreditCard, CheckCircle, XCircle } from "lucide-react"
 export default function StudentDetailPage() {
   const params = useParams()
   const id = params.id as string
-  const [student, setStudent] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const { data: student, isLoading, error } = useStudent(id)
   const [qrUuid, setQrUuid] = useState("")
   const [nfcUid, setNfcUid] = useState("")
   const [nfcStatus, setNfcStatus] = useState("")
-
-  useEffect(() => {
-    if (!id) return
-    setLoading(true)
-    studentService.get(id)
-      .then((r) => setStudent(r.data))
-      .catch(() => { setError("Student not found"); toast({ title: "Student not found", variant: "destructive" }) })
-      .finally(() => setLoading(false))
-  }, [id])
 
   const generateQr = async () => {
     try {
@@ -48,7 +37,7 @@ export default function StudentDetailPage() {
   }
 
   if (!student) {
-    return <GenericDetailCard title="Student" backHref="/registrar/students" loading={loading} error={error} fields={[]} />
+    return <GenericDetailCard title="Student" backHref="/registrar/students" loading={isLoading} error={error ? "Student not found" : ""} fields={[]} />
   }
 
   return (
@@ -57,7 +46,7 @@ export default function StudentDetailPage() {
         title={`${student.first_name} ${student.last_name}`}
         backHref="/registrar/students"
         editHref={`/registrar/students/${id}/edit`}
-        loading={loading}
+        loading={isLoading}
         fields={[
           { label: "Student ID", value: <span className="font-mono text-xs text-muted-foreground">{student.student_id}</span> },
           { label: "First Name", value: student.first_name },
@@ -76,7 +65,7 @@ export default function StudentDetailPage() {
             fields: [
               { label: "Grade", value: student.grade_id || "Not assigned" },
               { label: "Section", value: student.section_id || "\u2014" },
-              { label: "Stream", value: student.stream || "\u2014" },
+              { label: "Stream", value: (student as any).stream || "\u2014" },
               { label: "Medical Notes", value: student.medical_notes || "\u2014" },
             ],
           },

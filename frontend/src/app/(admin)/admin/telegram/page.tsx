@@ -1,42 +1,34 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useCallback } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
 import { toast } from "@/hooks/use-toast"
 import { MessageSquare, Link2, Link2Off, Bot, RefreshCw, Loader2, CheckCircle2, XCircle } from "lucide-react"
+import { useTelegramStatus } from "@/hooks/queries"
 import api from "@/services/api"
 
 export default function AdminTelegram() {
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [saving, setSaving] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
-  const [botConnected, setBotConnected] = useState(false)
-  const [botInfo, setBotInfo] = useState({ bot_username: "", bot_name: "", logo_url: "" })
   const [token, setToken] = useState("")
 
-  const fetchStatus = () => {
-    setLoading(true)
-    api.get("/telegram/bot/status")
-      .then((res) => {
-        const d = res.data?.data || res.data || {}
-        if (d.bot_username) {
-          setBotConnected(true)
-          setBotInfo(d)
-        } else {
-          setBotConnected(false)
-          setBotInfo({ bot_username: "", bot_name: "", logo_url: "" })
-        }
-      })
-      .catch((err) => {
-        toast({ title: "Failed to check bot status", description: err?.response?.data?.detail || err.message, variant: "destructive" })
-      })
-      .finally(() => setLoading(false))
+  const { data: statusData, isLoading } = useTelegramStatus()
+  const statusAny = statusData as any
+  const botConnected = !!(statusAny?.bot_username)
+  const botInfo = {
+    bot_username: statusAny?.bot_username || "",
+    bot_name: statusAny?.bot_name || "",
+    logo_url: statusAny?.logo_url || "",
   }
 
-  useEffect(() => { fetchStatus() }, [])
+  const refreshStatus = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["telegram", "status"] })
+  }, [queryClient])
 
   const handleConnect = async () => {
     if (!token.trim()) {
@@ -48,7 +40,7 @@ export default function AdminTelegram() {
       await api.post("/telegram/bot/connect", { bot_token: token.trim() })
       toast({ title: "Bot connected successfully" })
       setToken("")
-      fetchStatus()
+      refreshStatus()
     } catch (err: any) {
       toast({ title: "Failed to connect bot", description: err?.response?.data?.detail || err.message, variant: "destructive" })
     } finally {
@@ -62,8 +54,7 @@ export default function AdminTelegram() {
     try {
       await api.delete("/telegram/bot/disconnect")
       toast({ title: "Bot disconnected" })
-      setBotConnected(false)
-      setBotInfo({ bot_username: "", bot_name: "", logo_url: "" })
+      refreshStatus()
     } catch (err: any) {
       toast({ title: "Failed to disconnect bot", description: err?.response?.data?.detail || err.message, variant: "destructive" })
     } finally {
@@ -71,7 +62,7 @@ export default function AdminTelegram() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

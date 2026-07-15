@@ -1,38 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { DollarSign, TrendingUp, Key, AlertCircle } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ComposedChart, Legend } from "recharts"
-import { dashboardService, platformService } from "@/services/api"
+import { usePlatformAdminDashboard, useDashboardTrends, usePlatformSchoolReport } from "@/hooks/queries"
 
 export default function SuperAdminRevenue() {
-  const [dashboardData, setDashboardData] = useState<any>(null)
-  const [revenueTrend, setRevenueTrend] = useState<any[]>([])
-  const [schoolReport, setSchoolReport] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.allSettled([
-      platformService.adminDashboard(),
-      dashboardService.trends(12),
-      platformService.schoolReport(),
-    ]).then(([dash, trends, schools]) => {
-      if (dash.status === "fulfilled") setDashboardData(dash.value.data)
-      if (trends.status === "fulfilled") setRevenueTrend(trends.value.data.revenue_trend || [])
-      if (schools.status === "fulfilled") setSchoolReport(schools.value.data || [])
-    }).finally(() => setLoading(false))
-  }, [])
+  const { data: dashboardData, isLoading: dashLoading } = usePlatformAdminDashboard()
+  const { data: trendsData, isLoading: trendsLoading } = useDashboardTrends(12)
+  const { data: schoolReport, isLoading: schoolsLoading } = usePlatformSchoolReport()
+  const loading = dashLoading || trendsLoading || schoolsLoading
+  const revenueTrend = (trendsData as any)?.revenue_trend || []
 
   if (loading) return <div className="space-y-6"><PageHeader title="Financial Control" description="Loading..." /></div>
 
-  const monthly = dashboardData?.total_revenue ?? 0
-  const yearly = dashboardData?.total_revenue ?? 0
-  const pending = dashboardData?.pending_fees ?? 0
-  const invoiced = dashboardData?.invoiced_fees ?? 0
-  const paid = dashboardData?.paid_fees ?? 0
+  const d = dashboardData as any
+  const monthly = d?.total_revenue ?? 0
+  const yearly = d?.total_revenue ?? 0
+  const pending = d?.pending_fees ?? 0
+  const invoiced = d?.invoiced_fees ?? 0
+  const paid = d?.paid_fees ?? 0
 
   return (
     <div className="space-y-6">
@@ -72,7 +61,7 @@ export default function SuperAdminRevenue() {
                 </tr>
               </thead>
               <tbody>
-                {(dashboardData?.school_rankings ?? schoolReport).map((s: any) => (
+                {(d?.school_rankings ?? schoolReport ?? []).map((s: any) => (
                   <tr key={s.school_id ?? s.school_name} className="border-b last:border-0 hover:bg-muted/50">
                     <td className="p-4 font-medium">{s.school_name}</td>
                     <td className="p-4 font-medium">${(s.revenue ?? 0).toLocaleString()}</td>
@@ -91,7 +80,7 @@ export default function SuperAdminRevenue() {
               { label: "Paid Fees", value: paid, color: "text-emerald-600" },
               { label: "Invoiced Fees", value: invoiced, color: "text-purple-600" },
               { label: "Pending Fees", value: pending, color: "text-orange-600" },
-            ].map((item) => (
+            ].map((item: any) => (
               <div key={item.label} className="flex justify-between items-center border-b pb-2 last:border-0">
                 <span className="text-muted-foreground">{item.label}</span>
                 <span className={`font-semibold ${item.color}`}>${item.value.toLocaleString()}</span>

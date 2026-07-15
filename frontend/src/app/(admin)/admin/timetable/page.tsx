@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { academicService, teacherService } from "@/services/api"
+import { useState } from "react"
+import { academicService } from "@/services/api"
+import { useClasses, useTeachers, useSections, useTimetable, useSubjects } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
 import { Plus, Pencil, Trash2, X, Check, AlertTriangle, Loader2 } from "lucide-react"
 
@@ -10,13 +11,8 @@ const HOURS = Array.from({ length: 10 }, (_, i) => i + 7)
 const DAY_INDEX_MAP: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5 }
 
 export default function TimetableBuilderPage() {
-  const [classes, setClasses] = useState<any[]>([])
-  const [sections, setSections] = useState<any[]>([])
-  const [teachers, setTeachers] = useState<any[]>([])
-  const [entries, setEntries] = useState<any[]>([])
   const [selectedClass, setSelectedClass] = useState("")
   const [selectedSection, setSelectedSection] = useState("")
-  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editEntry, setEditEntry] = useState<any>(null)
   const [saving, setSaving] = useState(false)
@@ -30,31 +26,11 @@ export default function TimetableBuilderPage() {
     endHour: 9,
   })
 
-  useEffect(() => {
-    Promise.all([
-      academicService.classes.list(),
-      teacherService.list({ limit: 200 }),
-    ]).then(([cls, tch]) => {
-      setClasses(cls.data)
-      setTeachers(tch.data || [])
-    }).finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    if (selectedClass) {
-      academicService.sections.list({ class_id: selectedClass }).then((r) => setSections(r.data))
-    } else {
-      setSections([])
-    }
-  }, [selectedClass])
-
-  useEffect(() => {
-    if (selectedSection) {
-      academicService.timetable.list({ section_id: selectedSection }).then((r) => setEntries(r.data))
-    } else {
-      setEntries([])
-    }
-  }, [selectedSection])
+  const { data: classes = [], isLoading } = useClasses()
+  const { data: teachers = [] } = useTeachers({ limit: 200 })
+  const { data: sections = [] } = useSections(selectedClass ? { class_id: selectedClass } : undefined)
+  const { data: entries = [], refetch: refetchTimetable } = useTimetable(selectedSection ? { section_id: selectedSection } : undefined)
+  const { data: subjects = [] } = useSubjects(selectedClass ? { class_id: selectedClass } : undefined)
 
   const openAddForm = (day: number, hour: number) => {
     setEditEntry(null)
@@ -82,7 +58,7 @@ export default function TimetableBuilderPage() {
     setSaving(true)
     setError("")
     try {
-      const payload = {
+      const payload: any = {
         day_of_week: formData.day,
         start_time: `${String(formData.startHour).padStart(2, "0")}:00`,
         end_time: `${String(formData.endHour).padStart(2, "0")}:00`,
@@ -102,8 +78,7 @@ export default function TimetableBuilderPage() {
       } else {
         await academicService.timetable.create(payload)
       }
-      const updated = await academicService.timetable.list({ section_id: selectedSection })
-      setEntries(updated.data)
+      refetchTimetable()
       setShowForm(false)
     } catch (e: any) {
       setError(e?.response?.data?.detail || "Save failed")
@@ -115,32 +90,22 @@ export default function TimetableBuilderPage() {
     if (!confirm("Delete this timetable entry?")) return
     try {
       await academicService.timetable.delete(id)
-      setEntries(entries.filter((e) => e.id !== id))
+      refetchTimetable()
     } catch {}
   }
 
   const getEntry = (day: number, hour: number) =>
-    entries.find((e) => e.day_of_week === day && parseInt(e.start_time) <= hour && parseInt(e.end_time) > hour)
+    entries.find((e: any) => e.day_of_week === day && parseInt(e.start_time) <= hour && parseInt(e.end_time) > hour)
 
   const getSubjectName = (id: string) => {
-    const subject = classes.find((c) => c.id === selectedClass) ? null : null
+    const subject = classes.find((c: any) => c.id === selectedClass) ? null : null
     return id || "—"
   }
-
-  const [subjects, setSubjects] = useState<any[]>([])
-
-  useEffect(() => {
-    if (selectedClass) {
-      academicService.subjects.list({ class_id: selectedClass }).then((r) => setSubjects(r.data || [])).catch(() => {})
-    } else {
-      setSubjects([])
-    }
-  }, [selectedClass])
 
   const teacherName = (id: string) => {
     if (!id) return ""
     const t = teachers.find((t: any) => t.id === id || t.user_id === id || t.teacher_id === id)
-    return t?.full_name || t?.name || ""
+    return (t as any)?.full_name || (t as any)?.name || ""
   }
 
   const entryColor = (entry: any) => {
@@ -158,7 +123,7 @@ export default function TimetableBuilderPage() {
     return colors[idx]
   }
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>
   }
 
@@ -203,13 +168,13 @@ export default function TimetableBuilderPage() {
               <thead>
                 <tr>
                   <th className="w-20 p-2 border bg-gray-50 text-left text-gray-600 font-medium">Time</th>
-                  {DAYS.map((d) => (
+                  {DAYS.map((d: any) => (
                     <th key={d} className="p-2 border bg-gray-50 text-center text-gray-600 font-medium w-32">{d}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {HOURS.map((hour) => (
+                {HOURS.map((hour: any) => (
                   <tr key={hour}>
                     <td className="p-2 border text-gray-500 text-xs font-mono">
                       {String(hour).padStart(2, "0")}:00
@@ -286,7 +251,7 @@ export default function TimetableBuilderPage() {
                     onChange={(e) => setFormData({ ...formData, startHour: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 border rounded-lg text-sm"
                   >
-                    {HOURS.map((h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
+                    {HOURS.map((h: any) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
                   </select>
                 </div>
                 <div>
@@ -296,7 +261,7 @@ export default function TimetableBuilderPage() {
                     onChange={(e) => setFormData({ ...formData, endHour: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 border rounded-lg text-sm"
                   >
-                    {HOURS.filter((h) => h > formData.startHour).map((h) => (
+                    {HOURS.filter((h: any) => h > formData.startHour).map((h: any) => (
                       <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
                     ))}
                   </select>

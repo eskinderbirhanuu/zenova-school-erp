@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useState, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,10 +8,13 @@ import { academicService, studentService } from "@/services/api"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Save, Download, Upload } from "lucide-react"
+import { useExams, useClasses } from "@/hooks/queries"
 
 export default function GradebookPage() {
-  const [exams, setExams] = useState<any[]>([])
-  const [classes, setClasses] = useState<any[]>([])
+  const { data: examsData } = useExams()
+  const { data: classesData } = useClasses()
+  const exams = examsData ?? []
+  const classes = classesData ?? []
   const [selectedExam, setSelectedExam] = useState("")
   const [selectedClass, setSelectedClass] = useState("")
   const [students, setStudents] = useState<any[]>([])
@@ -20,13 +23,6 @@ export default function GradebookPage() {
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    Promise.all([
-      academicService.exams.list().then((r: any) => setExams(r.data)),
-      academicService.classes.list().then((r: any) => setClasses(r.data)),
-    ]).catch(() => toast({ title: "Failed to load", variant: "destructive" }))
-  }, [])
 
   const loadStudents = async () => {
     if (!selectedClass || !selectedExam) return
@@ -58,7 +54,7 @@ export default function GradebookPage() {
 
   const exportExcel = () => {
     if (!selectedExam) { toast({ title: "Select an exam first", variant: "destructive" }); return }
-    api.get("/exam-results/export-excel", { params: { exam_id: selectedExam }, responseType: "blob" }).then((res) => {
+    api.get("/exam-results/export-excel", { params: { exam_id: selectedExam }, responseType: "blob" }).then((res: any) => {
       const url = URL.createObjectURL(new Blob([res.data]))
       const a = document.createElement("a"); a.href = url; a.download = "exam_results.xlsx"; a.click()
       URL.revokeObjectURL(url)

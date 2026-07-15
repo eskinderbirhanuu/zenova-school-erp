@@ -92,6 +92,33 @@ def process_queue(db: Session, limit: int = 50) -> dict:
     }
 
 
+def _validate_vps_url_at_connect(vps_url: str) -> str:
+    """Validate VPS URL at connection time (anti-DNS-rebinding). Returns the URL or raises."""
+    from urllib.parse import urlparse
+    import socket
+
+    parsed = urlparse(vps_url)
+    hostname = parsed.hostname
+    if not hostname:
+        raise RuntimeError("Invalid VPS URL: no hostname")
+
+    try:
+        addrs = socket.getaddrinfo(hostname, None)
+        resolved = set()
+        for family, _, _, _, sockaddr in addrs:
+            resolved.add(sockaddr[0])
+
+        from ipaddress import ip_address
+        for ip_str in resolved:
+            addr = ip_address(ip_str)
+            if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_multicast:
+                raise RuntimeError(f"VPS URL resolves to internal IP: {ip_str}")
+    except socket.gaierror as e:
+        raise RuntimeError(f"VPS URL DNS resolution failed: {e}")
+
+    return vps_url
+
+
 def _send_to_vps(entry: SyncQueue):
     from app.core import server_identity
     import hmac
@@ -105,6 +132,8 @@ def _send_to_vps(entry: SyncQueue):
     sync_secret = identity.get("sync_secret")
     if not sync_secret:
         raise RuntimeError("No sync_secret configured")
+
+    _validate_vps_url_at_connect(vps_url)
 
     import urllib.request
     import urllib.error

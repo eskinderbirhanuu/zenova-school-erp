@@ -63,9 +63,13 @@ class Settings(BaseSettings):
     backup_cloud_access_key: str = ""
     backup_cloud_secret_key: str = ""
 
+    jwt_private_key: str = ""
+    jwt_public_key: str = ""
+
     base_url: str = "http://localhost:8000"
     license_server_url: str = "https://superadmin.free.nf"
     license_offline_grace_days: int = 45
+    chapa_api_url: str = "https://api.chapa.co/v1"
 
     @property
     def is_production(self) -> bool:

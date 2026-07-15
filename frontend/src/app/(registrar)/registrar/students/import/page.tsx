@@ -48,7 +48,7 @@ export default function StudentImportPage() {
 
   const downloadTemplate = () => {
     if (importMode === "excel") {
-      api.get("/students/export-excel", { responseType: "blob" }).then((res) => {
+      api.get("/students/export-excel", { responseType: "blob" }).then((res: any) => {
         const url = URL.createObjectURL(new Blob([res.data]))
         const a = document.createElement("a"); a.href = url; a.download = "student_template.xlsx"; a.click()
         URL.revokeObjectURL(url)
@@ -154,7 +154,7 @@ export default function StudentImportPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/50 text-left text-muted-foreground">
-                      {Object.keys(preview[0]).map((h) => <th key={h} className="p-2 font-medium text-xs">{h}</th>)}
+                      {Object.keys(preview[0]).map((h: any) => <th key={h} className="p-2 font-medium text-xs">{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>

@@ -4,13 +4,12 @@ import { useEffect, useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Loader2, Activity, Cloud, Database, Gauge, Timer, Server, HardDrive, Wifi, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
-import api from "@/services/api"
+import { Loader2, Cloud, Database, Gauge, Timer, Server, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
+import { useIgaMetrics, useIgaHealthSummary } from "@/hooks/queries"
 
 export default function SuperAdminMonitoring() {
-  const [metrics, setMetrics] = useState<any>(null)
-  const [health, setHealth] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: metrics, isLoading: metricsLoading } = useIgaMetrics()
+  const { data: health, isLoading: healthLoading } = useIgaHealthSummary()
   const [uptime, setUptime] = useState(0)
 
   useEffect(() => {
@@ -19,23 +18,12 @@ export default function SuperAdminMonitoring() {
     return () => clearInterval(interval)
   }, [])
 
-  useEffect(() => {
-    Promise.all([
-      api.get("/iga/metrics"),
-      api.get("/iga/health-summary"),
-    ]).then(([m, h]) => {
-      setMetrics(m.data)
-      setHealth(h.data)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [])
-
   const formatUptime = (s: number) => {
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
     return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`
   }
 
-  if (loading) {
+  if (metricsLoading || healthLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -43,10 +31,10 @@ export default function SuperAdminMonitoring() {
     )
   }
 
-  const s = metrics?.summary || {}
-  const f = metrics?.finance || {}
-  const u = metrics?.users || {}
-  const servers = health?.servers || []
+  const s = (metrics as any)?.summary || {}
+  const f = (metrics as any)?.finance || {}
+  const u = (metrics as any)?.users || {}
+  const servers = (health as any)?.servers || []
 
   return (
     <div className="space-y-6">

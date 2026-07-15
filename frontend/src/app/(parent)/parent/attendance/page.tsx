@@ -1,33 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
+import { useAttendance } from "@/hooks/queries"
 
 export default function ParentAttendance() {
-  const [records, setRecords] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: records, isLoading } = useAttendance({ limit: 200 })
 
-  useEffect(() => {
-    api.get("/attendance", { params: { limit: 200 } })
-      .then((res) => {
-        const data = Array.isArray(res.data) ? res.data : res.data?.data || res.data?.attendance || []
-        setRecords(
-          data.map((r: any) => ({
-            id: r.id,
-            child: r.student_name || r.child_name || r.child || "—",
-            date: r.date || r.attendance_date || "—",
-            subject: r.subject_name || r.class_name || "—",
-            status: r.status || r.attendance_status || "unknown",
-          }))
-        )
-      })
-      .catch(() => {
-        setRecords([])
-      })
-      .finally(() => setLoading(false))
-  }, [])
+  const normalized = ((records as any[]) || []).map((r: any) => ({
+    id: r.id,
+    child: r.student_name || r.child_name || r.child || "—",
+    date: r.date || r.attendance_date || "—",
+    subject: r.subject_name || r.class_name || "—",
+    status: r.status || r.attendance_status || "unknown",
+  }))
 
   return (
     <GenericListPage
@@ -38,8 +24,8 @@ export default function ParentAttendance() {
         { key: "subject", header: "Subject", render: (r) => <span>{r.subject}</span> },
         { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
       ]}
-      data={records} keyExtractor={(r) => r.id}
-      loading={loading} emptyTitle="No attendance records"
+      data={normalized} keyExtractor={(r) => r.id}
+      loading={isLoading} emptyTitle="No attendance records"
     />
   )
 }

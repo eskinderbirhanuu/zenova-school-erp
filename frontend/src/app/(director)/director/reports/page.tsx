@@ -1,13 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
-import { dashboardService, academicService, auditService } from "@/services/api"
+import { useDashboardOverview, useClasses, useAuditLogs } from "@/hooks/queries"
 import { BarChart3, Users, GraduationCap, DollarSign, ClipboardList } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
 
 interface ReportItem {
   title: string
@@ -20,65 +18,16 @@ interface ReportItem {
 
 export default function DirectorReports() {
   const router = useRouter()
-  const [reports, setReports] = useState<ReportItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: overview, isLoading: overviewLoading } = useDashboardOverview()
+  const { data: classes, isLoading: classesLoading } = useClasses()
+  const { data: auditData, isLoading: auditLoading } = useAuditLogs({ limit: 1 } as any)
 
-  useEffect(() => {
-    setLoading(true)
-    Promise.all([
-      dashboardService.overview().then((r) => r.data).catch(() => null),
-      academicService.classes.list().then((r) => {
-        const items = r.data?.items ?? r.data ?? []
-        return Array.isArray(items) ? items.length : 0
-      }).catch(() => 0),
-      auditService.list({ limit: 1 }).then((r) => r.data?.total ?? 0).catch(() => 0),
-    ]).then(([overview, classes, audits]) => {
-      const data = overview || { students: 0, teachers: 0, staff: 0, revenue: 0 }
-      setReports([
-        {
-          title: "Academic Performance",
-          description: "Student grades and exam results summary",
-          icon: BarChart3,
-          value: `${data.students ?? 0} students`,
-          detail: `Across ${classes} classes`,
-          onView: () => router.push("/director/students"),
-        },
-        {
-          title: "Staff Utilization",
-          description: "Teacher and staff allocation overview",
-          icon: Users,
-          value: `${(data.teachers ?? 0) + (data.staff ?? 0)} total staff`,
-          detail: `${data.teachers ?? 0} teachers, ${data.staff ?? 0} support staff`,
-          onView: () => router.push("/director/teachers"),
-        },
-        {
-          title: "Enrollment Trends",
-          description: "Student enrollment numbers over time",
-          icon: GraduationCap,
-          value: `${data.students ?? 0} enrolled`,
-          detail: `${classes} active classes`,
-          onView: () => router.push("/director/dashboard"),
-        },
-        {
-          title: "Financial Summary",
-          description: "Revenue, fees, and payment status",
-          icon: DollarSign,
-          value: `$${Number(data.revenue ?? 0).toLocaleString()}`,
-          detail: `${audits} financial transactions`,
-          onView: () => router.push("/director/finance"),
-        },
-        {
-          title: "Audit Log",
-          description: "Recent system activity and changes",
-          icon: ClipboardList,
-          value: `${audits} events`,
-          detail: "System audit trail",
-          onView: () => router.push("/director/audit"),
-        },
-      ])
-      setLoading(false)
-    })
-  }, [])
+  const loading = overviewLoading || classesLoading || auditLoading
+
+  const data = overview || { totals: { students: 0, teachers: 0, staff: 0 }, finance: { revenue: 0 } }
+  const classData = Array.isArray(classes) ? classes : (classes as any)?.items ?? []
+  const classCount = classData.length
+  const audits = Array.isArray(auditData) ? auditData.length : (auditData as any)?.total ?? 0
 
   if (loading) {
     return (
@@ -87,6 +36,49 @@ export default function DirectorReports() {
       </div>
     )
   }
+
+  const reports: ReportItem[] = [
+    {
+      title: "Academic Performance",
+      description: "Student grades and exam results summary",
+      icon: BarChart3,
+      value: `${data.totals?.students ?? 0} students`,
+      detail: `Across ${classCount} classes`,
+      onView: () => router.push("/director/students"),
+    },
+    {
+      title: "Staff Utilization",
+      description: "Teacher and staff allocation overview",
+      icon: Users,
+      value: `${(data.totals?.teachers ?? 0) + (data.totals?.staff ?? 0)} total staff`,
+      detail: `${data.totals?.teachers ?? 0} teachers, ${data.totals?.staff ?? 0} support staff`,
+      onView: () => router.push("/director/teachers"),
+    },
+    {
+      title: "Enrollment Trends",
+      description: "Student enrollment numbers over time",
+      icon: GraduationCap,
+      value: `${data.totals?.students ?? 0} enrolled`,
+      detail: `${classCount} active classes`,
+      onView: () => router.push("/director/dashboard"),
+    },
+    {
+      title: "Financial Summary",
+      description: "Revenue, fees, and payment status",
+      icon: DollarSign,
+      value: `$${Number(data.finance?.revenue ?? 0).toLocaleString()}`,
+      detail: `${audits} financial transactions`,
+      onView: () => router.push("/director/finance"),
+    },
+    {
+      title: "Audit Log",
+      description: "Recent system activity and changes",
+      icon: ClipboardList,
+      value: `${audits} events`,
+      detail: "System audit trail",
+      onView: () => router.push("/director/audit"),
+    },
+  ]
 
   return (
     <div className="space-y-6">

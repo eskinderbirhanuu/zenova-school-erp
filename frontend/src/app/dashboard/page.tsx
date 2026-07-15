@@ -1,39 +1,47 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { studentService, financeService, hrService, inventoryService, libraryService, cafeteriaService } from "@/services/api"
+import {
+  useStudents, useJournalEntries, useTrialBalance,
+  useAttendance, useContracts, useInventoryItems,
+  useBooks, useCafeteriaOrders,
+} from "@/hooks/queries"
 import { Users, DollarSign, GraduationCap, BookOpen, TrendingUp, Activity, ShoppingCart, UserCheck } from "lucide-react"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({ students: 0, teachers: 0, staff: 0, revenue: 0, inventory: 0, books: 0, orders: 0, attendance: 0 })
-  const [journalData, setJournalData] = useState<any[]>([])
-  const [studentTrend, setStudentTrend] = useState<any[]>([])
+  const { data: students } = useStudents()
+  const { data: trialBalance } = useTrialBalance()
+  const { data: journalEntries } = useJournalEntries({ limit: 100 })
+  const { data: attendance } = useAttendance()
+  const { data: inventoryItems } = useInventoryItems()
+  const { data: books } = useBooks()
+  const { data: cafeteriaOrders } = useCafeteriaOrders()
+  const { data: contracts } = useContracts()
 
-  useEffect(() => {
-    Promise.allSettled([
-      studentService.list({ limit: 1 }).then(r => setStats(s => ({ ...s, students: r.headers?.["x-total-count"] || r.data?.length || 0 }))),
-      financeService.trialBalance().then(r => setStats(s => ({ ...s, revenue: r.data?.total_debit || 0 }))),
-      financeService.journalEntries.list({ limit: 100 }).then(r => {
-        const grouped: Record<string, any> = {}
-        ;(r.data || []).forEach((je: any) => {
-          const m = (je.entry_date || "").substring(0, 7)
-          if (!grouped[m]) grouped[m] = { month: m, debits: 0, credits: 0 }
-          grouped[m].debits += Number(je.total_debit) || 0
-          grouped[m].credits += Number(je.total_credit) || 0
-        })
-        setJournalData(Object.values(grouped).slice(-6))
-      }),
-      hrService.attendance.list({ limit: 1 }).then(r => setStats(s => ({ ...s, attendance: r.data?.length || 0 }))),
-      inventoryService.items.list({ limit: 1 }).then(r => setStats(s => ({ ...s, inventory: r.data?.length || 0 }))),
-      libraryService.books.list({ limit: 1 }).then(r => setStats(s => ({ ...s, books: r.data?.length || 0 }))),
-      cafeteriaService.orders.list({ limit: 1 }).then(r => setStats(s => ({ ...s, orders: r.data?.length || 0 }))),
-      hrService.contracts.list({ limit: 1 }).then(r => setStats(s => ({ ...s, teachers: r.data?.filter((c: any) => c.employee_type === "teacher")?.length || 0 }))),
-    ])
-  }, [])
+  const stats = useMemo(() => ({
+    students: students?.length || 0,
+    revenue: (trialBalance as any)?.total_debit || 0,
+    teachers: (contracts || []).filter((c: any) => c.employee_type === "teacher").length,
+    attendance: attendance?.length || 0,
+    inventory: inventoryItems?.length || 0,
+    books: books?.length || 0,
+    orders: cafeteriaOrders?.length || 0,
+  }), [students, trialBalance, contracts, attendance, inventoryItems, books, cafeteriaOrders])
+
+  const journalData = useMemo(() => {
+    const grouped: Record<string, any> = {}
+    ;(journalEntries || []).forEach((je: any) => {
+      const m = (je.entry_date || "").substring(0, 7)
+      if (!grouped[m]) grouped[m] = { month: m, debits: 0, credits: 0 }
+      grouped[m].debits += Number(je.total_debit) || 0
+      grouped[m].credits += Number(je.total_credit) || 0
+    })
+    return Object.values(grouped).slice(-6)
+  }, [journalEntries])
 
   const kpis = [
     { title: "Students", value: stats.students, icon: Users, color: "text-blue-600", bg: "bg-blue-100" },
@@ -53,7 +61,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((kpi) => (
+        {kpis.map((kpi: any) => (
           <Card key={kpi.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>

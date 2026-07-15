@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { auditService } from "@/services/api"
+import { useAuditLogs } from "@/hooks/queries"
 import Link from "next/link"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
@@ -15,15 +15,11 @@ import {
   BarChart3, Eye, Download, AlertTriangle, CheckCircle
 } from "lucide-react"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 interface AuditEntry {
   action: string; user: string; resource: string; details: string; ip_address: string; created_at: string
-}
-
-interface DashboardData {
-  totalLogs: number; securityEvents: number; auditTypes: { type: string; count: number }[]; recent: AuditEntry[]
 }
 
 function badgeForAction(action: string): "success" | "warning" | "info" | "purple" {
@@ -43,31 +39,28 @@ function timeAgo(iso: string): string {
 }
 
 export default function AuditorDashboard() {
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: rawLogs, isLoading } = useAuditLogs({ limit: 100 })
 
-  useEffect(() => {
-    auditService.list({ limit: 100 }).then(r => {
-      const logs: AuditEntry[] = r.data?.logs ?? []
-      const actionCounts: Record<string, number> = {}
-      logs.forEach(l => {
-        const key = l.action.charAt(0).toUpperCase() + l.action.slice(1).toLowerCase()
-        actionCounts[key] = (actionCounts[key] || 0) + 1
-      })
-      setData({
-        totalLogs: r.data?.total ?? logs.length,
-        securityEvents: logs.filter(l => l.action === "SECURITY").length,
-        auditTypes: Object.entries(actionCounts).map(([type, count]) => ({ type, count })),
-        recent: logs.slice(0, 5),
-      })
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [])
+  const data = useMemo(() => {
+    const rawLogsData = (rawLogs as any) || {}
+    const logs: AuditEntry[] = rawLogsData.logs ?? []
+    const actionCounts: Record<string, number> = {}
+    logs.forEach((l: any) => {
+      const key = l.action.charAt(0).toUpperCase() + l.action.slice(1).toLowerCase()
+      actionCounts[key] = (actionCounts[key] || 0) + 1
+    })
+    return {
+      totalLogs: rawLogsData.total ?? logs.length,
+      securityEvents: logs.filter((l: any) => l.action === "SECURITY").length,
+      auditTypes: Object.entries(actionCounts).map(([type, count]) => ({ type, count })),
+      recent: logs.slice(0, 5),
+    }
+  }, [rawLogs])
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
@@ -75,7 +68,7 @@ export default function AuditorDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader

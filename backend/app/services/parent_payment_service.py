@@ -10,7 +10,6 @@ from decimal import Decimal
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
 
@@ -70,27 +69,36 @@ def get_parent_children_invoices(db: Session, parent_id: str, school_id: str) ->
         Invoice.status.in_(['pending', 'partial', 'overdue'])
     ).order_by(Invoice.due_date.asc()).all()
 
-    result = []
-    for inv in invoices:
-        student = db.query(Student).filter(
-            Student.id == inv.student_id,
-            Student.school_id == school_id
-        ).first()
-        lines = db.query(InvoiceLine).filter(InvoiceLine.invoice_id == inv.id).all()
-        result.append({
+    student_ids_from_invoices = {inv.student_id for inv in invoices}
+    students = {
+        s.id: s for s in db.query(Student).filter(
+            Student.id.in_(student_ids_from_invoices), Student.school_id == school_id
+        ).all()
+    } if student_ids_from_invoices else {}
+
+    invoice_ids = [inv.id for inv in invoices]
+    lines_by_invoice: dict[str, list] = {}
+    if invoice_ids:
+        for line in db.query(InvoiceLine).filter(InvoiceLine.invoice_id.in_(invoice_ids)).all():
+            lines_by_invoice.setdefault(line.invoice_id, []).append(line)
+
+    return [
+        {
             "id": inv.id,
             "invoice_number": inv.invoice_number,
             "student_id": inv.student_id,
-            "student_name": f"{student.first_name} {student.last_name}" if student else "Unknown",
+            "student_name": students[inv.student_id].first_name + " " + students[inv.student_id].last_name
+                if inv.student_id in students else "Unknown",
             "total_amount": float(inv.total_amount),
             "paid_amount": float(inv.paid_amount),
             "balance": float(inv.total_amount) - float(inv.paid_amount),
             "status": inv.status,
             "due_date": inv.due_date.isoformat() if inv.due_date else None,
             "issue_date": inv.issue_date.isoformat() if inv.issue_date else None,
-            "lines": [{"description": line.description, "amount": float(line.amount)} for line in lines]
-        })
-    return result
+            "lines": [{"description": line.description, "amount": float(line.amount)} for line in lines_by_invoice.get(inv.id, [])]
+        }
+        for inv in invoices
+    ]
 
 
 def get_parent_dashboard(db: Session, parent_id: str, school_id: str) -> Dict:
@@ -100,33 +108,34 @@ def get_parent_dashboard(db: Session, parent_id: str, school_id: str) -> Dict:
     ).all()
     student_ids = [link.student_id for link in links]
 
+    students = {
+        s.id: s for s in db.query(Student).filter(
+            Student.id.in_(student_ids), Student.school_id == school_id
+        ).all()
+    } if student_ids else {}
+
+    invoices_by_student: dict[str, list] = {}
+    if student_ids:
+        for inv in db.query(Invoice).filter(
+            Invoice.student_id.in_(student_ids), Invoice.school_id == school_id
+        ).all():
+            invoices_by_student.setdefault(inv.student_id, []).append(inv)
+
     children_data = []
     total_outstanding = Decimal("0")
     total_paid = Decimal("0")
 
-    for sid in student_ids:
-        student = db.query(Student).filter(
-            Student.id == sid,
-            Student.school_id == school_id
-        ).first()
+    for sid, invoices in invoices_by_student.items():
+        student = students.get(sid)
         if not student:
             continue
 
-        # Get invoices for this student
-        invoices = db.query(Invoice).filter(
-            Invoice.student_id == sid,
-            Invoice.school_id == school_id
-        ).all()
-
-        student_total = Decimal("0")
-        student_paid = Decimal("0")
-        student_outstanding = Decimal("0")
-
-        for inv in invoices:
-            student_total += inv.total_amount
-            student_paid += inv.paid_amount
-            if inv.status in ['pending', 'partial', 'overdue']:
-                student_outstanding += inv.total_amount - inv.paid_amount
+        student_total = sum(inv.total_amount for inv in invoices)
+        student_paid = sum(inv.paid_amount for inv in invoices)
+        student_outstanding = sum(
+            inv.total_amount - inv.paid_amount
+            for inv in invoices if inv.status in ['pending', 'partial', 'overdue']
+        )
 
         total_outstanding += student_outstanding
         total_paid += student_paid
@@ -140,24 +149,43 @@ def get_parent_dashboard(db: Session, parent_id: str, school_id: str) -> Dict:
             "outstanding_balance": float(student_outstanding),
         })
 
-    # Get recent payments
+    # Also include students with no invoices (still enrolled, no fees)
+    for sid in student_ids:
+        if sid not in invoices_by_student:
+            student = students.get(sid)
+            if student:
+                children_data.append({
+                    "id": student.id,
+                    "name": f"{student.first_name} {student.last_name}",
+                    "student_id": student.student_id,
+                    "total_fees": 0.0,
+                    "paid_amount": 0.0,
+                    "outstanding_balance": 0.0,
+                })
+
+    # Get recent payments with batch receipt lookup
     recent_payments = db.query(Payment).filter(
         Payment.student_id.in_(student_ids),
         Payment.school_id == school_id
     ).order_by(Payment.created_at.desc()).limit(10).all()
 
-    payment_history = []
-    for payment in recent_payments:
-        receipt = db.query(Receipt).filter(Receipt.payment_id == payment.id).first()
-        payment_history.append({
+    payment_ids = [p.id for p in recent_payments]
+    receipts_by_payment = {
+        r.payment_id: r for r in db.query(Receipt).filter(Receipt.payment_id.in_(payment_ids)).all()
+    } if payment_ids else {}
+
+    payment_history = [
+        {
             "id": payment.id,
             "amount": float(payment.amount),
             "method": payment.payment_method,
             "date": payment.payment_date.isoformat() if payment.payment_date else None,
-            "status": "completed" if receipt else "pending",
-            "receipt_id": receipt.id if receipt else None,
-            "receipt_number": receipt.receipt_number if receipt else None,
-        })
+            "status": "completed" if payment.id in receipts_by_payment else "pending",
+            "receipt_id": receipts_by_payment[payment.id].id if payment.id in receipts_by_payment else None,
+            "receipt_number": receipts_by_payment[payment.id].receipt_number if payment.id in receipts_by_payment else None,
+        }
+        for payment in recent_payments
+    ]
 
     return {
         "parent_id": parent_id,

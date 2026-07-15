@@ -1,24 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useFinanceReports } from "@/hooks/queries"
 
 export default function FinanceReports() {
-  const [reports, setReports] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api.get("/reports/finance").then((res: any) => {
-      setReports(res.data ?? res)
-    }).catch(() => {
-      toast({ title: "Error", description: "Failed to load reports", variant: "destructive" })
-    }).finally(() => {
-      setLoading(false)
-    })
-  }, [])
+  const { data: reports, isLoading } = useFinanceReports()
 
   return (
     <GenericListPage
@@ -30,8 +17,8 @@ export default function FinanceReports() {
         { key: "generated", header: "Generated", render: (r) => <span className="text-muted-foreground">{r.generated}</span> },
         { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
       ]}
-      data={reports} keyExtractor={(r) => r.id}
-      loading={loading} emptyTitle="No reports found"
+      data={reports || []} keyExtractor={(r) => r.id}
+      loading={isLoading} emptyTitle="No reports found"
     />
   )
 }

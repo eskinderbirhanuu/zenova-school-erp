@@ -1,23 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { academicService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useExamResults } from "@/hooks/queries"
 
 export default function TeacherResultsPage() {
-  const [results, setResults] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const { data, isLoading } = useExamResults({})
 
-  useEffect(() => {
-    setLoading(true)
-    academicService.examResults.list({})
-      .then(res => setResults(res.data || []))
-      .catch(err => toast({ title: "Failed to load results", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
+  const results = data || []
   const normalized = results.map((r: any) => ({
     id: r.id,
     student: r.student_name || r.student_id || "—",
@@ -27,7 +18,7 @@ export default function TeacherResultsPage() {
     term: r.term || r.exam_type || "—",
   }))
 
-  const filtered = normalized.filter(r => !search || r.student?.toLowerCase().includes(search.toLowerCase()))
+  const filtered = normalized.filter((r: any) => !search || r.student?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <GenericListPage
@@ -40,7 +31,7 @@ export default function TeacherResultsPage() {
         { key: "term", header: "Term", render: (r) => <span className="text-muted-foreground">{r.term}</span> },
       ]}
       data={filtered} keyExtractor={(r) => r.id}
-      loading={loading} searchPlaceholder="Search student..." onSearch={setSearch}
+      loading={isLoading} searchPlaceholder="Search student..." onSearch={setSearch}
       emptyTitle="No results found"
     />
   )

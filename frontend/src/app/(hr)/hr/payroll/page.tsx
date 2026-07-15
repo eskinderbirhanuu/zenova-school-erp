@@ -1,24 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { hrService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useContracts } from "@/hooks/queries"
 import { DollarSign } from "lucide-react"
 
 export default function HrPayrollPage() {
-  const [contracts, setContracts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: contracts, isLoading } = useContracts({ limit: 100 } as any)
 
-  useEffect(() => {
-    setLoading(true)
-    hrService.contracts.list({ limit: 100 })
-      .then((r: any) => setContracts(r.data))
-      .catch(() => toast({ title: "Failed to load payroll data", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const contractsList = contracts || []
 
-  const activeContracts = contracts.filter((c: any) => c.status === "active")
+  const activeContracts = contractsList.filter((c: any) => c.status === "active")
   const totalSalary = activeContracts.reduce((s: number, c: any) => s + Number(c.salary || c.monthly_salary || 0), 0)
 
   return (
@@ -30,23 +21,23 @@ export default function HrPayrollPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Active Employees</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">{loading ? "\u2014" : activeContracts.length}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold">{isLoading ? "\u2014" : activeContracts.length}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Monthly Payroll</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">{loading ? "\u2014" : `$${totalSalary.toLocaleString()}`}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold">{isLoading ? "\u2014" : `$${totalSalary.toLocaleString()}`}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Average Salary</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loading || activeContracts.length === 0 ? "\u2014" : `$${(totalSalary / activeContracts.length).toLocaleString()}`}
+              {isLoading || activeContracts.length === 0 ? "\u2014" : `$${(totalSalary / activeContracts.length).toLocaleString()}`}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Contracts</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">{loading ? "\u2014" : contracts.length}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold">{isLoading ? "\u2014" : contractsList.length}</div></CardContent>
         </Card>
       </div>
 
@@ -60,8 +51,8 @@ export default function HrPayrollPage() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Loading...</td></tr>}
-              {!loading && activeContracts.map((c: any) => (
+              {isLoading && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Loading...</td></tr>}
+              {!isLoading && activeContracts.map((c: any) => (
                 <tr key={c.id} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-4 font-medium">{c.employee_name || c.employee_id || "\u2014"}</td>
                   <td className="p-4">{c.position || c.job_title || "\u2014"}</td>
@@ -71,7 +62,7 @@ export default function HrPayrollPage() {
                   </td>
                 </tr>
               ))}
-              {!loading && activeContracts.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground"><DollarSign className="mx-auto h-8 w-8 mb-2 opacity-50" /><p>No records found</p></td></tr>}
+              {!isLoading && activeContracts.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground"><DollarSign className="mx-auto h-8 w-8 mb-2 opacity-50" /><p>No records found</p></td></tr>}
             </tbody>
           </table>
         </CardContent>

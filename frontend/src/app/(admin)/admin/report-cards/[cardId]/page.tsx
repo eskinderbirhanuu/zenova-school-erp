@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import api from "@/services/api"
 import { Loader2, ArrowLeft, Printer } from "lucide-react"
+import { useReportCard } from "@/hooks/queries"
 
 interface SubjectGrade {
   subject: string
@@ -32,15 +31,8 @@ interface CardData {
 export default function ReportCardDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const [data, setData] = useState<CardData | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api.get(`/report-cards/${params.cardId}`)
-      .then(r => setData(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [params.cardId])
+  const { data: raw, isLoading: loading } = useReportCard(params.cardId as string)
+  const data = raw as CardData | null
 
   const gradeColor = (grade: string) => {
     if (grade.startsWith("A")) return "text-green-500"

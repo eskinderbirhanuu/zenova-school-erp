@@ -1,27 +1,21 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useRef, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
-import { financeService } from "@/services/api"
+import { usePayments } from "@/hooks/queries"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Download, Upload } from "lucide-react"
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: payments, isLoading, refetch } = usePayments({ limit: 100 } as any)
   const [importing, setImporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    setLoading(true)
-    financeService.payments.list({ limit: 100 }).then((r: any) => setPayments(r.data)).catch(() => toast({ title: "Failed to load payments", variant: "destructive" })).finally(() => setLoading(false))
-  }, [])
-
   const exportExcel = () => {
-    api.get("/payments/export-excel", { responseType: "blob" }).then((res) => {
+    api.get("/payments/export-excel", { responseType: "blob" }).then((res: any) => {
       const url = URL.createObjectURL(new Blob([res.data]))
       const a = document.createElement("a"); a.href = url; a.download = "payments.xlsx"; a.click()
       URL.revokeObjectURL(url)
@@ -39,8 +33,7 @@ export default function PaymentsPage() {
         headers: { "Content-Type": "multipart/form-data" },
       })
       toast({ title: res.data.message || "Payments imported" })
-      setLoading(true)
-      financeService.payments.list({ limit: 100 }).then((r: any) => setPayments(r.data)).finally(() => setLoading(false))
+      refetch()
     } catch (err: any) {
       toast({ title: err.response?.data?.detail || "Import failed", variant: "destructive" })
     }
@@ -54,11 +47,11 @@ export default function PaymentsPage() {
       <GenericListPage
         title="Payments" description="View all payment transactions"
         columns={[
-          { key: "ref", header: "Reference", render: (p) => <span className="font-mono text-xs text-muted-foreground">{p.reference || p.id?.slice(0, 8)}</span> },
-          { key: "payer", header: "Payer", render: (p) => <span>{p.payer_name || p.student_name || "\u2014"}</span> },
-          { key: "amount", header: "Amount", render: (p) => <span className="font-mono">${Number(p.amount || 0).toFixed(2)}</span> },
-          { key: "method", header: "Method", render: (p) => <span>{p.payment_method || "\u2014"}</span> },
-          { key: "status", header: "Status", render: (p) => <StatusBadge status={p.status || "completed"} /> },
+          { key: "ref", header: "Reference", render: (p: any) => <span className="font-mono text-xs text-muted-foreground">{p.reference || p.id?.slice(0, 8)}</span> },
+          { key: "payer", header: "Payer", render: (p: any) => <span>{p.payer_name || p.student_name || "\u2014"}</span> },
+          { key: "amount", header: "Amount", render: (p: any) => <span className="font-mono">${Number(p.amount || 0).toFixed(2)}</span> },
+          { key: "method", header: "Method", render: (p: any) => <span>{p.payment_method || "\u2014"}</span> },
+          { key: "status", header: "Status", render: (p: any) => <StatusBadge status={p.status || "completed"} /> },
         ]}
         actions={
           <div className="flex gap-2">
@@ -68,8 +61,8 @@ export default function PaymentsPage() {
             <Button variant="outline" onClick={exportExcel}><Download className="mr-2 h-4 w-4" />Export</Button>
           </div>
         }
-        data={payments} keyExtractor={(p) => p.id}
-        loading={loading} emptyTitle="No payments found"
+        data={payments || []} keyExtractor={(p: any) => p.id}
+        loading={isLoading} emptyTitle="No payments found"
       />
     </>
   )

@@ -24,7 +24,7 @@ def get_watermark() -> str:
 
 def encrypt_watermark(school_id: str) -> str:
     """Simple XOR-based watermark encryption for response headers."""
-    key = SCHOOL_WATERMARK.encode()
+    key = get_watermark().encode()
     data = school_id.encode()
     encrypted = bytes([d ^ key[i % len(key)] for i, d in enumerate(data)])
     return base64.b64encode(encrypted).decode()
@@ -32,7 +32,7 @@ def encrypt_watermark(school_id: str) -> str:
 
 def decrypt_watermark(encoded: str) -> Optional[str]:
     try:
-        key = SCHOOL_WATERMARK.encode()
+        key = get_watermark().encode()
         encrypted = base64.b64decode(encoded)
         decrypted = bytes([e ^ key[i % len(key)] for i, e in enumerate(encrypted)])
         return decrypted.decode()

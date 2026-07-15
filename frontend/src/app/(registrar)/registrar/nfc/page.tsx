@@ -21,7 +21,7 @@ export default function NFCPage() {
     if (!studentId || !cardUid) { toast({ title: "Fill in student ID and card UID", variant: "destructive" }); return }
     setAssigning(true)
     try {
-      await nfcV2Service.assignStudent({ reference_id: studentId, card_uid: cardUid })
+      await nfcV2Service.assignStudent({ student_id: studentId, card_uid: cardUid })
       toast({ title: "NFC card assigned" })
       setRecentAssignments(prev => [{ student_id: studentId, card_uid: cardUid, assigned_at: new Date().toISOString() }, ...prev].slice(0, 10))
       setStudentId(""); setCardUid("")

@@ -4,27 +4,21 @@ import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
-import { staffService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
+import { useStaff } from "@/hooks/queries"
 
 export default function AdminDirectors() {
-  const [directors, setDirectors] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const { data: rawDirectors, isLoading, error } = useStaff({ role: "director" })
 
   useEffect(() => {
-    staffService.list({ role: "director" })
-      .then((res) => {
-        const data = res.data?.data || res.data || []
-        setDirectors(data.map((d: any) => ({ ...d, department: d.department || d.role || "—" })))
-      })
-      .catch((err) => {
-        toast({ title: "Failed to load directors", description: err?.response?.data?.detail || err.message, variant: "destructive" })
-      })
-      .finally(() => setLoading(false))
-  }, [])
+    if (error) {
+      toast({ title: "Failed to load directors", description: (error as any)?.response?.data?.detail || (error as any)?.message || "Unknown error", variant: "destructive" })
+    }
+  }, [error])
 
-  const filtered = directors.filter(d => !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.email.toLowerCase().includes(search.toLowerCase()))
+  const directors = (rawDirectors || []).map((d: any) => ({ ...d, department: d.department || d.role || "—" }))
+  const filtered = directors.filter((d: any) => !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.email.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <GenericListPage
@@ -38,7 +32,7 @@ export default function AdminDirectors() {
         { key: "actions", header: "", render: () => <Button variant="ghost" size="sm">Edit</Button> },
       ]}
       data={filtered} keyExtractor={(d) => d.id}
-      loading={loading} searchPlaceholder="Search directors..." onSearch={setSearch}
+      loading={isLoading} searchPlaceholder="Search directors..." onSearch={setSearch}
       onCreateLabel="Add Director" onCreateClick={() => window.location.href = "/admin/directors/new"}
       emptyTitle="No directors found"
     />

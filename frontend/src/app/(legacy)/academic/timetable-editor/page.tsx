@@ -1,41 +1,29 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { academicService } from "@/services/api"
+import { useTimetable, useClasses, useSections, useCreateTimetableEntry } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
 export default function TimetableEditorPage() {
-  const [entries, setEntries] = useState<any[]>([])
-  const [classes, setClasses] = useState<any[]>([])
-  const [sections, setSections] = useState<any[]>([])
   const [classId, setClassId] = useState("")
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ class_id: "", section_id: "", subject_id: "", day_of_week: "Monday", start_time: "08:00", end_time: "08:45", room: "" })
-
-  const load = async () => {
-    try {
-      const [e, c, s] = await Promise.all([
-        academicService.timetable.list(),
-        academicService.classes.list(),
-        academicService.sections.list()
-      ])
-      setEntries(e.data); setClasses(c.data); setSections(s.data)
-    } catch { toast({ title: "Failed to load", variant: "destructive" }) }
-  }
-
-  useEffect(() => { load() }, [])
+  const { data: entries } = useTimetable()
+  const { data: classes } = useClasses()
+  const { data: sections } = useSections()
+  const createMutation = useCreateTimetableEntry()
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    try { await academicService.timetable.create(form); toast({ title: "Entry added" }); setShowForm(false); load() } catch { toast({ title: "Failed", variant: "destructive" }) }
+    try { await createMutation.mutateAsync(form as any); toast({ title: "Entry added" }); setShowForm(false) } catch { toast({ title: "Failed", variant: "destructive" }) }
   }
 
-  const filtered = entries.filter((e: any) => !classId || e.class_id === classId)
+  const filtered = (entries || []).filter((e: any) => !classId || e.class_id === classId)
 
   return (
     <div className="space-y-6">
@@ -44,7 +32,7 @@ export default function TimetableEditorPage() {
         <div className="flex gap-2">
           <select value={classId} onChange={e => setClassId(e.target.value)} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
             <option value="">All Classes</option>
-            {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {(classes || []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <Button onClick={() => setShowForm(!showForm)}>{showForm ? "Cancel" : "Add Entry"}</Button>
         </div>
@@ -57,15 +45,15 @@ export default function TimetableEditorPage() {
             <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-4">
               <select value={form.class_id} onChange={e => setForm({...form, class_id: e.target.value})} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm" required>
                 <option value="">Class</option>
-                {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {(classes || []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <select value={form.section_id} onChange={e => setForm({...form, section_id: e.target.value})} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
                 <option value="">Section</option>
-                {sections.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {(sections || []).map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               <Input placeholder="Subject ID" value={form.subject_id} onChange={e => setForm({...form, subject_id: e.target.value})} required />
               <select value={form.day_of_week} onChange={e => setForm({...form, day_of_week: e.target.value})} className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                {DAYS.map((d: any) => <option key={d} value={d}>{d}</option>)}
               </select>
               <Input type="time" value={form.start_time} onChange={e => setForm({...form, start_time: e.target.value})} required />
               <Input type="time" value={form.end_time} onChange={e => setForm({...form, end_time: e.target.value})} required />

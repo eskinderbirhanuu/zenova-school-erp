@@ -141,27 +141,24 @@ def remove_section_assignment(db: Session, teacher_id: str, section_id: str, sch
 
 
 def list_teachers(db: Session, school_id: str | None = None) -> list[dict]:
-    query = db.query(User).join(TeacherProfile, User.id == TeacherProfile.user_id).filter(User.is_active == True)
+    from app.models.teacher_profile import TeacherProfile
+    query = db.query(User, TeacherProfile).join(TeacherProfile, User.id == TeacherProfile.user_id).filter(User.is_active == True)
     if school_id:
         query = query.filter(User.school_id == school_id)
-    users = query.all()
-
-    result = []
-    for user in users:
-        profile = db.query(TeacherProfile).filter(TeacherProfile.user_id == user.id).first()
-        if profile:
-            result.append({
-                "id": profile.id,
-                "teacher_id": profile.teacher_id,
-                "user_id": user.id,
-                "full_name": user.full_name,
-                "email": user.email,
-                "phone": user.phone,
-                "qualification": profile.qualification,
-                "department": profile.department,
-                "is_active": user.is_active,
-            })
-    return result
+    return [
+        {
+            "id": profile.id,
+            "teacher_id": profile.teacher_id,
+            "user_id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone": user.phone,
+            "qualification": profile.qualification,
+            "department": profile.department,
+            "is_active": user.is_active,
+        }
+        for user, profile in query.all()
+    ]
 
 
 def update_teacher_profile(

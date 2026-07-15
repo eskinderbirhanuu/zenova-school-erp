@@ -1,17 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { dashboardService, setupWizardService } from "@/services/api"
+import { useDashboardOverview, useDashboardTrends, useSetupWizardStatus } from "@/hooks/queries"
 import {
   Users, GraduationCap, DollarSign, TrendingUp, UserCog,
   GitBranch, Calendar, ArrowRight, Plus, Zap, Loader2,
-  School, CreditCard, UserPlus, BookOpen, ShoppingCart,
+  School, UserPlus,
 } from "lucide-react"
 import Link from "next/link"
 import {
@@ -19,8 +18,9 @@ import {
   AreaChart, Area,
 } from "recharts"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
+import { enrollmentData, revenueData } from "@/config/chart-data"
 
 function timeAgo(dateStr: string): string {
   const ms = Date.now() - new Date(dateStr).getTime()
@@ -32,27 +32,6 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)} days ago`
 }
 
-const enrollmentData = [
-  { month: "Sep", students: 120 }, { month: "Oct", students: 145 },
-  { month: "Nov", students: 162 }, { month: "Dec", students: 158 },
-  { month: "Jan", students: 175 }, { month: "Feb", students: 190 },
-  { month: "Mar", students: 210 }, { month: "Apr", students: 225 },
-  { month: "May", students: 240 }, { month: "Jun", students: 255 },
-]
-
-const revenueData = [
-  { month: "Sep", revenue: 45000, expenses: 32000 },
-  { month: "Oct", revenue: 52000, expenses: 34000 },
-  { month: "Nov", revenue: 48000, expenses: 31000 },
-  { month: "Dec", revenue: 61000, expenses: 38000 },
-  { month: "Jan", revenue: 58000, expenses: 36000 },
-  { month: "Feb", revenue: 63000, expenses: 39000 },
-  { month: "Mar", revenue: 72000, expenses: 42000 },
-  { month: "Apr", revenue: 68000, expenses: 40000 },
-  { month: "May", revenue: 75000, expenses: 43000 },
-  { month: "Jun", revenue: 82000, expenses: 45000 },
-]
-
 function activityBadge(table: string): "info" | "success" | "warning" | "purple" | "default" {
   if (table.includes("student")) return "info"
   if (table.includes("payment") || table.includes("invoice")) return "success"
@@ -62,71 +41,45 @@ function activityBadge(table: string): "info" | "success" | "warning" | "purple"
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    students: "—", staff: "—", directors: "—",
-    revenue: "—", branches: "—", academicYear: "—",
-  })
-  const [activities, setActivities] = useState<{ action: string; time: string; badge: "info" | "success" | "warning" | "purple" | "default" }[]>([])
-  const [enrollmentTrend, setEnrollmentTrend] = useState<any[]>([])
-  const [trendRevenue, setTrendRevenue] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [setupSteps, setSetupSteps] = useState<Record<string, boolean> | null>(null)
+  const { data: overview, isLoading } = useDashboardOverview()
+  const { data: trends } = useDashboardTrends()
+  const { data: wizard } = useSetupWizardStatus()
 
-  useEffect(() => {
-    setupWizardService.status().then((res) => {
-      if (res.data && !res.data.all_done) setSetupSteps(res.data.steps)
-    }).catch(() => {
-      /* setup wizard may not be available yet */
-    })
-    Promise.all([
-      dashboardService.overview(),
-      dashboardService.trends(),
-    ]).then(([overview, trends]) => {
-      const d = overview.data
-      const t = d.totals
-      setStats({
-        students: String(t.students),
-        staff: String(t.staff),
-        directors: String(t.teachers),
-        revenue: `$${(d.finance.revenue || 0).toLocaleString()}`,
-        branches: String(t.branches),
-        academicYear: d.academic_year?.name || "—",
-      })
-      setActivities(
-        (d.recent_activity || []).map((a: any) => ({
-          action: `${a.action} on ${a.table_name}`,
-          time: timeAgo(a.created_at),
-          badge: activityBadge(a.table_name),
-        }))
-      )
-      if (trends.data) {
-        setEnrollmentTrend(trends.data.enrollment_trend || [])
-        setTrendRevenue(trends.data.revenue_trend || [])
-      }
-      setLoading(false)
-    }).catch(() => {
-      setStats({
-        students: "—", staff: "—", directors: "—",
-        revenue: "—", branches: "—", academicYear: "—",
-      })
-      setLoading(false)
-    })
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
+  const d = overview
+  const t = d?.totals
+  const stats = {
+    students: t ? String(t.students) : "—",
+    staff: t ? String(t.staff) : "—",
+    directors: t ? String(t.teachers) : "—",
+    revenue: t ? `$${(d!.finance.revenue || 0).toLocaleString()}` : "—",
+    branches: t ? String(t.branches) : "—",
+    academicYear: d?.academic_year?.name || "—",
+  }
+
+  const activities = (d?.recent_activity || []).map((a) => ({
+    action: `${a.action} on ${a.table_name}`,
+    time: timeAgo(a.created_at),
+    badge: activityBadge(a.table_name),
+  }))
+
+  const enrollmentTrend = trends?.enrollment_trend || []
+  const trendRevenue = trends?.revenue_trend || []
+  const setupSteps = wizard && !wizard.all_done ? wizard.steps : null
+
   const missingSteps = setupSteps ? Object.entries(setupSteps).filter(([, v]) => !v).map(([k]) => k.replace(/_/g, " ")) : []
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       {setupSteps && (
         <FadeInUp>

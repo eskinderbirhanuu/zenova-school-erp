@@ -16,6 +16,7 @@ class Invoice(Base):
     total_amount = Column(DECIMAL(15, 2), nullable=False)
     paid_amount = Column(DECIMAL(15, 2), default=0.00)
     status = Column(String(20), default="draft")
+    currency_code = Column(String(3), default="ETB", nullable=False)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

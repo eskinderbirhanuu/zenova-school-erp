@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageHeader } from "@/components/ui/page-header"
 import { toast } from "@/hooks/use-toast"
-import { nfcV2Service, cardDesignService } from "@/services/api"
+import { useCardDesign, useSaveCardDesign } from "@/hooks/queries"
+import { nfcV2Service } from "@/services/api"
 import { CreditCard, Download, Save, Upload, Loader2 } from "lucide-react"
 
 export default function CardDesignPage() {
@@ -30,30 +31,32 @@ export default function CardDesignPage() {
     emergency: "+251-911-000000",
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const saveDesignMutation = useSaveCardDesign()
+  const { data: cardDesignData } = useCardDesign(schoolId)
 
   useEffect(() => {
-    // Try to load saved design
     const stored = localStorage.getItem("zenova_school_id")
     if (stored) {
       setSchoolId(stored)
-      cardDesignService.get(stored)
-        .then(res => {
-          const data = res.data
-          if (data.logo_url) setSchoolLogo(data.logo_url)
-          if (data.design_json) {
-            try {
-              const saved = JSON.parse(data.design_json)
-              setForm(prev => ({ ...prev, ...saved }))
-              if (saved.cardTier) setCardTier(saved.cardTier)
-            } catch { /* ignore */ }
-          }
-        })
-        .catch(() => { /* no saved design */ })
-        .finally(() => setLoading(false))
     } else {
       setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    if (cardDesignData) {
+      const data = cardDesignData as any
+      if (data.logo_url) setSchoolLogo(data.logo_url)
+      if (data.design_json) {
+        try {
+          const saved = JSON.parse(data.design_json)
+          setForm(prev => ({ ...prev, ...saved }))
+          if (saved.cardTier) setCardTier(saved.cardTier)
+        } catch { /* ignore */ }
+      }
+      setLoading(false)
+    }
+  }, [cardDesignData])
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -73,9 +76,9 @@ export default function CardDesignPage() {
     setSaving(true)
     try {
       const designJson = JSON.stringify({ ...form, cardTier })
-      await cardDesignService.save(schoolId, {
-        logo_url: schoolLogo,
-        design_json: designJson,
+      await saveDesignMutation.mutateAsync({
+        schoolId,
+        data: { logo_url: schoolLogo, design_json: designJson } as any,
       })
       toast({ title: "Card design saved!" })
     } catch {

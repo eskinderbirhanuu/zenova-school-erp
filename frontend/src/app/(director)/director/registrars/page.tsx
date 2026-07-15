@@ -1,28 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useUsers } from "@/hooks/queries"
 
 export default function DirectorRegistrars() {
-  const [registrars, setRegistrars] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const { data: registrars = [], isLoading: loading } = useUsers({ role: "REGISTRAR", search: search || undefined, limit: 200 } as any)
 
-  const fetchRegistrars = () => {
-    setLoading(true)
-    api.get("/users", { params: { role: "REGISTRAR", search: search || undefined, limit: 200 } })
-      .then(res => setRegistrars(res.data || []))
-      .catch(err => toast({ title: "Failed to load registrars", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetchRegistrars() }, [search])
-
-  const normalized = registrars.map((r: any) => ({
+  const normalized = (registrars as any[]).map((r: any) => ({
     ...r,
     name: r.full_name,
     phone: r.phone || "—",

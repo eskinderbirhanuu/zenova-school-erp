@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { PageHeader } from "@/components/ui/page-header"
-import { dashboardService, academicService, financeService } from "@/services/api"
+import { useDashboardOverview, useClasses, useSubjects, useTrialBalance } from "@/hooks/queries"
 import Link from "next/link"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -17,55 +16,35 @@ import {
   UserPlus, FileText, Award, Eye
 } from "lucide-react"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"]
 
 export default function DirectorDashboard() {
-  const [teachersCount, setTeachersCount] = useState<number>(0)
-  const [staffCount, setStaffCount] = useState<number>(0)
-  const [totalRevenue, setTotalRevenue] = useState<string>("—")
-  const [auditCount, setAuditCount] = useState<number>(0)
-  const [studentsCount, setStudentsCount] = useState<number>(0)
-  const [classCount, setClassCount] = useState<number>(0)
-  const [subjectCount, setSubjectCount] = useState<number>(0)
-  const [loading, setLoading] = useState(true)
+  const { data: overview, isLoading: overviewLoading } = useDashboardOverview()
+  const { data: classes, isLoading: classesLoading } = useClasses()
+  const { data: subjects, isLoading: subjectsLoading } = useSubjects()
+  const { data: tb, isLoading: tbLoading } = useTrialBalance()
 
-  useEffect(() => {
-    Promise.all([
-      dashboardService.overview(),
-      financeService.trialBalance().then((res) => {
-        const tb = res.data
-        const debit = tb?.total_debit ?? tb?.debit ?? 0
-        const credit = tb?.total_credit ?? tb?.credit ?? 0
-        return `$${(debit + credit).toLocaleString()}`
-      }).catch(() => "—"),
-      academicService.classes.list().then((res) => {
-        const items = res.data?.items ?? res.data ?? []
-        return Array.isArray(items) ? items.length : 0
-      }).catch(() => 0),
-      academicService.subjects.list().then((res) => {
-        const items = res.data?.items ?? res.data ?? []
-        return Array.isArray(items) ? items.length : 0
-      }).catch(() => 0),
-    ]).then(([overview, revenue, classes, subjects]) => {
-      const data = overview.data || overview
-      setStudentsCount(data.students ?? 0)
-      setTeachersCount(data.teachers ?? 0)
-      setStaffCount(data.staff ?? 0)
-      setTotalRevenue(revenue)
-      setAuditCount(data.audits ?? 0)
-      setClassCount(classes)
-      setSubjectCount(subjects)
-      setLoading(false)
-    })
-  }, [])
+  const loading = overviewLoading || classesLoading || subjectsLoading || tbLoading
+
+  const studentsCount = overview?.totals?.students ?? 0
+  const teachersCount = overview?.totals?.teachers ?? 0
+  const staffCount = overview?.totals?.staff ?? 0
+  const classData = Array.isArray(classes) ? classes : (classes as any)?.items ?? []
+  const subjectData = Array.isArray(subjects) ? subjects : (subjects as any)?.items ?? []
+  const classCount = classData.length
+  const subjectCount = subjectData.length
+  const trialBalance = tb as any
+  const debit = trialBalance?.total_debit ?? trialBalance?.debit ?? 0
+  const credit = trialBalance?.total_credit ?? trialBalance?.credit ?? 0
+  const totalRevenue = `$${(debit + credit).toLocaleString()}`
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
@@ -73,7 +52,7 @@ export default function DirectorDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader

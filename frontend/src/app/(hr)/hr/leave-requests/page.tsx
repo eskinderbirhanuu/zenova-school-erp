@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { hrService } from "@/services/api"
+import { useLeaveRequests, useApproveLeaveRequest, useRejectLeaveRequest } from "@/hooks/queries"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
@@ -11,31 +11,22 @@ import { Plus, Check, X, Loader2 } from "lucide-react"
 
 export default function LeaveRequestsPage() {
   const router = useRouter()
-  const [requests, setRequests] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState("")
-
-  const fetchRequests = () => {
-    setLoading(true)
-    const params: any = { limit: 200 }
-    if (statusFilter) params.status = statusFilter
-    hrService.leaveRequests.list(params)
-      .then((res) => setRequests(res.data || []))
-      .catch(() => setRequests([]))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetchRequests() }, [statusFilter])
+  const { data: requests, isLoading, refetch } = useLeaveRequests({ limit: 200, ...(statusFilter ? { status: statusFilter } : {}) } as any)
+  const { mutateAsync: approveLeave } = useApproveLeaveRequest()
+  const { mutateAsync: rejectLeave } = useRejectLeaveRequest()
 
   const handleAction = async (id: string, action: "approve" | "reject") => {
     try {
-      if (action === "approve") await hrService.leaveRequests.approve(id)
-      else await hrService.leaveRequests.reject(id)
-      fetchRequests()
+      if (action === "approve") await approveLeave(id)
+      else await rejectLeave(id)
+      refetch()
     } catch {}
   }
 
-  const normalized = requests.map((r: any) => ({
+  const requestsList = requests || []
+
+  const normalized = requestsList.map((r: any) => ({
     id: r.id,
     staff: r.staff_profile_id || "—",
     type: r.leave_type?.name || r.leave_type_id || "—",
@@ -66,13 +57,13 @@ export default function LeaveRequestsPage() {
         </div>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
       ) : normalized.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-gray-500">No leave requests found.</CardContent></Card>
       ) : (
         <div className="space-y-3">
-          {normalized.map((r) => (
+          {normalized.map((r: any) => (
             <Card key={r.id}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">

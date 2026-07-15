@@ -51,7 +51,7 @@ export default function BulkAssignPage() {
     try {
       const res = await nfcV2Service.bulkAssign(items)
       setResult(res.data)
-      toast({ title: `Assigned ${res.data.success_count} cards` })
+      toast({ title: `Assigned ${(res.data as any).success_count} cards` })
     } catch (err: any) {
       toast({ title: "Bulk assign failed", description: err.response?.data?.detail || err.message, variant: "destructive" })
     }

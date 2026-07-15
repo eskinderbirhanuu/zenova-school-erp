@@ -1,38 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Plus, FileText, ClipboardList, PackageCheck } from "lucide-react"
+import { useProcurementItems } from "@/hooks/queries"
+
+const ENDPOINTS: Record<string, string> = { requests: "/purchase-requests", orders: "/purchase-orders", receipts: "/goods-receipts" }
 
 export default function ProcurementPage() {
   const [tab, setTab] = useState<"requests" | "orders" | "receipts">("requests")
-  const [items, setItems] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ item_id: "", quantity: 0, expected_date: "", notes: "", vendor: "" })
-
-  const load = async () => {
-    setLoading(true)
-    try {
-      const endpoints: Record<string, string> = { requests: "/purchase-requests", orders: "/purchase-orders", receipts: "/goods-receipts" }
-      const res = await api.get(endpoints[tab], { params: { limit: 50 } })
-      setItems(res.data || [])
-    } catch { setItems([]) }
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [tab])
+  const { data: items, isLoading: loading, refetch } = useProcurementItems(ENDPOINTS[tab])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const endpoints: Record<string, string> = { requests: "/purchase-requests", orders: "/purchase-orders", receipts: "/goods-receipts" }
-      await api.post(endpoints[tab], form)
-      toast({ title: `${tab.slice(0, -1)} created` }); setShowForm(false); setForm({ item_id: "", quantity: 0, expected_date: "", notes: "", vendor: "" }); load()
+      await api.post(ENDPOINTS[tab], form)
+      toast({ title: `${tab.slice(0, -1)} created` }); setShowForm(false); setForm({ item_id: "", quantity: 0, expected_date: "", notes: "", vendor: "" }); refetch()
     } catch { toast({ title: "Failed", variant: "destructive" }) }
   }
 
@@ -82,7 +71,7 @@ export default function ProcurementPage() {
             </thead>
             <tbody>
               {loading && <tr><td colSpan={5} className="p-8 text-center">Loading...</td></tr>}
-              {!loading && items.map((i: any) => (
+              {!loading && (items ?? []).map((i: any) => (
                 <tr key={i.id} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-4">{i.item_name || i.item_id}</td>
                   <td className="p-4">{i.quantity}</td>
@@ -91,7 +80,7 @@ export default function ProcurementPage() {
                   <td className="p-4">{statusBadge(i.status)}</td>
                 </tr>
               ))}
-              {!loading && items.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No {tab}</td></tr>}
+              {!loading && (items ?? []).length === 0 && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No {tab}</td></tr>}
             </tbody>
           </table>
         </CardContent>

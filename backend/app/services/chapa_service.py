@@ -11,14 +11,15 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 
-CHAPA_API_URL = "https://api.chapa.co/v1"
-
-_DEFAULT_SECRET_KEY = os.getenv("CHAPA_SECRET_KEY", "")
-_DEFAULT_PUBLIC_KEY = os.getenv("CHAPA_PUBLIC_KEY", "")
+CHAPA_API_URL = settings.CHAPA_API_URL or "https://api.chapa.co/v1"
 
 
 class ChapaError(Exception):
     pass
+
+
+def _default_chapa_keys() -> tuple[str, str]:
+    return os.getenv("CHAPA_SECRET_KEY", ""), os.getenv("CHAPA_PUBLIC_KEY", "")
 
 
 def _get_school_chapa_keys(db: Session, school_id: Optional[str] = None) -> tuple[str, str]:
@@ -31,8 +32,8 @@ def _get_school_chapa_keys(db: Session, school_id: Optional[str] = None) -> tupl
             PaymentGatewayConfig.is_active == True,
         ).first()
         if config and config.secret_key:
-            return config.secret_key, config.public_key or _DEFAULT_PUBLIC_KEY
-    return _DEFAULT_SECRET_KEY, _DEFAULT_PUBLIC_KEY
+            return config.secret_key, config.public_key or ""
+    return _default_chapa_keys()
 
 
 def _get_headers(secret_key: str) -> Dict[str, str]:
@@ -121,47 +122,3 @@ def verify_webhook_signature(
     return hmac.compare_digest(expected, signature)
 
 
-def get_banks() -> Dict[str, Any]:
-    secret_key = _DEFAULT_SECRET_KEY
-    try:
-        response = httpx.get(
-            f"{CHAPA_API_URL}/banks",
-            headers=_get_headers(secret_key),
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError as e:
-        raise ChapaError(f"Failed to fetch banks: {str(e)}")
-
-
-def transfer_to_bank(
-    account_number: str,
-    account_name: str,
-    bank_code: str,
-    amount: float,
-    currency: str = "ETB",
-    reference: str = "",
-    db: Optional[Session] = None,
-    school_id: Optional[str] = None,
-) -> Dict[str, Any]:
-    secret_key, _ = _get_school_chapa_keys(db, school_id)
-    payload = {
-        "account_number": account_number,
-        "account_name": account_name,
-        "bank_code": bank_code,
-        "amount": str(amount),
-        "currency": currency,
-        "reference": reference,
-    }
-    try:
-        response = httpx.post(
-            f"{CHAPA_API_URL}/transfers",
-            headers=_get_headers(secret_key),
-            json=payload,
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError as e:
-        raise ChapaError(f"Transfer failed: {str(e)}")

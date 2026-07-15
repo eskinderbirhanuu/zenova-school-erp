@@ -1,9 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { academicService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useMyTimetable } from "@/hooks/queries"
 import { Calendar, Loader2 } from "lucide-react"
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -21,25 +19,16 @@ interface TimetableEntry {
 }
 
 export default function TeacherTimetable() {
-  const [entries, setEntries] = useState<TimetableEntry[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading } = useMyTimetable()
 
-  useEffect(() => {
-    setLoading(true)
-    academicService.timetable
-      .byTeacher()
-      .then((r: any) => setEntries(r.data || []))
-      .catch(() => toast({ title: "Failed to load timetable", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
+  const entries = data || []
   const grouped: Record<number, TimetableEntry[]> = {}
-  entries.forEach((e) => {
+  entries.forEach((e: any) => {
     if (!grouped[e.day_of_week]) grouped[e.day_of_week] = []
     grouped[e.day_of_week].push(e)
   })
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">My Timetable</h1>
@@ -81,7 +70,7 @@ export default function TeacherTimetable() {
               ) : (
                 grouped[i]
                   .sort((a, b) => a.start_time.localeCompare(b.start_time))
-                  .map((e) => (
+                  .map((e: any) => (
                     <div key={e.id} className="rounded bg-muted p-2 text-xs">
                       <div className="font-medium">{e.subject_name || e.subject_id}</div>
                       <div className="text-[10px] text-muted-foreground">

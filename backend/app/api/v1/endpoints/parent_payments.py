@@ -31,12 +31,7 @@ from app.services.parent_payment_service import (
     get_receipt_by_id,
     PaymentError,
 )
-from app.services.chapa_service import (
-    initialize_payment as chapa_initialize,
-    verify_transaction as chapa_verify,
-    verify_webhook_signature,
-    ChapaError,
-)
+from app.core.payment_gateway import PaymentGatewayFactory, ChapaPaymentGateway
 from app.services.receipt_service import generate_receipt_pdf
 from app.core.audit import log_audit
 from app.config import settings
@@ -113,7 +108,7 @@ def initialize_chapa_payment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Initialize Chapa payment for a session."""
+    """Initialize a payment session via the configured gateway."""
     session = db.query(PaymentSession).filter(
         PaymentSession.session_id == session_id,
         PaymentSession.parent_id == current_user.parent_id,
@@ -124,12 +119,15 @@ def initialize_chapa_payment(
     if session.status != "pending":
         raise HTTPException(status_code=400, detail=f"Session is already {session.status}")
 
-    # Get student info
     student = db.query(Student).filter(Student.id == session.student_id).first()
     parent = db.query(Parent).filter(Parent.id == session.parent_id).first()
 
+    gateway = PaymentGatewayFactory.get_gateway(
+        "chapa", db=db, school_id=current_user.school_id,
+    )
+
     try:
-        chapa_response = chapa_initialize(
+        result = gateway.initialize_payment(
             amount=session.amount,
             currency=session.currency,
             email=parent.phone_1 + "@placeholder.com" if parent else "parent@zenova.com",
@@ -139,20 +137,17 @@ def initialize_chapa_payment(
             callback_url=f"{settings.base_url}/api/v1/parent-payments/chapa/webhook",
             return_url=f"{settings.base_url}/parent/payment/success?session={session.session_id}",
             description=f"Payment for {student.first_name if student else 'Student'}",
-            db=db,
-            school_id=current_user.school_id,
         )
 
-        # Update session with gateway reference
-        session.gateway_reference = chapa_response.get("data", {}).get("reference")
+        session.gateway_reference = result.gateway_reference
         session.status = "processing"
         db.commit()
 
         return {
-            "checkout_url": chapa_response.get("data", {}).get("checkout_url"),
-            "reference": chapa_response.get("data", {}).get("reference"),
+            "checkout_url": result.checkout_url,
+            "reference": result.gateway_reference,
         }
-    except ChapaError as e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -162,23 +157,24 @@ async def chapa_webhook_handler(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    """Handle Chapa webhook callbacks."""
-    signature = request.headers.get("X-Chapa-Signature", "")
+    """Handle payment gateway webhook callbacks."""
     payload = await request.body()
+    data = await request.json()
+    tx_ref = data.get("tx_ref", "")
+    status = data.get("status", "")
 
-    if not verify_webhook_signature(payload, signature):
+    gateway = PaymentGatewayFactory.get_gateway("chapa", db=db)
+
+    signature = request.headers.get("X-Chapa-Signature", "")
+    if not gateway.verify_webhook_signature(payload, signature):
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
     try:
-        data = await request.json()
-        tx_ref = data.get("tx_ref")
-        status = data.get("status")
-
         if status == "success":
             from app.models.payment_session import PaymentSession
             ps = db.query(PaymentSession).filter(PaymentSession.session_id == tx_ref).first()
-            verification = chapa_verify(tx_ref, db=db, school_id=ps.school_id if ps else None)
-            if verification.get("status") == "success":
+            verification = gateway.verify_transaction(tx_ref)
+            if verification.success:
                 payment = process_chapa_payment(db, tx_ref, data)
 
                 background_tasks.add_task(
@@ -190,11 +186,11 @@ async def chapa_webhook_handler(
 
                 return {"status": "success", "payment_id": payment.id}
 
-        return{"status": "ignored"}
+        return {"status": "ignored"}
     except Exception:
         import logging
         logger = logging.getLogger(__name__)
-        logger.exception("Chapa webhook processing failed")
+        logger.exception("Payment webhook processing failed")
         raise HTTPException(status_code=500, detail="Webhook processing failed")
 
 

@@ -1,10 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { KPICard } from "@/components/ui/kpi-card"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { usePerformanceReviews } from "@/hooks/queries"
 import { Award, Users, Clock, Star, Loader2 } from "lucide-react"
 
 const ratingColor: Record<string, string> = {
@@ -15,21 +13,12 @@ const ratingColor: Record<string, string> = {
 }
 
 export default function HrPerformancePage() {
-  const [employees, setEmployees] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: employees, isLoading } = usePerformanceReviews({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    api.get("/performance-reviews", { params: { limit: 200 } })
-      .then(res => setEmployees(res.data || []))
-      .catch(err => toast({ title: "Failed to load reviews", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const avgScore = employees.length ? Math.round(employees.reduce((a, c) => a + (c.rating || 0), 0) / employees.length) : 0
-  const reviewed = employees.filter(e => e.rating !== null && e.rating !== undefined).length
-  const pending = employees.filter(e => e.rating === null || e.rating === undefined).length
-  const achievers = employees.filter(e => e.rating !== null && e.rating >= 90).length
+  const avgScore = employees?.length ? Math.round(employees.reduce((a: any, c: any) => a + (c.rating || 0), 0) / employees.length) : 0
+  const reviewed = employees?.filter((e: any) => e.rating !== null && e.rating !== undefined).length || 0
+  const pending = employees?.filter((e: any) => e.rating === null || e.rating === undefined).length || 0
+  const achievers = employees?.filter((e: any) => e.rating !== null && e.rating >= 90).length || 0
 
   const labelRating = (score: number | null): string => {
     if (score === null || score === undefined) return "—"
@@ -46,10 +35,10 @@ export default function HrPerformancePage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard title="Avg Performance Score" value={loading ? "-" : `${avgScore}%`} icon={Award} iconColor="text-blue-600" />
-        <KPICard title="Employees Reviewed" value={loading ? "-" : reviewed} icon={Users} iconColor="text-green-600" />
-        <KPICard title="Pending Reviews" value={loading ? "-" : pending} icon={Clock} iconColor="text-yellow-600" />
-        <KPICard title="Outstanding Achievers" value={loading ? "-" : achievers} icon={Star} iconColor="text-purple-600" />
+        <KPICard title="Avg Performance Score" value={isLoading ? "-" : `${avgScore}%`} icon={Award} iconColor="text-blue-600" />
+        <KPICard title="Employees Reviewed" value={isLoading ? "-" : reviewed} icon={Users} iconColor="text-green-600" />
+        <KPICard title="Pending Reviews" value={isLoading ? "-" : pending} icon={Clock} iconColor="text-yellow-600" />
+        <KPICard title="Outstanding Achievers" value={isLoading ? "-" : achievers} icon={Star} iconColor="text-purple-600" />
       </div>
 
       <Card>
@@ -62,8 +51,8 @@ export default function HrPerformancePage() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>}
-              {!loading && employees.map((e: any) => (
+              {isLoading && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>}
+              {!isLoading && employees?.map((e: any) => (
                 <tr key={e.id} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-4 font-medium">{e.staff_profile_id ? e.staff_profile_id.substring(0, 8) + "..." : "—"}</td>
                   <td className="p-4 text-muted-foreground">{e.period || "—"}</td>
@@ -73,7 +62,7 @@ export default function HrPerformancePage() {
                   <td className="p-4"><span className={`rounded-full px-2 py-0.5 text-xs ${e.rating !== null ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>{e.rating !== null ? "Reviewed" : "Pending"}</span></td>
                 </tr>
               ))}
-              {!loading && employees.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground"><Award className="mx-auto h-8 w-8 mb-2 opacity-50" /><p>No records found</p></td></tr>}
+              {!isLoading && (!employees || employees.length === 0) && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground"><Award className="mx-auto h-8 w-8 mb-2 opacity-50" /><p>No records found</p></td></tr>}
             </tbody>
           </table>
         </CardContent>

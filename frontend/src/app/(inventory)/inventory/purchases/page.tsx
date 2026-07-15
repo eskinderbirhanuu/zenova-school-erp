@@ -1,23 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { inventoryService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useStockMovements } from "@/hooks/queries"
 
 export default function InventoryPurchasesPage() {
-  const [purchases, setPurchases] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: movements, isLoading } = useStockMovements({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    inventoryService.stockMovements.list({ limit: 200 })
-      .then(res => setPurchases((res.data || []).filter((m: any) => m.type === "in" || m.type === "purchase")))
-      .catch(err => toast({ title: "Failed to load purchases", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
+  const purchases = (movements || []).filter((m: any) => m.type === "in" || m.type === "purchase")
   const normalized = purchases.map((p: any) => ({
     id: p.id,
     item: p.item_name || p.item_id || "Item",
@@ -40,7 +31,7 @@ export default function InventoryPurchasesPage() {
         { key: "status", header: "Status", render: (p) => <StatusBadge status={p.status} /> },
       ]}
       data={normalized} keyExtractor={(p) => p.id}
-      loading={loading} emptyTitle="No purchase orders"
+      loading={isLoading} emptyTitle="No purchase orders"
     />
   )
 }

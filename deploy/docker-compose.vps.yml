@@ -106,6 +106,15 @@ services:
   #       condition: service_healthy
   #   restart: unless-stopped
 
+  certbot:
+    image: certbot/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while true; do certbot renew; sleep 43200; done'"
+    volumes:
+      - certbot-conf:/etc/letsencrypt
+      - certbot-data:/var/www/certbot
+    profiles: ["ssl"]
+    restart: unless-stopped
+
   backup-worker:
     image: postgres:16-alpine
     entrypoint: |
@@ -130,3 +139,4 @@ volumes:
   redis-data:
   server-data:
   certbot-data:
+  certbot-conf:

@@ -161,7 +161,7 @@ export default function SuperAdminSettings() {
       <Card>
         <CardContent className="p-0">
           <div className="flex border-b">
-            {tabs.map((tab) => (
+            {tabs.map((tab: any) => (
               <button
                 key={tab}
                 className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}

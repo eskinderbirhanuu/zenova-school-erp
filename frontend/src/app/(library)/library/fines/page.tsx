@@ -1,24 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useLibraryFines } from "@/hooks/queries"
 
 export default function LibraryFinesPage() {
-  const [fines, setFines] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: fines, isLoading: loading } = useLibraryFines({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    api.get("/library/fines", { params: { limit: 200 } })
-      .then(res => setFines(res.data || []))
-      .catch(err => toast({ title: "Failed to load fines", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const normalized = fines.map((f: any) => ({
+  const normalized = (fines ?? []).map((f: any) => ({
     id: f.id,
     member: f.member_name || "—",
     book: f.book_title || "—",

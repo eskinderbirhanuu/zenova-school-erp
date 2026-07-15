@@ -1,41 +1,25 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { PageHeader } from "@/components/ui/page-header"
-import { studentService, academicService } from "@/services/api"
+import { useStudents, useSemesters, useReportCards } from "@/hooks/queries"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Loader2, FileText, Download, Plus } from "lucide-react"
 
 export default function ReportCardsPage() {
-  const [students, setStudents] = useState<any[]>([])
-  const [semesters, setSemesters] = useState<any[]>([])
-  const [cards, setCards] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: students = [], isLoading: studentsLoading } = useStudents({ limit: 500 } as any)
+  const { data: semesters = [], isLoading: semestersLoading } = useSemesters()
+  const { data: cards = [], isLoading: cardsLoading, refetch: refetchCards } = useReportCards()
   const [generating, setGenerating] = useState(false)
 
   const [selectedStudent, setSelectedStudent] = useState("")
   const [selectedSemester, setSelectedSemester] = useState("")
 
-  const fetchCards = () => {
-    setLoading(true)
-    api.get("/report-cards").then(r => setCards(r.data || [])).catch(() => {}).finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    Promise.all([
-      studentService.list({ limit: 500 }),
-      academicService.semesters.list(),
-      api.get("/report-cards"),
-    ]).then(([sRes, semRes, cRes]) => {
-      setStudents(sRes.data || [])
-      setSemesters(semRes.data || [])
-      setCards(cRes.data || [])
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const loading = studentsLoading || semestersLoading || cardsLoading
 
   const handleGenerate = async () => {
     if (!selectedStudent || !selectedSemester) {
@@ -48,7 +32,7 @@ export default function ReportCardsPage() {
         params: { student_id: selectedStudent, semester_id: selectedSemester },
       })
       toast({ title: `Report card generated for ${res.data.student_name}` })
-      fetchCards()
+      refetchCards()
     } catch (err: any) {
       toast({ title: err.response?.data?.detail || "Failed to generate", variant: "destructive" })
     } finally {
@@ -69,7 +53,7 @@ export default function ReportCardsPage() {
               <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                 <SelectTrigger><SelectValue placeholder="Select student..." /></SelectTrigger>
                 <SelectContent>
-                  {students.map(s => (
+                  {students.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>{s.full_name || s.student_id}</SelectItem>
                   ))}
                 </SelectContent>
@@ -80,7 +64,7 @@ export default function ReportCardsPage() {
               <Select value={selectedSemester} onValueChange={setSelectedSemester}>
                 <SelectTrigger><SelectValue placeholder="Select semester..." /></SelectTrigger>
                 <SelectContent>
-                  {semesters.map(s => (
+                  {semesters.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>

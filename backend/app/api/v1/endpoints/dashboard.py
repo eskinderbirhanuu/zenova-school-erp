@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from app.database import get_db
 from app.api.v1.deps import get_current_user
+from app.core.cache import get_cached_or_compute
 from app.models.server import ServerIdentity, ServerRole
 from app.models.user import User
 from app.models.student import Student
@@ -27,9 +28,17 @@ router = APIRouter(tags=["dashboard"])
 
 @router.get("/dashboard/overview")
 def dashboard_overview(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    return get_cached_or_compute(
+        "dashboard:overview", request, _compute_dashboard_overview,
+        db, current_user, ttl_seconds=60,
+    )
+
+
+def _compute_dashboard_overview(db: Session, current_user: User):
     school_id = current_user.school_id
     is_super = school_id is None
 

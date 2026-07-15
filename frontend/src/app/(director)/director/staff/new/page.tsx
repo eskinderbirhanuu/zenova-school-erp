@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
-import { staffService } from "@/services/api"
+import { useCreateStaff } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { Users, Loader2, CheckCircle2, ArrowLeft, Mail, Phone, Briefcase } from "lucide-react"
 import Link from "next/link"
@@ -14,22 +14,22 @@ import Link from "next/link"
 export default function NewStaffPage() {
   const router = useRouter()
   const [form, setForm] = useState({ name: "", email: "", phone: "", department: "", role: "", password: "" })
-  const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+
+  const { mutateAsync: createStaff, isPending: saving } = useCreateStaff()
 
   const update = (p: Partial<typeof form>) => setForm(prev => ({ ...prev, ...p }))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     try {
-      await staffService.create({ full_name: form.name, email: form.email, phone: form.phone, department: form.department, role: form.role, password: form.password })
+      await createStaff({ full_name: form.name, email: form.email, phone: form.phone, department: form.department, role: form.role, password: form.password } as any)
       toast({ title: "Staff account created successfully" })
       setSuccess(true)
       setTimeout(() => router.push("/director/staff"), 1500)
     } catch (err: any) {
       toast({ title: err?.response?.data?.detail || "Failed to create staff account", variant: "destructive" })
-    } finally { setLoading(false) }
+    }
   }
 
   if (success) {
@@ -101,8 +101,8 @@ export default function NewStaffPage() {
             </div>
             <div className="border-t pt-4 flex justify-end gap-3">
               <Link href="/director/staff"><Button type="button" variant="outline">Cancel</Button></Link>
-              <Button type="submit" className="gap-2" disabled={loading}>
-                {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</> : "Create Staff Account"}
+              <Button type="submit" className="gap-2" disabled={saving}>
+                {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</> : "Create Staff Account"}
               </Button>
             </div>
           </form>

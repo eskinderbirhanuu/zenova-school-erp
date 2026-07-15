@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useReducedMotion } from "framer-motion"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { financeService } from "@/services/api"
+import { useTrialBalance, useInvoices, usePayments } from "@/hooks/queries"
 import {
   TrendingDown, TrendingUp, Receipt, FileText, Wallet, Scale,
   Loader2, LineChart, DollarSign, CheckCircle, AlertTriangle,
@@ -15,8 +15,9 @@ import {
 } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
+import { revenueData, recentTransactions, cashFlowFunnel, receivableAging } from "@/config/chart-data"
 
 type Period = "this-month" | "last-month" | "this-quarter" | "this-year"
 
@@ -29,44 +30,10 @@ const periodLabels: Record<Period, string> = {
 
 const periodOrder: Period[] = ["this-month", "last-month", "this-quarter", "this-year"]
 
-const revenueData = [
-  { month: "Sep", revenue: 45000, expenses: 32000 },
-  { month: "Oct", revenue: 52000, expenses: 34000 },
-  { month: "Nov", revenue: 48000, expenses: 31000 },
-  { month: "Dec", revenue: 61000, expenses: 38000 },
-  { month: "Jan", revenue: 58000, expenses: 36000 },
-  { month: "Feb", revenue: 63000, expenses: 39000 },
-  { month: "Mar", revenue: 72000, expenses: 42000 },
-  { month: "Apr", revenue: 68000, expenses: 40000 },
-  { month: "May", revenue: 75000, expenses: 43000 },
-  { month: "Jun", revenue: 82000, expenses: 45000 },
-]
-
-const recentTransactions = [
-  { action: "Invoice generated", amount: "$12,500", time: "10 min ago", badge: "success" as const },
-  { action: "Payment received", amount: "$8,200", time: "25 min ago", badge: "success" as const },
-  { action: "Expense recorded", amount: "$1,450", time: "1 hour ago", badge: "warning" as const },
-  { action: "Budget updated", amount: "$50,000", time: "2 hours ago", badge: "info" as const },
-  { action: "Payroll processed", amount: "$34,000", time: "3 hours ago", badge: "purple" as const },
-]
-
 const actionAlerts = [
   { label: "Pending Invoices", count: 12, variant: "warning" as const, href: "/finance/invoices?status=pending", icon: FileText },
   { label: "Overdue Payments", count: 4, variant: "destructive" as const, href: "/finance/payments?status=overdue", icon: Clock },
   { label: "Budget Warnings", count: 3, variant: "info" as const, href: "/finance/budgets?alert=true", icon: AlertTriangle },
-]
-
-const cashFlowFunnel = [
-  { label: "Revenue", value: 82000, color: "bg-primary" },
-  { label: "Collections", value: 67500, color: "bg-emerald-500" },
-  { label: "Net", value: 37000, color: "bg-sky-500" },
-]
-
-const receivableAging = [
-  { label: "Current", value: 24500, color: "bg-emerald-500" },
-  { label: "30 Days", value: 12800, color: "bg-sky-500" },
-  { label: "60 Days", value: 6400, color: "bg-amber-500" },
-  { label: "90+ Days", value: 3100, color: "bg-red-500" },
 ]
 
 function PeriodSelector({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
@@ -76,7 +43,7 @@ function PeriodSelector({ value, onChange }: { value: Period; onChange: (p: Peri
       role="radiogroup"
       aria-label="Report period"
     >
-      {periodOrder.map((p) => (
+      {periodOrder.map((p: any) => (
         <button
           key={p}
           role="radio"
@@ -88,7 +55,7 @@ function PeriodSelector({ value, onChange }: { value: Period; onChange: (p: Peri
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          {periodLabels[p]}
+          {periodLabels[p as Period]}
         </button>
       ))}
     </div>
@@ -96,10 +63,10 @@ function PeriodSelector({ value, onChange }: { value: Period; onChange: (p: Peri
 }
 
 function CashFlowFunnel() {
-  const max = Math.max(...cashFlowFunnel.map((d) => d.value))
+  const max = Math.max(...cashFlowFunnel.map((d: any) => d.value))
   return (
     <div className="space-y-4" aria-label="Cash flow funnel">
-      {cashFlowFunnel.map((item) => {
+      {cashFlowFunnel.map((item: any) => {
         const pct = (item.value / max) * 100
         return (
           <div key={item.label} className="space-y-1.5">
@@ -131,7 +98,7 @@ function OutstandingReceivables() {
   const total = receivableAging.reduce((s, a) => s + a.value, 0)
   return (
     <div className="space-y-4" aria-label="Outstanding receivables aging breakdown">
-      {receivableAging.map((item) => {
+      {receivableAging.map((item: any) => {
         const pct = (item.value / total) * 100
         return (
           <div key={item.label} className="space-y-1.5">
@@ -166,47 +133,33 @@ function OutstandingReceivables() {
 export default function FinanceDashboard() {
   const prefersReducedMotion = useReducedMotion()
   const [period, setPeriod] = useState<Period>("this-month")
-  const [tb, setTb] = useState<any>(null)
-  const [invoices, setInvoices] = useState<number | string>("—")
-  const [payments, setPayments] = useState<number | string>("—")
-  const [loading, setLoading] = useState(true)
+  const { data: tb, isLoading: tbLoading } = useTrialBalance()
+  const { data: invoices, isLoading: invLoading } = useInvoices({ limit: 200 } as any)
+  const { data: payments, isLoading: payLoading } = usePayments({ limit: 200 } as any)
 
-  useEffect(() => {
-    Promise.all([
-      financeService.trialBalance().then((r) => r.data).catch(() => null),
-      financeService.invoices.list({ limit: 1 }).then((r) => {
-        const total = r.headers?.["x-total-count"]
-        return total ? Number(total) : r.data?.length ?? "—"
-      }).catch(() => "—"),
-      financeService.payments.list({ limit: 1 }).then((r) => {
-        const total = r.headers?.["x-total-count"]
-        return total ? Number(total) : r.data?.length ?? "—"
-      }).catch(() => "—"),
-    ]).then(([tb, invoices, payments]) => {
-      setTb(tb)
-      setInvoices(invoices)
-      setPayments(payments)
-      setLoading(false)
-    })
-  }, [])
+  const loading = tbLoading || invLoading || payLoading
+
+  const invoicesList = invoices || []
+  const paymentsList = payments || []
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
-  const debit = tb?.total_debit ?? 0
-  const credit = tb?.total_credit ?? 0
+  const trialBalance = tb as any
+  const debit = trialBalance?.total_debit ?? 0
+  const credit = trialBalance?.total_credit ?? 0
   const balance = Math.abs(debit - credit).toFixed(2)
   const balanced = debit === credit
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader
@@ -240,7 +193,7 @@ export default function FinanceDashboard() {
           <StaggerItem>
             <KPICard
               title="Accounts"
-              value={tb?.rows?.length ?? 0}
+              value={trialBalance?.rows?.length ?? 0}
               icon={Receipt}
               trend={{ value: "0", positive: true }}
               sparklineData={[12, 12, 13, 13, 14, 14, 14, 15, 15, 15]}
@@ -249,7 +202,7 @@ export default function FinanceDashboard() {
           <StaggerItem>
             <KPICard
               title="Invoices"
-              value={invoices}
+              value={invoicesList.length}
               icon={FileText}
               trend={{ value: "+4", positive: true }}
               sparklineData={[18, 22, 20, 25, 24, 28, 30, 27, 32, 35]}
@@ -258,7 +211,7 @@ export default function FinanceDashboard() {
           <StaggerItem>
             <KPICard
               title="Payments"
-              value={payments}
+              value={paymentsList.length}
               icon={Wallet}
               trend={{ value: "+2", positive: true }}
               sparklineData={[14, 16, 15, 18, 20, 19, 22, 24, 23, 26]}
@@ -358,7 +311,7 @@ export default function FinanceDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {actionAlerts.map((alert) => {
+                {actionAlerts.map((alert: any) => {
                   const AlertIcon = alert.icon
                   return (
                     <a

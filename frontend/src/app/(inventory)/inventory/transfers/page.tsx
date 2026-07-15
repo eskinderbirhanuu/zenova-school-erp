@@ -1,11 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRightLeft, Clock, Truck, CheckCircle2, Loader2 } from "lucide-react"
 import { KPICard } from "@/components/ui/kpi-card"
-import { inventoryService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useStockMovements } from "@/hooks/queries"
 
 const statusColor: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-700", in_transit: "bg-blue-100 text-blue-700",
@@ -13,20 +12,12 @@ const statusColor: Record<string, string> = {
 }
 
 export default function InventoryTransfersPage() {
-  const [transfers, setTransfers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const { data: transfers, isLoading } = useStockMovements({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    inventoryService.stockMovements.list({ limit: 200 })
-      .then(res => setTransfers(res.data || []))
-      .catch(err => toast({ title: "Failed to load transfers", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const pending = transfers.filter((t: any) => t.status === "pending").length
-  const inTransit = transfers.filter((t: any) => t.status === "in_transit").length
-  const completed = transfers.filter((t: any) => t.status === "completed").length
+  const pending = (transfers || []).filter((t: any) => t.status === "pending").length
+  const inTransit = (transfers || []).filter((t: any) => t.status === "in_transit").length
+  const completed = (transfers || []).filter((t: any) => t.status === "completed").length
 
   return (
     <div className="space-y-6">
@@ -34,10 +25,10 @@ export default function InventoryTransfersPage() {
         <h1 className="text-3xl font-bold">Stock Transfers</h1>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard title="Pending" value={loading ? "-" : pending} icon={Clock} iconColor="text-yellow-600" />
-        <KPICard title="In Transit" value={loading ? "-" : inTransit} icon={Truck} iconColor="text-blue-600" />
-        <KPICard title="Completed" value={loading ? "-" : completed} icon={CheckCircle2} iconColor="text-green-600" />
-        <KPICard title="Total" value={loading ? "-" : transfers.length} icon={ArrowRightLeft} iconColor="text-purple-600" />
+        <KPICard title="Pending" value={isLoading ? "-" : pending} icon={Clock} iconColor="text-yellow-600" />
+        <KPICard title="In Transit" value={isLoading ? "-" : inTransit} icon={Truck} iconColor="text-blue-600" />
+        <KPICard title="Completed" value={isLoading ? "-" : completed} icon={CheckCircle2} iconColor="text-green-600" />
+        <KPICard title="Total" value={isLoading ? "-" : (transfers || []).length} icon={ArrowRightLeft} iconColor="text-purple-600" />
       </div>
       <Card>
         <CardHeader><CardTitle>Transfer History</CardTitle></CardHeader>
@@ -49,8 +40,8 @@ export default function InventoryTransfersPage() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>}
-              {!loading && transfers.map((t: any) => (
+              {isLoading && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>}
+              {!isLoading && (transfers || []).map((t: any) => (
                 <tr key={t.id} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-4 font-mono text-xs font-medium">{t.reference || t.id?.slice(0, 8)}</td>
                   <td className="p-4 font-medium">{t.item_name || t.item_id || "Item"}</td>
@@ -61,7 +52,7 @@ export default function InventoryTransfersPage() {
                   <td className="p-4 text-muted-foreground">{t.created_at ? new Date(t.created_at).toLocaleDateString() : "—"}</td>
                 </tr>
               ))}
-              {!loading && transfers.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground"><ArrowRightLeft className="mx-auto h-8 w-8 mb-2 opacity-50" /><p>No records found</p></td></tr>}
+              {!isLoading && (transfers || []).length === 0 && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground"><ArrowRightLeft className="mx-auto h-8 w-8 mb-2 opacity-50" /><p>No records found</p></td></tr>}
             </tbody>
           </table>
         </CardContent>

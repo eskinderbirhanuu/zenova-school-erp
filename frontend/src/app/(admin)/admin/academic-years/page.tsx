@@ -1,49 +1,36 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { academicService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { Calendar, Loader2, Plus, CheckCircle2, XCircle, Star } from "lucide-react"
+import { useAcademicYears, useCreateAcademicYear, useSetCurrentAcademicYear } from "@/hooks/queries"
 
 export default function AdminAcademicYears() {
-  const [years, setYears] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: years = [], isLoading } = useAcademicYears()
+  const createAcademicYear = useCreateAcademicYear()
+  const setCurrentAcademicYear = useSetCurrentAcademicYear()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: "", start_date: "", end_date: "" })
-  const [saving, setSaving] = useState(false)
-
-  const fetchYears = () => {
-    setLoading(true)
-    academicService.academicYears.list()
-      .then((r: any) => setYears(Array.isArray(r.data) ? r.data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { fetchYears() }, [])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSaving(true)
     try {
-      await academicService.academicYears.create(form)
+      await createAcademicYear.mutateAsync(form as any)
       toast({ title: "Academic year created" })
       setShowForm(false)
       setForm({ name: "", start_date: "", end_date: "" })
-      fetchYears()
     } catch (err: any) {
       toast({ title: err?.response?.data?.detail || "Failed to create", variant: "destructive" })
-    } finally { setSaving(false) }
+    }
   }
 
   const handleSetCurrent = async (id: string) => {
     try {
-      await academicService.academicYears.setCurrent(id)
+      await setCurrentAcademicYear.mutateAsync(id)
       toast({ title: "Academic year set as current" })
-      fetchYears()
     } catch { toast({ title: "Failed to update", variant: "destructive" }) }
   }
 
@@ -78,8 +65,8 @@ export default function AdminAcademicYears() {
               </div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : "Create"}
+                <Button type="submit" disabled={createAcademicYear.isPending}>
+                  {createAcademicYear.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : "Create"}
                 </Button>
               </div>
             </form>
@@ -88,9 +75,9 @@ export default function AdminAcademicYears() {
       )}
 
       <Card>
-        <CardHeader><CardTitle className="text-lg">{loading ? "Loading..." : `${years.length} academic year${years.length !== 1 ? "s" : ""}`}</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">{isLoading ? "Loading..." : `${years.length} academic year${years.length !== 1 ? "s" : ""}`}</CardTitle></CardHeader>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : years.length === 0 ? (
             <div className="flex flex-col items-center py-12">

@@ -1,8 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { studentService, academicService } from "@/services/api"
+import { useStudents } from "@/hooks/queries"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
@@ -10,21 +9,13 @@ import { Plus } from "lucide-react"
 
 export default function AdminStudentsPage() {
   const router = useRouter()
-  const [students, setStudents] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: students, isLoading } = useStudents({ limit: 200 })
 
-  useEffect(() => {
-    studentService.list({ limit: 200 })
-      .then((res) => setStudents(res.data || []))
-      .catch(() => setStudents([]))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const normalized = students.map((s: any) => ({
+  const normalized = (students || []).map((s) => ({
     id: s.id,
     name: `${s.first_name || ""} ${s.middle_name || ""} ${s.last_name || ""}`.trim(),
-    id_number: s.student_id || s.id_number || "—",
-    class: s.grade_name || s.class_name || "—",
+    id_number: s.student_id || "—",
+    class: s.grade_name || "—",
     status: s.status || "active",
   }))
 
@@ -40,7 +31,7 @@ export default function AdminStudentsPage() {
       ]}
       data={normalized}
       keyExtractor={(r) => r.id}
-      loading={loading}
+      loading={isLoading}
       emptyTitle="No students enrolled"
       onRowClick={(r) => router.push(`/admin/students/${r.id}`)}
       actions={

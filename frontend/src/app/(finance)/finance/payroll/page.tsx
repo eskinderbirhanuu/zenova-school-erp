@@ -1,33 +1,22 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { toast } from "@/hooks/use-toast"
-import api from "@/services/api"
+import { usePayroll } from "@/hooks/queries"
 
 export default function PayrollPage() {
-  const [records, setRecords] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: records, isLoading } = usePayroll({ limit: 200 })
 
-  useEffect(() => {
-    api.get("/payroll", { params: { limit: 200 } })
-      .then((res) => {
-        const raw = res.data?.data || res.data || []
-        setRecords(raw.map((p: any) => ({
-          id: p.id,
-          employee: p.employee_name || p.staff_name || "—",
-          position: p.position || p.job_title || "—",
-          salary: p.salary ?? 0,
-          deductions: p.deductions ?? 0,
-          net: p.net_pay ?? p.net ?? 0,
-          status: p.status || "pending",
-          period: p.period || "—",
-        })))
-      })
-      .catch(() => toast({ title: "Error", description: "Failed to load payroll records", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const mapped = (records || []).map((p: any) => ({
+    id: p.id,
+    employee: p.employee_name || p.staff_name || "—",
+    position: p.position || p.job_title || "—",
+    salary: p.salary ?? 0,
+    deductions: p.deductions ?? 0,
+    net: p.net_pay ?? p.net ?? 0,
+    status: p.status || "pending",
+    period: p.period || "—",
+  }))
 
   return (
     <GenericListPage
@@ -40,8 +29,8 @@ export default function PayrollPage() {
         { key: "period", header: "Period", render: (r) => <span className="text-muted-foreground">{r.period}</span> },
         { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
       ]}
-      data={records} keyExtractor={(r) => r.id}
-      loading={loading} emptyTitle="No payroll records"
+      data={mapped} keyExtractor={(r) => r.id}
+      loading={isLoading} emptyTitle="No payroll records"
     />
   )
 }

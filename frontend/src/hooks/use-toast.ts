@@ -51,15 +51,15 @@ export const reducer = (state: State, action: Action): State => {
     case "ADD_TOAST":
       return { ...state, toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT) }
     case "UPDATE_TOAST":
-      return { ...state, toasts: state.toasts.map((t) => (t.id === action.toast.id ? { ...t, ...action.toast } : t)) }
+      return { ...state, toasts: state.toasts.map((t: any) => (t.id === action.toast.id ? { ...t, ...action.toast } : t)) }
     case "DISMISS_TOAST": {
       const { toastId } = action
       if (toastId) addToRemoveQueue(toastId)
-      else state.toasts.forEach((t) => addToRemoveQueue(t.id))
-      return { ...state, toasts: state.toasts.map((t) => (t.id === toastId || toastId === undefined ? { ...t, open: false } : t)) }
+      else state.toasts.forEach((t: any) => addToRemoveQueue(t.id))
+      return { ...state, toasts: state.toasts.map((t: any) => (t.id === toastId || toastId === undefined ? { ...t, open: false } : t)) }
     }
     case "REMOVE_TOAST":
-      return { ...state, toasts: action.toastId ? state.toasts.filter((t) => t.id !== action.toastId) : [] }
+      return { ...state, toasts: action.toastId ? state.toasts.filter((t: any) => t.id !== action.toastId) : [] }
   }
 }
 
@@ -68,7 +68,7 @@ let memoryState: State = { toasts: [] }
 
 function dispatch(action: Action) {
   memoryState = reducer(memoryState, action)
-  listeners.forEach((listener) => listener(memoryState))
+  listeners.forEach((listener: any) => listener(memoryState))
 }
 
 type Toast = Omit<ToasterToast, "id">

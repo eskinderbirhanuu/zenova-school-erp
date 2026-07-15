@@ -15,7 +15,7 @@ export default function StudentTranscriptPage() {
 
   useEffect(() => {
     api.get(`/students/${params.studentId}/transcript`)
-      .then((r) => setTranscript(r.data))
+      .then((r: any) => setTranscript(r.data))
       .catch(() => setTranscript(null))
       .finally(() => setLoading(false))
   }, [params.studentId])
@@ -53,7 +53,7 @@ export default function StudentTranscriptPage() {
                 rows.push([s.semester_name, sub.subject, String(sub.average), sub.grade])
               )
             )
-            const csv = rows.map(r => r.join(",")).join("\n")
+            const csv = rows.map((r: any) => r.join(",")).join("\n")
             const blob = new Blob([csv], { type: "text/csv" })
             const url = URL.createObjectURL(blob)
             const a = document.createElement("a")

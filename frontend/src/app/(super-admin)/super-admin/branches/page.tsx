@@ -4,18 +4,15 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { useApiQuery } from "@/hooks/use-api"
-import { branchService } from "@/services/api"
+import { useBranches } from "@/hooks/queries"
 import { Plus } from "lucide-react"
 import Link from "next/link"
 
 export default function SuperAdminBranches() {
   const [search, setSearch] = useState("")
-  const { data: response, isLoading, error } = useApiQuery(
-    ["branches", search],
-    () => branchService.list({ search: search || undefined }),
-  )
-  const branches: any[] = response?.data || []
+  const { data, isLoading } = useBranches({ search: search || undefined })
+
+  const branches = data || []
 
   const normalized = branches.map((b: any) => ({
     ...b,

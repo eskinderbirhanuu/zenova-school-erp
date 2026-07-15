@@ -1,19 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { studentService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useStudents } from "@/hooks/queries"
 
 export default function ParentChildrenPage() {
-  const [children, setChildren] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    setLoading(true)
-    studentService.list({ limit: 10 }).then((r: any) => setChildren(r.data)).catch(() => toast({ title: "Failed to load children", variant: "destructive" })).finally(() => setLoading(false))
-  }, [])
+  const { data: children, isLoading } = useStudents({ limit: 10 })
 
   return (
     <GenericListPage
@@ -24,8 +17,8 @@ export default function ParentChildrenPage() {
         { key: "class", header: "Class", render: (c) => <span className="text-muted-foreground">{c.grade_id || "-"}</span> },
         { key: "status", header: "Status", render: (c) => <StatusBadge status={c.status} /> },
       ]}
-      data={children} keyExtractor={(c) => c.id}
-      loading={loading} emptyTitle="No children linked to your account"
+      data={children || []} keyExtractor={(c) => c.id}
+      loading={isLoading} emptyTitle="No children linked to your account"
     />
   )
 }

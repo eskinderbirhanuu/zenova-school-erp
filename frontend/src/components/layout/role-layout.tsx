@@ -35,7 +35,7 @@ function SkipLink() {
 
 function SidebarNav({ items, pathname, onNavigate, collapsed }: { items: NavSection[]; pathname: string; onNavigate?: () => void; collapsed: boolean }) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() =>
-    new Set(items.map((s) => s.section))
+    new Set(items.map((s: any) => s.section))
   )
 
   const toggleSection = (section: string) => {
@@ -49,7 +49,7 @@ function SidebarNav({ items, pathname, onNavigate, collapsed }: { items: NavSect
 
   return (
     <nav className="flex-1 space-y-1 p-3 overflow-y-auto" aria-label="Main navigation">
-      {items.map((section) => {
+      {items.map((section: any) => {
         const isExpanded = expandedSections.has(section.section)
         return (
           <div key={section.section}>
@@ -70,7 +70,7 @@ function SidebarNav({ items, pathname, onNavigate, collapsed }: { items: NavSect
               )}
               {collapsed && <span className="sr-only">{section.section}</span>}
             </button>
-            {isExpanded && section.items.map((item) => {
+            {isExpanded && section.items.map((item: any) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
               return (
                 <Link
@@ -358,9 +358,9 @@ function CommandPalette({ navItems, onClose, accent }: { navItems: NavSection[];
   const [activeIndex, setActiveIndex] = useState(0)
   const router = useRouter()
 
-  const allItems = navItems.flatMap((s) => s.items)
+  const allItems = navItems.flatMap((s: any) => s.items)
   const filtered = query
-    ? allItems.filter((i) => i.label.toLowerCase().includes(query.toLowerCase()))
+    ? allItems.filter((i: any) => i.label.toLowerCase().includes(query.toLowerCase()))
     : allItems
 
   useEffect(() => {

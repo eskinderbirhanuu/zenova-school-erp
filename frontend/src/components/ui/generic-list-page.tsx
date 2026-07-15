@@ -137,7 +137,7 @@ export function GenericListPage<T>({
 
           {periods && onPeriodChange && (
             <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5" role="radiogroup" aria-label="Select time period">
-              {periods.map((p) => (
+              {periods.map((p: any) => (
                 <button
                   key={p.value}
                   role="radio"
@@ -173,7 +173,7 @@ export function GenericListPage<T>({
             exit={{ opacity: 0 }}
             className="space-y-3"
           >
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3].map((i: any) => (
               <div key={i} className="h-14 rounded-xl bg-muted/40 animate-pulse" />
             ))}
           </motion.div>

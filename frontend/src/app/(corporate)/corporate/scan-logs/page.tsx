@@ -1,18 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeader } from "@/components/ui/page-header"
-import { nfcV2Service } from "@/services/api"
+import { useNfcScanLogs } from "@/hooks/queries"
 import { Loader2 } from "lucide-react"
 
 export default function ScanLogsPage() {
-  const [logs, setLogs] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    nfcV2Service.listScanLogs().then(r => setLogs(r.data)).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const { data: logsData, isLoading } = useNfcScanLogs()
+  const logs = (logsData as any[]) ?? []
 
   return (
     <div className="space-y-6">
@@ -20,7 +15,7 @@ export default function ScanLogsPage() {
       <Card>
         <CardHeader><CardTitle>Scan History</CardTitle></CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : (
             <table className="w-full text-sm">

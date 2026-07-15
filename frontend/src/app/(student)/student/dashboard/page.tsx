@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { studentPortalService } from "@/services/api"
+import { useStudentPortalDashboard } from "@/hooks/queries"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
   ClipboardCheck, Award, Calendar, Wallet, Loader2,
@@ -14,7 +14,7 @@ import {
   Flame, BellRing
 } from "lucide-react"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 function getGreeting(): { text: string; icon: typeof Sun } {
@@ -31,37 +31,29 @@ function formatDate(): string {
 }
 
 export default function StudentDashboard() {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    studentPortalService.dashboard()
-      .then(r => setData(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data, isLoading } = useStudentPortalDashboard()
 
   const greeting = useMemo(() => getGreeting(), [])
   const dateStr = useMemo(() => formatDate(), [])
   const GreetingIcon = greeting.icon
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
-  const d = data || {}
+  const d = (data || {}) as any
   const grades = d.subject_grades || []
   const schedule = d.today_schedule || []
   const assignments = d.upcoming_assignments || []
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <div className="relative overflow-hidden rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm p-6 md:p-8">

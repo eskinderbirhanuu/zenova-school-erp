@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,13 +8,13 @@ import { Label } from "@/components/ui/label"
 import { PageHeader } from "@/components/ui/page-header"
 import { Key, CheckCircle, ArrowLeft, Copy, RefreshCw, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { schoolService, licenseService } from "@/services/api"
+import { useSchoolList, useCreateLicense } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 
 function generateLicenseKey() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
   const segments = [4, 4, 4, 4]
-  return segments.map(len =>
+  return segments.map((len: any) =>
     Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("")
   ).join("-")
 }
@@ -22,37 +22,30 @@ function generateLicenseKey() {
 export default function NewLicense() {
   const [licenseType, setLicenseType] = useState("Main")
   const [schoolId, setSchoolId] = useState("")
-  const [schools, setSchools] = useState<any[]>([])
-  const [schoolsLoading, setSchoolsLoading] = useState(true)
   const [validUntil, setValidUntil] = useState("")
   const [notes, setNotes] = useState("")
   const [licenseKey, setLicenseKey] = useState(generateLicenseKey())
   const [success, setSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    schoolService.list({ limit: 100 }).then(res => {
-      setSchools(res.data.schools || [])
-    }).catch(() => {
-      toast({ title: "Failed to load schools", variant: "destructive" })
-    }).finally(() => setSchoolsLoading(false))
-  }, [])
+  const { data: schoolsData, isLoading: schoolsLoading } = useSchoolList({ limit: 100 } as any)
+  const schools = ((schoolsData as any)?.schools ?? schoolsData ?? []) as any[]
+  const licenseMutation = useCreateLicense()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await licenseService.create({
+      await licenseMutation.mutateAsync({
         key: licenseKey,
         license_type: licenseType,
         school_id: schoolId,
         valid_from: new Date().toISOString().split("T")[0],
         valid_until: validUntil,
         notes: notes || undefined,
-      })
+      } as any)
       setSuccess(true)
     } catch (err: any) {
-      toast({ title: "Failed to create license", description: err.response?.data?.detail || err.message, variant: "destructive" })
+      toast({ title: "Failed to create license", description: (err as any)?.response?.data?.detail || (err as any)?.message, variant: "destructive" })
     } finally {
       setSubmitting(false)
     }
@@ -66,7 +59,7 @@ export default function NewLicense() {
           <CardContent className="flex flex-col items-center py-12">
             <div className="rounded-full bg-green-100 p-3 mb-4"><CheckCircle className="h-8 w-8 text-green-600" /></div>
             <h2 className="text-xl font-bold mb-2">License Generated Successfully</h2>
-            <p className="text-muted-foreground mb-2">License key for {schools.find(s => s.id === schoolId)?.name || schoolId}</p>
+            <p className="text-muted-foreground mb-2">License key for {schools.find((s: any) => s.id === schoolId)?.name || schoolId}</p>
             <p className="font-mono text-lg font-bold tracking-wider mb-6">{licenseKey}</p>
             <div className="flex gap-3">
               <Link href="/super-admin/licenses"><Button variant="outline"><ArrowLeft className="h-4 w-4" /> Back to Licenses</Button></Link>
@@ -95,7 +88,7 @@ export default function NewLicense() {
               <div className="space-y-2">
                 <Label>License Type <span className="text-red-500">*</span></Label>
                 <div className="flex gap-2">
-                  {["Main", "Branch"].map((t) => (
+                  {["Main", "Branch"].map((t: any) => (
                     <Button key={t} type="button" variant={licenseType === t ? "default" : "outline"} onClick={() => setLicenseType(t)} className="flex-1">{t}</Button>
                   ))}
                 </div>
@@ -114,7 +107,7 @@ export default function NewLicense() {
                     <option value="" disabled>Loading...</option>
                   ) : schools.length === 0 ? (
                     <option value="" disabled>No schools found</option>
-                  ) : schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  ) : schools.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -154,7 +147,7 @@ export default function NewLicense() {
             <div className="rounded-lg border p-3 text-sm space-y-1">
               <p className="font-medium">License Summary</p>
               <p className="text-muted-foreground">Type: <span className="font-medium text-foreground">{licenseType}</span></p>
-              <p className="text-muted-foreground">School: <span className="font-medium text-foreground">{schools.find(s => s.id === schoolId)?.name || schoolId || "Not selected"}</span></p>
+              <p className="text-muted-foreground">School: <span className="font-medium text-foreground">{schools.find((s: any) => s.id === schoolId)?.name || schoolId || "Not selected"}</span></p>
               <p className="text-muted-foreground">Valid Until: <span className="font-medium text-foreground">{validUntil || "Not set"}</span></p>
             </div>
             <Button className="w-full" onClick={handleSubmit} disabled={!schoolId || !validUntil || submitting}>

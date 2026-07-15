@@ -1,27 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { academicService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useExamResults } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 
 export default function TeacherGradesPage() {
   const router = useRouter()
-  const [grades, setGrades] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const { data, isLoading } = useExamResults({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    academicService.examResults.list({ limit: 200 })
-      .then(res => setGrades(res.data || []))
-      .catch(err => toast({ title: "Failed to load grades", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
+  const grades = data || []
   const normalized = grades.map((g: any) => ({
     id: g.id,
     student: g.student_name || g.student_id || "—",
@@ -32,7 +23,7 @@ export default function TeacherGradesPage() {
     date: g.created_at ? new Date(g.created_at).toLocaleDateString() : "—",
   }))
 
-  const filtered = normalized.filter(g => !search || g.student?.toLowerCase().includes(search.toLowerCase()))
+  const filtered = normalized.filter((g: any) => !search || g.student?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <div className="space-y-4">
@@ -46,7 +37,7 @@ export default function TeacherGradesPage() {
           { key: "date", header: "Date", render: (g) => <span className="text-muted-foreground">{g.date}</span> },
         ]}
         data={filtered} keyExtractor={(g) => g.id}
-        loading={loading} searchPlaceholder="Search student..." onSearch={setSearch}
+        loading={isLoading} searchPlaceholder="Search student..." onSearch={setSearch}
         emptyTitle="No grades entered"
         actions={
           <Button onClick={() => router.push("/teacher/grades/enter")}>

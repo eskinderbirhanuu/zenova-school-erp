@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from app.api.v1.deps import get_db, get_current_user
-from app.core.permissions import require_permission, Permission
+from app.api.v1.deps import get_db, get_auth_context
+from app.core.auth_deps import AuthContext
+from app.core.permissions import Permission
 from app.core.pagination import paginate, build_paginated_response
 from app.models.recruitment import JobPosting
 from app.models.contract import EmployeeContract
@@ -19,24 +20,26 @@ from app.services import hr_service
 
 router = APIRouter(tags=["hr"])
 
-HR = [require_permission(Permission.HR_MANAGE)]
-HR_ADMIN = [require_permission(Permission.HR_MANAGE)]
-VIEW_HR = [require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)]
+
+def _include_deleted(ctx: AuthContext) -> bool:
+    return ctx.is_superuser or ctx.role in ("ADMIN", "SUPER_ADMIN")
 
 
-@router.post("/contracts", response_model=ContractResponse, dependencies=HR_ADMIN)
-def create_contract(data: ContractCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return hr_service.create_contract(db, data, current_user.id, current_user.school_id)
+@router.post("/contracts", response_model=ContractResponse)
+def create_contract(data: ContractCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(Permission.HR_MANAGE)
+    return hr_service.create_contract(db, data, ctx.id, ctx.school_id)
 
 
-@router.get("/contracts", dependencies=VIEW_HR)
+@router.get("/contracts")
 def list_contracts(
     staff_profile_id: str = Query(None),
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+    db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    q = db.query(EmployeeContract).filter(EmployeeContract.school_id == current_user.school_id)
+    ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
+    include_deleted = _include_deleted(ctx)
+    q = db.query(EmployeeContract).filter(EmployeeContract.school_id == ctx.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
     if staff_profile_id:
@@ -50,40 +53,45 @@ def list_contracts(
     )
 
 
-@router.post("/contracts/{contract_id}/terminate", dependencies=HR_ADMIN)
-def terminate_contract(contract_id: str, end_date: str = Query(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.post("/contracts/{contract_id}/terminate")
+def terminate_contract(contract_id: str, end_date: str = Query(...), db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(Permission.HR_MANAGE)
     from datetime import date
-    hr_service.terminate_contract(db, contract_id, date.fromisoformat(end_date), current_user.id, current_user.school_id, include_deleted=True)
+    hr_service.terminate_contract(db, contract_id, date.fromisoformat(end_date), ctx.id, ctx.school_id, include_deleted=True)
     return {"message": "Contract terminated"}
 
 
-@router.post("/leave-types", response_model=LeaveTypeResponse, dependencies=HR_ADMIN)
-def create_leave_type(data: LeaveTypeCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return hr_service.create_leave_type(db, current_user.school_id, data, current_user.id)
+@router.post("/leave-types", response_model=LeaveTypeResponse)
+def create_leave_type(data: LeaveTypeCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(Permission.HR_MANAGE)
+    return hr_service.create_leave_type(db, ctx.school_id, data, ctx.id)
 
 
-@router.get("/leave-types", response_model=list[LeaveTypeResponse], dependencies=VIEW_HR)
-def list_leave_types(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return hr_service.get_leave_types(db, current_user.school_id, include_deleted=include_deleted)
+@router.get("/leave-types", response_model=list[LeaveTypeResponse])
+def list_leave_types(db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
+    include_deleted = _include_deleted(ctx)
+    return hr_service.get_leave_types(db, ctx.school_id, include_deleted=include_deleted)
 
 
-@router.post("/leave-requests", response_model=LeaveRequestResponse, dependencies=HR)
-def request_leave(data: LeaveRequestCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return hr_service.request_leave(db, data, current_user.id, current_user.school_id, include_deleted=True)
+@router.post("/leave-requests", response_model=LeaveRequestResponse)
+def request_leave(data: LeaveRequestCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(Permission.HR_MANAGE)
+    return hr_service.request_leave(db, data, ctx.id, ctx.school_id, include_deleted=True)
 
 
-@router.get("/leave-requests", dependencies=VIEW_HR)
+@router.get("/leave-requests")
 def list_leave_requests(
     staff_profile_id: str = Query(None), status: str = Query(None),
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
+    include_deleted = _include_deleted(ctx)
     from app.models.staff_profile import StaffProfile
     q = db.query(LeaveRequest).join(
         StaffProfile, LeaveRequest.staff_profile_id == StaffProfile.id
-    ).filter(StaffProfile.school_id == current_user.school_id)
+    ).filter(StaffProfile.school_id == ctx.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
     if staff_profile_id:
@@ -99,40 +107,45 @@ def list_leave_requests(
     )
 
 
-@router.post("/leave-requests/{request_id}/approve", dependencies=HR_ADMIN)
-def approve_leave(request_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    hr_service.approve_leave(db, request_id, current_user.id, current_user.school_id, include_deleted=True)
+@router.post("/leave-requests/{request_id}/approve")
+def approve_leave(request_id: str, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(Permission.HR_MANAGE)
+    hr_service.approve_leave(db, request_id, ctx.id, ctx.school_id, include_deleted=True)
     return {"message": "Leave approved"}
 
 
-@router.post("/leave-requests/{request_id}/reject", dependencies=HR_ADMIN)
-def reject_leave(request_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    hr_service.reject_leave(db, request_id, current_user.id, current_user.school_id, include_deleted=True)
+@router.post("/leave-requests/{request_id}/reject")
+def reject_leave(request_id: str, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(Permission.HR_MANAGE)
+    hr_service.reject_leave(db, request_id, ctx.id, ctx.school_id, include_deleted=True)
     return {"message": "Leave rejected"}
 
 
-@router.get("/leave-balances", response_model=list[LeaveBalanceResponse], dependencies=VIEW_HR)
+@router.get("/leave-balances", response_model=list[LeaveBalanceResponse])
 def get_leave_balances(
     staff_profile_id: str = Query(...), year: int = Query(None),
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    return hr_service.get_leave_balances(db, current_user.school_id, staff_profile_id, year, include_deleted=include_deleted)
+    ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
+    include_deleted = _include_deleted(ctx)
+    return hr_service.get_leave_balances(db, ctx.school_id, staff_profile_id, year, include_deleted=include_deleted)
 
 
-@router.post("/performance-reviews", response_model=PerformanceReviewResponse, dependencies=HR_ADMIN)
-def create_review(data: PerformanceReviewCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return hr_service.create_performance_review(db, data, current_user.id, current_user.school_id)
+@router.post("/performance-reviews", response_model=PerformanceReviewResponse)
+def create_review(data: PerformanceReviewCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(Permission.HR_MANAGE)
+    return hr_service.create_performance_review(db, data, ctx.id, ctx.school_id)
 
 
-@router.get("/performance-reviews", dependencies=VIEW_HR)
+@router.get("/performance-reviews")
 def list_reviews(
     staff_profile_id: str = Query(None),
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+    db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    q = db.query(PerformanceReview).filter(PerformanceReview.school_id == current_user.school_id)
+    ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
+    include_deleted = _include_deleted(ctx)
+    q = db.query(PerformanceReview).filter(PerformanceReview.school_id == ctx.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
     if staff_profile_id:
@@ -146,10 +159,11 @@ def list_reviews(
     )
 
 
-@router.get("/recruitment", response_model=list[JobPostingResponse], dependencies=VIEW_HR)
+@router.get("/recruitment", response_model=list[JobPostingResponse])
 def list_jobs(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
-              db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    q = db.query(JobPosting).filter(JobPosting.school_id == current_user.school_id)
-    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+              db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
+    ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
+    q = db.query(JobPosting).filter(JobPosting.school_id == ctx.school_id)
+    if _include_deleted(ctx):
         q = q.execution_options(include_deleted=True)
     return q.order_by(JobPosting.created_at.desc()).offset(skip).limit(limit).all()

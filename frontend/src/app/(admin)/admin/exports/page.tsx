@@ -23,7 +23,7 @@ export default function ExportCenterPage() {
   const [dateTo, setDateTo] = useState("")
   const [loading, setLoading] = useState<string | null>(null)
 
-  const exportType = EXPORT_TYPES.find((t) => t.id === selected)
+  const exportType = EXPORT_TYPES.find((t: any) => t.id === selected)
   const needsDate = selected === "attendance"
 
   const doExport = async () => {
@@ -57,7 +57,7 @@ export default function ExportCenterPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {EXPORT_TYPES.map((t) => {
+        {EXPORT_TYPES.map((t: any) => {
           const Icon = t.icon
           return (
             <Card

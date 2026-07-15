@@ -21,8 +21,7 @@ export default function DirectorAudit() {
       .finally(() => setLoading(false))
   }, [])
 
-  const filtered = logs.filter(
-    (l) => !search || l.action?.toLowerCase().includes(search.toLowerCase()) || l.user?.toLowerCase().includes(search.toLowerCase())
+  const filtered = logs.filter((l: any) => !search || l.action?.toLowerCase().includes(search.toLowerCase()) || l.user?.toLowerCase().includes(search.toLowerCase())
   )
 
   return (

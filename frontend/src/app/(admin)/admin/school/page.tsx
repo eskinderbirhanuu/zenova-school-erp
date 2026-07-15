@@ -8,9 +8,10 @@ import { PageHeader } from "@/components/ui/page-header"
 import { toast } from "@/hooks/use-toast"
 import { Building2, Save, MapPin, Phone, Mail, Globe, Hash, Calendar, Loader2 } from "lucide-react"
 import api from "@/services/api"
+import { useMySchool } from "@/hooks/queries"
 
 export default function AdminSchool() {
-  const [loading, setLoading] = useState(true)
+  const { data: schoolData, isLoading: loading } = useMySchool()
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: "",
@@ -26,27 +27,22 @@ export default function AdminSchool() {
   })
 
   useEffect(() => {
-    api.get("/schools/me")
-      .then((res) => {
-        const s = res.data?.data || res.data || {}
-        setForm({
-          name: s.name || "",
-          code: s.code || "",
-          address: s.address || "",
-          phone: s.phone || "",
-          email: s.email || "",
-          website: s.website || "",
-          founded: s.founded || s.founded_year?.toString() || "",
-          motto: s.motto || "",
-          timezone: s.timezone || "",
-          language: s.language || "",
-        })
+    if (schoolData) {
+      const s = (schoolData as any)?.data || schoolData || {}
+      setForm({
+        name: s.name || "",
+        code: s.code || "",
+        address: s.address || "",
+        phone: s.phone || "",
+        email: s.email || "",
+        website: s.website || "",
+        founded: s.founded || s.founded_year?.toString() || "",
+        motto: s.motto || "",
+        timezone: s.timezone || "",
+        language: s.language || "",
       })
-      .catch((err) => {
-        toast({ title: "Failed to load school data", description: err?.response?.data?.detail || err.message, variant: "destructive" })
-      })
-      .finally(() => setLoading(false))
-  }, [])
+    }
+  }, [schoolData])
 
   const update = (p: Partial<typeof form>) => setForm(prev => ({ ...prev, ...p }))
 

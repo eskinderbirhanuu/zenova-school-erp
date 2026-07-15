@@ -1,34 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import { academicService } from "@/services/api"
+import { useExamResults } from "@/hooks/queries"
 
 export default function ParentResults() {
-  const [results, setResults] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: rawResults, isLoading } = useExamResults({ limit: 200 })
 
-  useEffect(() => {
-    academicService.examResults.list({ limit: 200 })
-      .then((res) => {
-        const data = Array.isArray(res.data) ? res.data : res.data?.data || res.data?.results || []
-        setResults(
-          data.map((r: any) => ({
-            id: r.id,
-            child: r.student_name || r.child_name || r.child || "—",
-            subject: r.subject_name || r.subject || "—",
-            score: r.score ?? r.marks_obtained ?? r.total_marks ?? 0,
-            grade: r.grade || r.grading || "—",
-            term: r.term || r.term_name || "—",
-            exam: r.exam_name || r.term || "Exam",
-          }))
-        )
-      })
-      .catch(() => {
-        setResults([])
-      })
-      .finally(() => setLoading(false))
-  }, [])
+  const results = (rawResults || []).map((r: any) => ({
+    id: r.id,
+    child: r.student_name || r.child_name || r.child || "—",
+    subject: r.subject_name || r.subject || "—",
+    score: r.score ?? r.marks_obtained ?? r.total_marks ?? 0,
+    grade: r.grade || r.grading || "—",
+    term: r.term || r.term_name || "—",
+    exam: r.exam_name || r.term || "Exam",
+  }))
 
   return (
     <GenericListPage
@@ -41,7 +28,7 @@ export default function ParentResults() {
         { key: "term", header: "Term", render: (r) => <span className="text-muted-foreground">{r.term}</span> },
       ]}
       data={results} keyExtractor={(r) => r.id}
-      loading={loading} emptyTitle="No results available"
+      loading={isLoading} emptyTitle="No results available"
     />
   )
 }

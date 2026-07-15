@@ -48,25 +48,33 @@ def notify_parents_of_absence(
         SchoolTelegramBot.is_active == True,
     ).first()
 
-    for link in links:
-        parent = db.query(Parent).filter(
-            Parent.id == link.parent_id,
-            Parent.school_id == school_id
-        ).first()
-        if not parent or not parent.user_id:
-            continue
+    parent_ids = [link.parent_id for link in links]
+    parents = {
+        p.id: p for p in db.query(Parent).filter(
+            Parent.id.in_(parent_ids), Parent.school_id == school_id
+        ).all() if p.user_id
+    }
+    user_ids = [p.user_id for p in parents.values()]
+    users = {
+        u.id: u for u in db.query(User).filter(
+            User.id.in_(user_ids), User.school_id == school_id
+        ).all()
+    }
+    prefs = {
+        p.user_id: p for p in db.query(NotificationPreference).filter(
+            NotificationPreference.user_id.in_(user_ids),
+            NotificationPreference.school_id == school_id
+        ).all()
+    }
 
-        user = db.query(User).filter(
-            User.id == parent.user_id,
-            User.school_id == school_id
-        ).first()
+    for link in links:
+        parent = parents.get(link.parent_id)
+        if not parent:
+            continue
+        user = users.get(parent.user_id)
         if not user:
             continue
-
-        pref = db.query(NotificationPreference).filter(
-            NotificationPreference.user_id == user.id,
-            NotificationPreference.school_id == school_id
-        ).first()
+        pref = prefs.get(user.id)
 
         send_inapp(
             db, user.id,

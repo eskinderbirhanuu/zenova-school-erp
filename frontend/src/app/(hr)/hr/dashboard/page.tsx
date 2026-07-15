@@ -1,13 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { hrService, staffService } from "@/services/api"
+import { useStaff, useContracts, useAttendance } from "@/hooks/queries"
 import Link from "next/link"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
@@ -15,7 +14,7 @@ import {
   BarChart3, UserPlus, Calendar, Award, Clock
 } from "lucide-react"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 const deptHeadcount = [
@@ -35,43 +34,26 @@ const recentHR = [
 ]
 
 export default function HrDashboard() {
-  const [employees, setEmployees] = useState<number | string>("—")
-  const [contracts, setContracts] = useState<number | string>("—")
-  const [attendance, setAttendance] = useState<number | string>("—")
-  const [payroll, setPayroll] = useState<string>("—")
-  const [loading, setLoading] = useState(true)
+  const { data: staff, isLoading: staffLoading } = useStaff({ limit: 200 } as any)
+  const { data: contracts, isLoading: contractsLoading } = useContracts({ limit: 200 } as any)
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: attendanceData, isLoading: attendanceLoading } = useAttendance({ date: today } as any)
 
-  useEffect(() => {
-    Promise.all([
-      staffService.list({ limit: 1 }).then((r) => {
-        const total = r.headers?.["x-total-count"]
-        return total ? Number(total) : r.data?.length ?? "—"
-      }).catch(() => "—"),
-      hrService.contracts.list({ limit: 1 }).then((r) => {
-        const total = r.headers?.["x-total-count"]
-        return total ? Number(total) : r.data?.length ?? "—"
-      }).catch(() => "—"),
-      (() => {
-        const today = new Date().toISOString().slice(0, 10)
-        return hrService.attendance.list({ date: today }).then((r) => r.data?.length ?? "—").catch(() => "—")
-      })(),
-      hrService.contracts.list().then((r) => {
-        const active = Array.isArray(r.data) ? r.data.filter((c: any) => c.status === "active").length : "—"
-        return `${active} active`
-      }).catch(() => "—"),
-    ]).then(([employees, contracts, attendance, payroll]) => {
-      setEmployees(employees)
-      setContracts(contracts)
-      setAttendance(attendance)
-      setPayroll(payroll)
-      setLoading(false)
-    })
-  }, [])
+  const loading = staffLoading || contractsLoading || attendanceLoading
+
+  const staffList = staff || []
+  const contractsList = contracts || []
+  const attendanceRecords = attendanceData || []
+
+  const employees = staffList.length
+  const activeContracts = contractsList.filter((c: any) => c.status === "active").length
+  const attendance = attendanceRecords.length
+  const payroll = `${activeContracts} active`
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
@@ -79,7 +61,7 @@ export default function HrDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader
@@ -91,7 +73,7 @@ export default function HrDashboard() {
       <StaggerContainer>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StaggerItem><KPICard title="Employees" value={employees} icon={Users} trend={{ value: "+5", positive: true }} /></StaggerItem>
-          <StaggerItem><KPICard title="Active Contracts" value={contracts} icon={FileText} trend={{ value: "+2", positive: true }} /></StaggerItem>
+          <StaggerItem><KPICard title="Active Contracts" value={activeContracts} icon={FileText} trend={{ value: "+2", positive: true }} /></StaggerItem>
           <StaggerItem><KPICard title="Today's Attendance" value={attendance} icon={ClipboardCheck} trend={{ value: "96%", positive: true }} accentColor="bg-emerald-500" /></StaggerItem>
           <StaggerItem><KPICard title="Payroll Status" value={payroll} icon={DollarSign} trend={{ value: "On track", positive: true }} /></StaggerItem>
         </div>

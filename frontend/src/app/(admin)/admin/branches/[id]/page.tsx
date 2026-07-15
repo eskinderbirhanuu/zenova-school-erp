@@ -4,31 +4,30 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { GenericFormCard } from "@/components/ui/generic-form-card"
 import { Input } from "@/components/ui/input"
-import { branchService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
+import { useBranch, useUpdateBranch } from "@/hooks/queries"
 
 export default function EditBranchPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
+  const { data: branch, isLoading: fetching } = useBranch(id)
+  const updateBranch = useUpdateBranch()
   const [form, setForm] = useState({ name: "", code: "", address: "", phone: "", email: "" })
   const [loading, setLoading] = useState(false)
-  const [fetching, setFetching] = useState(true)
 
   useEffect(() => {
-    if (!id) return
-    branchService.get(id).then((res) => {
-      const b = res.data
-      setForm({ name: b.name || "", code: b.code || "", address: b.address || "", phone: b.phone || "", email: b.email || "" })
-    }).catch(() => toast({ title: "Branch not found", variant: "destructive" })).finally(() => setFetching(false))
-  }, [id])
+    if (branch) {
+      setForm({ name: branch.name || "", code: branch.code || "", address: branch.address || "", phone: branch.phone || "", email: (branch as any).email || "" })
+    }
+  }, [branch])
 
   const update = (p: Partial<typeof form>) => setForm(prev => ({ ...prev, ...p }))
 
   const handleSubmit = async () => {
     setLoading(true)
     try {
-      await branchService.update(id, form)
+      await updateBranch.mutateAsync({ id, data: form as any })
       toast({ title: "Branch updated" })
       router.push("/admin/branches")
     } catch (err: any) {

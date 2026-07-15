@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
 import { toast } from "@/hooks/use-toast"
 import { Bell, BellOff, Mail, MessageSquare, Smartphone, Loader2, Save } from "lucide-react"
-import api from "@/services/api"
+import { useNotificationPreferences, useUpdateNotificationPreferences } from "@/hooks/queries"
 
 interface NotificationPrefs {
   email_on_absence: boolean
@@ -53,21 +53,16 @@ const EVENTS: { key: string; label: string }[] = [
 ]
 
 export default function ParentNotifications() {
-  const [loading, setLoading] = useState(true)
+  const { data: prefsData, isLoading } = useNotificationPreferences()
+  const updatePrefs = useUpdateNotificationPreferences()
   const [saving, setSaving] = useState(false)
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS)
 
   useEffect(() => {
-    api.get("/notifications/preferences")
-      .then((res) => {
-        const d = res.data?.data || res.data || {}
-        setPrefs({ ...DEFAULT_PREFS, ...d })
-      })
-      .catch((err) => {
-        toast({ title: "Failed to load preferences", description: err?.response?.data?.detail || err.message, variant: "destructive" })
-      })
-      .finally(() => setLoading(false))
-  }, [])
+    if (prefsData) {
+      setPrefs((prev) => ({ ...prev, ...prefsData } as NotificationPrefs))
+    }
+  }, [prefsData])
 
   const toggle = (channel: Channel, event: string) => {
     setPrefs((prev) => ({
@@ -79,7 +74,7 @@ export default function ParentNotifications() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await api.put("/notifications/preferences", prefs)
+      await updatePrefs.mutateAsync(prefs as any)
       toast({ title: "Notification preferences saved" })
     } catch (err: any) {
       toast({ title: "Failed to save preferences", description: err?.response?.data?.detail || err.message, variant: "destructive" })
@@ -88,7 +83,7 @@ export default function ParentNotifications() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -127,7 +122,7 @@ export default function ParentNotifications() {
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-3 pr-4 font-medium">Event</th>
-                  {CHANNELS.map((ch) => {
+                  {CHANNELS.map((ch: any) => {
                     const Icon = ch.icon
                     return (
                       <th key={ch.key} className="text-center py-3 px-4 font-medium">
@@ -141,10 +136,10 @@ export default function ParentNotifications() {
                 </tr>
               </thead>
               <tbody>
-                {EVENTS.map((ev) => (
+                {EVENTS.map((ev: any) => (
                   <tr key={ev.key} className="border-b last:border-0">
                     <td className="py-3 pr-4">{ev.label}</td>
-                    {CHANNELS.map((ch) => {
+                    {CHANNELS.map((ch: any) => {
                       const key = `${ch.key}_on_${ev.key}` as keyof NotificationPrefs
                       const enabled = prefs[key]
                       return (

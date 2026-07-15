@@ -6,14 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { academicService } from "@/services/api"
+import { useClasses, useSections, useExams, useTimetable, useMyTimetable, useExamResults } from "@/hooks/queries"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
   BookOpen, LayoutGrid, CalendarCheck, Clock, Loader2,
   BarChart3, ClipboardCheck, Users, FileText, MapPin, GraduationCap,
   AlertCircle, CheckCircle2, Circle
 } from "lucide-react"
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 import { cn } from "@/lib/utils"
 
@@ -64,10 +64,10 @@ function saveUngraded(items: UngradedItem[]) {
 function computeClassDistribution(slots: TimetableSlot[]): { day: string; classes: number }[] {
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   const counts: Record<string, number> = {}
-  slots.forEach((s) => {
+  slots.forEach((s: any) => {
     const dayIndex = new Date().getDay()
     const daysToShow = [0, 1, 2, 3, 4, 5, 6]
-    daysToShow.forEach((d) => {
+    daysToShow.forEach((d: any) => {
       const dayName = days[d]
       if (!counts[dayName]) counts[dayName] = 0
     })
@@ -78,7 +78,7 @@ function computeClassDistribution(slots: TimetableSlot[]): { day: string; classe
     const dayIndex = (today + i) % 7
     result.push({
       day: days[dayIndex],
-      classes: slots.filter((s) => {
+      classes: slots.filter((s: any) => {
         const slotDay = dayIndex
         return slotDay === i
       }).length || Math.floor(Math.random() * 4) + 2,
@@ -113,59 +113,61 @@ export default function TeacherDashboard() {
   const [timetableSlots, setTimetableSlots] = useState<TimetableSlot[]>([])
   const [ungradedItems, setUngradedItems] = useState<UngradedItem[]>([])
   const [classDist, setClassDist] = useState<{ day: string; classes: number }[]>([])
-  const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
+
+  const { data: classesData, isLoading: loadingClasses } = useClasses()
+  const { data: sectionsData, isLoading: loadingSections } = useSections()
+  const { data: examsData, isLoading: loadingExams } = useExams()
+  const { data: timetableData, isLoading: loadingTimetable } = useTimetable()
+  const { data: myTimetableData, isLoading: loadingMyTimetable } = useMyTimetable()
+  const { data: examResultsData, isLoading: loadingExamResults } = useExamResults({ limit: 50 })
+
+  const loading = loadingClasses || loadingSections || loadingExams || loadingTimetable || loadingMyTimetable || loadingExamResults
 
   useEffect(() => {
+    if (loading || initialized) return
     const cachedTt = loadTimetable()
     const cachedUg = loadUngraded()
     if (cachedTt.length) setTimetableSlots(cachedTt)
     if (cachedUg.length) setUngradedItems(cachedUg)
 
-    Promise.all([
-      academicService.classes.list().then((r) => r.data?.length ?? "—").catch(() => "—"),
-      academicService.sections.list().then((r) => r.data?.length ?? "—").catch(() => "—"),
-      academicService.exams.list().then((r) => r.data?.length ?? "—").catch(() => "—"),
-      academicService.timetable.list().then((r) => r.data?.length ?? "—").catch(() => "—"),
-      academicService.timetable.byTeacher().then((r) => r.data || []).catch(() => []),
-      academicService.examResults.list({ limit: 50 }).then((r) => r.data || []).catch(() => []),
-    ]).then(([cls, sec, ex, sched, ttEntries, results]) => {
-      setClasses(cls)
-      setSections(sec)
-      setExams(ex)
-      setSchedule(sched)
+    setClasses(classesData?.length ?? "—")
+    setSections(sectionsData?.length ?? "—")
+    setExams(examsData?.length ?? "—")
+    setSchedule(timetableData?.length ?? "—")
 
-      const slots = computeWeeklySlots(ttEntries)
-      setTimetableSlots(slots)
-      saveTimetable(slots)
-      setClassDist(computeClassDistribution(slots))
+    const slots = computeWeeklySlots(myTimetableData || [])
+    setTimetableSlots(slots)
+    saveTimetable(slots)
+    setClassDist(computeClassDistribution(slots))
 
-      const ug = (results as any[]).filter((r: any) => !r.grade).slice(0, 3).map((r: any) => ({
-        subject: r.subject_name || r.exam_id || "Assignment",
-        submissions: Math.floor(Math.random() * 20) + 5,
-        dueDate: ["Today", "Tomorrow", "Overdue"][Math.floor(Math.random() * 3)],
-      }))
-      if (ug.length === 0) {
-        const defaultUg: UngradedItem[] = [
-          { subject: "Grade 10A Math", submissions: 24, dueDate: "Today" },
-          { subject: "Grade 11B Calculus", submissions: 18, dueDate: "Tomorrow" },
-          { subject: "Grade 9C Algebra", submissions: 31, dueDate: "Overdue" },
-        ]
-        setUngradedItems(defaultUg)
-        saveUngraded(defaultUg)
-      } else {
-        setUngradedItems(ug)
-        saveUngraded(ug)
-      }
-      setLoading(false)
-    })
-  }, [])
+    const results = examResultsData || []
+    const ug = results.filter((r: any) => !r.grade).slice(0, 3).map((r: any) => ({
+      subject: r.subject_name || r.exam_id || "Assignment",
+      submissions: Math.floor(Math.random() * 20) + 5,
+      dueDate: ["Today", "Tomorrow", "Overdue"][Math.floor(Math.random() * 3)],
+    }))
+    if (ug.length === 0) {
+      const defaultUg: UngradedItem[] = [
+        { subject: "Grade 10A Math", submissions: 24, dueDate: "Today" },
+        { subject: "Grade 11B Calculus", submissions: 18, dueDate: "Tomorrow" },
+        { subject: "Grade 9C Algebra", submissions: 31, dueDate: "Overdue" },
+      ]
+      setUngradedItems(defaultUg)
+      saveUngraded(defaultUg)
+    } else {
+      setUngradedItems(ug)
+      saveUngraded(ug)
+    }
+    setInitialized(true)
+  }, [loading, initialized, classesData, sectionsData, examsData, timetableData, myTimetableData, examResultsData])
 
   const activeTimetable = timetableSlots.length > 0 ? timetableSlots : loadTimetable().length > 0 ? loadTimetable() : []
 
   function getSlotStatus(hour: number): SlotStatus {
     const now = new Date()
     const currentHour = now.getHours() + now.getMinutes() / 60
-    const nextSlot = activeTimetable.find((s) => s.hour > currentHour)
+    const nextSlot = activeTimetable.find((s: any) => s.hour > currentHour)
     const currentSlot = activeTimetable.find((s, idx) => {
       const next = activeTimetable[idx + 1]
       const endHour = next ? next.hour : s.hour + 1
@@ -186,7 +188,7 @@ export default function TeacherDashboard() {
       return currentHour >= s.hour && currentHour < endHour
     })
     if (currentSlot) return { ...currentSlot, status: "now" as const }
-    const nextSlot = activeTimetable.find((s) => s.hour > currentHour)
+    const nextSlot = activeTimetable.find((s: any) => s.hour > currentHour)
     if (nextSlot) return { ...nextSlot, status: "next" as const }
     return null
   }
@@ -206,7 +208,7 @@ export default function TeacherDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader
@@ -460,7 +462,7 @@ export default function TeacherDashboard() {
                         {status === "past" && (
                           <StatusBadge status="Done" variant="default" />
                         )}
-                        {status === "future" && i === (activeTimetable.length > 0 ? activeTimetable : []).findIndex((s) => getSlotStatus(s.hour) === "future") && (
+                        {status === "future" && i === (activeTimetable.length > 0 ? activeTimetable : []).findIndex((s: any) => getSlotStatus(s.hour) === "future") && (
                           <StatusBadge status="Next" variant="info" />
                         )}
                       </div>

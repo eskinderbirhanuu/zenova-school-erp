@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import api from "@/services/api";
+import { useReceipts } from "@/hooks/queries";
 import { Receipt, Download, ArrowLeft, FileText } from "lucide-react";
 
 interface ReceiptItem {
@@ -20,23 +20,7 @@ interface ReceiptItem {
 }
 
 export default function ReceiptsPage() {
-  const [receipts, setReceipts] = useState<ReceiptItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchReceipts();
-  }, []);
-
-  const fetchReceipts = async () => {
-    try {
-      const res = await api.get("/parent-payments/receipts");
-      setReceipts(res.data);
-    } catch {
-      toast({ title: "Failed to load receipts", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: receipts, isLoading: loading } = useReceipts();
 
   const handleDownload = async (receiptId: string) => {
     try {
@@ -82,7 +66,7 @@ export default function ReceiptsPage() {
         <Receipt className="h-8 w-8 text-muted-foreground" />
       </div>
 
-      {receipts.length === 0 ? (
+      {(receipts ?? []).length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -97,7 +81,7 @@ export default function ReceiptsPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {receipts.map((receipt) => (
+          {(receipts ?? []).map((receipt: any) => (
             <Card key={receipt.id}>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">

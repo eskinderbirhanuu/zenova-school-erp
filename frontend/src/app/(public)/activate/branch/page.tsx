@@ -35,12 +35,13 @@ export default function ActivateBranchPage() {
     setLoading(true)
     setError("")
     try {
-      const res = await setupService.initializeBranch({ license_key: key, school_id: schoolId })
-      if (res.data.success) {
-        setResult(res.data)
+      const res = await setupService.initializeBranch({ license_key: key, school_id: schoolId } as any)
+      const rd = res.data as any
+      if (rd.success) {
+        setResult(rd)
         setStep("result")
       } else {
-        setError(res.data.message || "Branch activation failed")
+        setError(rd.message || "Branch activation failed")
       }
     } catch {
       setError("Branch activation failed. Check license key and school ID.")

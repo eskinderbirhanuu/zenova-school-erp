@@ -1,29 +1,26 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { academicService } from "@/services/api"
+import { useClasses, useCreateClass } from "@/hooks/queries"
 import { Plus } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
 export default function ClassesPage() {
-  const [classes, setClasses] = useState<any[]>([])
   const [name, setName] = useState("")
   const [code, setCode] = useState("")
   const [showForm, setShowForm] = useState(false)
-
-  const load = () => academicService.classes.list().then((r) => setClasses(r.data)).catch(() => {})
-  useEffect(() => { load() }, [])
+  const { data: classes } = useClasses()
+  const createMutation = useCreateClass()
 
   const create = async () => {
     try {
-      await academicService.classes.create({ name, code })
+      await createMutation.mutateAsync({ name, code } as any)
       toast({ title: "Class created" })
       setName(""); setCode(""); setShowForm(false)
-      load()
     } catch (e: any) {
       toast({ title: "Error", description: e.response?.data?.detail || "Failed", variant: "destructive" })
     }
@@ -64,13 +61,13 @@ export default function ClassesPage() {
               </tr>
             </thead>
             <tbody>
-              {classes.map((c: any) => (
+              {(classes || []).map((c: any) => (
                 <tr key={c.id} className="border-b last:border-0">
                   <td className="py-3">{c.name}</td>
                   <td className="py-3 text-muted-foreground">{c.code}</td>
                 </tr>
               ))}
-              {classes.length === 0 && <tr><td colSpan={2} className="py-6 text-center text-muted-foreground">No classes</td></tr>}
+              {(classes || []).length === 0 && <tr><td colSpan={2} className="py-6 text-center text-muted-foreground">No classes</td></tr>}
             </tbody>
           </table>
         </CardContent>

@@ -1,45 +1,33 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { PageHeader } from "@/components/ui/page-header"
-import { corporateService } from "@/services/api"
+import { useCorporateDashboard } from "@/hooks/queries"
 import { Users, Building2, UserCheck, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 export default function CorporateDashboard() {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading } = useCorporateDashboard()
 
-  useEffect(() => {
-    corporateService.dashboard().then((res) => {
-      setData(res.data)
-      setLoading(false)
-    }).catch(() => {
-      setData(null)
-      setLoading(false)
-    })
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
+<DynamicAnimatedBackground />
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
-  const chartData = data?.employees_by_department || []
+  const chartData = (data as any)?.employees_by_department || []
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
       <FadeInUp>
         <PageHeader
           title="Corporate Dashboard"

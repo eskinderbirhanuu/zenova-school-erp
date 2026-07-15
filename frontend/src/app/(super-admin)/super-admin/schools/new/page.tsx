@@ -15,7 +15,7 @@ import { toast } from "@/hooks/use-toast"
 function generateLicenseKey() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
   const segments = [4, 4, 4, 4]
-  return segments.map(len =>
+  return segments.map((len: any) =>
     Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("")
   ).join("-")
 }

@@ -4,6 +4,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock, PropertyMock, patch, ANY
 import pytest
 from fastapi import HTTPException
+from app.core.exceptions import BadRequestException
 
 
 def _make_db():
@@ -140,7 +141,7 @@ class TestFix6_OverPayment:
         data.amount = 20
         data.payment_method = "cash"
         data.reference = None
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(BadRequestException) as exc:
             record_payment(db, "school-1", data, "user-1")
         assert "exceed" in str(exc.value.detail).lower()
 
@@ -160,7 +161,7 @@ class TestFix7_PeriodLocking:
         data.amount = 100
         data.payment_method = "cash"
         data.reference = None
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(BadRequestException) as exc:
             record_payment(db, "school-1", data, "user-1")
         assert "locked" in str(exc.value.detail).lower()
 

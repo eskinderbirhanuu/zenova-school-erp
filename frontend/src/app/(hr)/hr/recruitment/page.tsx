@@ -1,10 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { KPICard } from "@/components/ui/kpi-card"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useRecruitment } from "@/hooks/queries"
 import { Briefcase, Users, Calendar, FileCheck, Loader2 } from "lucide-react"
 
 const statusColor: Record<string, string> = {
@@ -14,21 +12,12 @@ const statusColor: Record<string, string> = {
 }
 
 export default function HrRecruitmentPage() {
-  const [positions, setPositions] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: positions, isLoading } = useRecruitment({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    api.get("/recruitment", { params: { limit: 200 } })
-      .then(res => setPositions(res.data || []))
-      .catch(err => toast({ title: "Failed to load positions", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const openPositions = positions.filter(p => p.status === "Open").length
-  const totalApplicants = positions.reduce((a, c) => a + (c.applicants_count || 0), 0)
-  const interviews = positions.filter(p => p.status === "Interviewing").length
-  const offers = positions.filter(p => p.status === "Closed").length
+  const openPositions = positions?.filter((p: any) => p.status === "Open").length || 0
+  const totalApplicants = positions?.reduce((a: any, c: any) => a + (c.applicants_count || 0), 0) || 0
+  const interviews = positions?.filter((p: any) => p.status === "Interviewing").length || 0
+  const offers = positions?.filter((p: any) => p.status === "Closed").length || 0
 
   return (
     <div className="space-y-6">
@@ -37,10 +26,10 @@ export default function HrRecruitmentPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard title="Open Positions" value={loading ? "-" : openPositions} icon={Briefcase} iconColor="text-blue-600" />
-        <KPICard title="Total Applicants" value={loading ? "-" : totalApplicants} icon={Users} iconColor="text-green-600" />
-        <KPICard title="Interviews Scheduled" value={loading ? "-" : interviews} icon={Calendar} iconColor="text-yellow-600" />
-        <KPICard title="Offers Extended" value={loading ? "-" : offers} icon={FileCheck} iconColor="text-purple-600" />
+        <KPICard title="Open Positions" value={isLoading ? "-" : openPositions} icon={Briefcase} iconColor="text-blue-600" />
+        <KPICard title="Total Applicants" value={isLoading ? "-" : totalApplicants} icon={Users} iconColor="text-green-600" />
+        <KPICard title="Interviews Scheduled" value={isLoading ? "-" : interviews} icon={Calendar} iconColor="text-yellow-600" />
+        <KPICard title="Offers Extended" value={isLoading ? "-" : offers} icon={FileCheck} iconColor="text-purple-600" />
       </div>
 
       <Card>
@@ -53,8 +42,8 @@ export default function HrRecruitmentPage() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>}
-              {!loading && positions.map((p: any) => (
+              {isLoading && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>}
+              {!isLoading && positions?.map((p: any) => (
                 <tr key={p.id} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-4 font-medium">{p.position}</td>
                   <td className="p-4 text-muted-foreground">{p.department || "—"}</td>
@@ -63,7 +52,7 @@ export default function HrRecruitmentPage() {
                   <td className="p-4 text-muted-foreground">{p.posted_date ? new Date(p.posted_date).toLocaleDateString() : "—"}</td>
                 </tr>
               ))}
-              {!loading && positions.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground"><Briefcase className="mx-auto h-8 w-8 mb-2 opacity-50" /><p>No records found</p></td></tr>}
+              {!isLoading && (!positions || positions.length === 0) && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground"><Briefcase className="mx-auto h-8 w-8 mb-2 opacity-50" /><p>No records found</p></td></tr>}
             </tbody>
           </table>
         </CardContent>

@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
 import { PageHeader } from "@/components/ui/page-header"
-import { inventoryService } from "@/services/api"
+import { useInventoryItems, useSuppliers } from "@/hooks/queries"
 import Link from "next/link"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
@@ -15,7 +15,7 @@ import {
   BarChart3, Plus, ClipboardCheck, ListChecks, Warehouse
 } from "lucide-react"
 
-import { AnimatedBackground } from "@/components/3d/animated-background"
+import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 const stockLevels = [
@@ -35,42 +35,19 @@ const recentActivity = [
 ]
 
 export default function InventoryDashboard() {
-  const [totalItems, setTotalItems] = useState<number | string>("—")
-  const [lowStock, setLowStock] = useState<number | string>("—")
-  const [suppliers, setSuppliers] = useState<number | string>("—")
-  const [stockValue, setStockValue] = useState<number | string>("—")
-  const [loading, setLoading] = useState(true)
+  const { data: items } = useInventoryItems({ limit: 100 })
+  const { data: suppliersData } = useSuppliers()
+  const loading = false
 
-  useEffect(() => {
-    Promise.all([
-      inventoryService.items.list({ limit: 100 }).then((r) => {
-        const items = Array.isArray(r.data) ? r.data : []
-        const low = items.filter((i: any) => (i.quantity ?? 0) <= (i.reorderLevel ?? 0)).length
-        const val = items.reduce((sum: number, i: any) => sum + (i.quantity ?? 0) * (i.unitPrice ?? 0), 0)
-        return { total: items.length, low, val }
-      }).catch(() => ({ total: 0, low: 0, val: 0 })),
-      inventoryService.suppliers.list().then((r) => Array.isArray(r.data) ? r.data.length : 0).catch(() => 0),
-    ]).then(([items, suppliers]) => {
-      setTotalItems(items.total)
-      setLowStock(items.low)
-      setStockValue(`$${items.val.toLocaleString()}`)
-      setSuppliers(suppliers)
-      setLoading(false)
-    })
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <AnimatedBackground />
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+  const itemArr = Array.isArray(items) ? items : []
+  const totalItems = itemArr.length
+  const lowStock = itemArr.filter((i: any) => (i.quantity ?? 0) <= (i.reorderLevel ?? 0)).length
+  const val = itemArr.reduce((sum: number, i: any) => sum + (i.quantity ?? 0) * (i.unitPrice ?? 0), 0)
+  const suppliers = Array.isArray(suppliersData) ? suppliersData.length : 0
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <AnimatedBackground />
+      <DynamicAnimatedBackground />
 
       <FadeInUp>
         <PageHeader
@@ -84,7 +61,7 @@ export default function InventoryDashboard() {
           <StaggerItem><KPICard title="Total Items" value={totalItems} icon={Package} trend={{ value: "+15", positive: true }} /></StaggerItem>
           <StaggerItem><KPICard title="Low Stock Items" value={lowStock} icon={AlertTriangle} trend={{ value: "-2", positive: true }} accentColor="bg-red-500" /></StaggerItem>
           <StaggerItem><KPICard title="Suppliers" value={suppliers} icon={Truck} trend={{ value: "+1", positive: true }} /></StaggerItem>
-          <StaggerItem><KPICard title="Stock Value" value={stockValue} icon={DollarSign} trend={{ value: "+5%", positive: true }} accentColor="bg-emerald-500" /></StaggerItem>
+          <StaggerItem><KPICard title="Stock Value" value={`$${val.toLocaleString()}`} icon={DollarSign} trend={{ value: "+5%", positive: true }} accentColor="bg-emerald-500" /></StaggerItem>
         </div>
       </StaggerContainer>
 

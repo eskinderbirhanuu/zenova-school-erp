@@ -1,23 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
-import api from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useWalletTransactions } from "@/hooks/queries"
 
 export default function StudentWalletPage() {
-  const [txns, setTxns] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: txns, isLoading: loading } = useWalletTransactions({ limit: 200 })
 
-  useEffect(() => {
-    setLoading(true)
-    api.get("/wallet/transactions", { params: { limit: 200 } })
-      .then(res => setTxns(res.data || []))
-      .catch(err => toast({ title: "Failed to load wallet", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const normalized = txns.map((t: any) => ({
+  const normalized = (txns ?? []).map((t: any) => ({
     id: t.id,
     date: t.created_at ? new Date(t.created_at).toLocaleDateString() : "—",
     description: t.description || t.reason || "Transaction",

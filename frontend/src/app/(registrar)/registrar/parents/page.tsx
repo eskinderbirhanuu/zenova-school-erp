@@ -1,30 +1,28 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
-import { parentService } from "@/services/api"
+import { useParents } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { Search, Users, UserPlus, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { parentService } from "@/services/api"
 
 export default function ParentsPage() {
-  const [parents, setParents] = useState<any[]>([])
   const [search, setSearch] = useState("")
-  const [loading, setLoading] = useState(true)
+  const [searchResults, setSearchResults] = useState<any[] | null>(null)
+  const { data, isLoading } = useParents({ limit: 50 })
 
-  useEffect(() => {
-    setLoading(true)
-    parentService.list({ limit: 50 }).then((r) => setParents(r.data)).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const parents = searchResults ?? data ?? []
 
   const searchParents = async () => {
     if (!search.trim()) return
     try {
       const res = await parentService.search({ query: search.trim() })
-      setParents(res.data || [])
+      setSearchResults(res.data || [])
     } catch { toast({ title: "Search failed", variant: "destructive" }) }
   }
 
@@ -50,11 +48,11 @@ export default function ParentsPage() {
       <Card shadow="default">
         <CardHeader className="px-6 py-4">
           <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Users className="h-4 w-4" /> {loading ? "Loading..." : `${parents.length} parent${parents.length !== 1 ? "s" : ""} found`}
+            <Users className="h-4 w-4" /> {isLoading ? "Loading..." : `${parents.length} parent${parents.length !== 1 ? "s" : ""} found`}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>

@@ -1,31 +1,25 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2 } from "lucide-react"
-import { financeService } from "@/services/api"
-import { toast } from "@/hooks/use-toast"
+import { useAccounts, usePayments, useInvoices } from "@/hooks/queries"
 
 export default function DirectorFinance() {
-  const [loading, setLoading] = useState(true)
-  const [accounts, setAccounts] = useState<any[]>([])
-  const [payments, setPayments] = useState<any[]>([])
-  const [invoices, setInvoices] = useState<any[]>([])
+  const { data: accounts, isLoading: accountsLoading } = useAccounts()
+  const { data: payments, isLoading: paymentsLoading } = usePayments({ limit: 5 } as any)
+  const { data: invoices, isLoading: invoicesLoading } = useInvoices({ limit: 5 } as any)
 
-  useEffect(() => {
-    Promise.all([
-      financeService.accounts.list().then(r => setAccounts(r.data || [])),
-      financeService.payments.list({ limit: 5 }).then(r => setPayments(r.data || [])),
-      financeService.invoices.list({ limit: 5 }).then(r => setInvoices(r.data || [])),
-    ]).catch(err => toast({ title: "Failed to load finance data", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const loading = accountsLoading || paymentsLoading || invoicesLoading
 
-  const revenueAccounts = accounts.filter((a: any) => a.type === "revenue" || a.normal_side === "credit")
-  const expenseAccounts = accounts.filter((a: any) => a.type === "expense" || a.normal_side === "debit")
+  const accountsList = accounts || []
+  const paymentsList = payments || []
+  const invoicesList = invoices || []
+
+  const revenueAccounts = accountsList.filter((a: any) => a.type === "revenue" || a.normal_side === "credit")
+  const expenseAccounts = accountsList.filter((a: any) => a.type === "expense" || a.normal_side === "debit")
   const totalRevenue = revenueAccounts.reduce((s: number, a: any) => s + (a.balance || 0), 0)
   const totalExpenses = expenseAccounts.reduce((s: number, a: any) => s + (a.balance || 0), 0)
-  const outstandingInvoices = invoices.filter((i: any) => i.status === "pending" || i.status === "draft")
+  const outstandingInvoices = invoicesList.filter((i: any) => i.status === "pending" || i.status === "draft")
 
   if (loading) {
     return (
@@ -58,9 +52,9 @@ export default function DirectorFinance() {
               </tr>
             </thead>
             <tbody>
-              {payments.length === 0 ? (
+              {paymentsList.length === 0 ? (
                 <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">No payments yet</td></tr>
-              ) : payments.map((p: any, i: number) => (
+              ) : paymentsList.map((p: any, i: number) => (
                 <tr key={i} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-4 font-medium">{p.description || p.invoice_id || "Payment"}</td>
                   <td className="p-4 text-muted-foreground">{p.payment_method || "—"}</td>

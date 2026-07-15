@@ -1,26 +1,24 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { studentService } from "@/services/api"
+import { useStudents } from "@/hooks/queries"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { FileText, Upload, Search, Download, Trash2 } from "lucide-react"
 import Link from "next/link"
 
 export default function DocumentsPage() {
-  const [students, setStudents] = useState<any[]>([])
   const [search, setSearch] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null)
   const [documents, setDocuments] = useState<any[]>([])
   const [loadingDocs, setLoadingDocs] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const { data } = useStudents({ limit: 30 })
 
-  useEffect(() => {
-    studentService.list({ limit: 30 }).then((r) => setStudents(r.data)).catch(() => {})
-  }, [])
+  const students = data || []
 
   const loadDocuments = async (studentId: string) => {
     setLoadingDocs(true)
@@ -60,7 +58,7 @@ export default function DocumentsPage() {
     } catch { toast({ title: "Delete failed", variant: "destructive" }) }
   }
 
-  const filtered = students.filter((s) =>
+  const filtered = students.filter((s: any) =>
     s.first_name?.toLowerCase().includes(search.toLowerCase()) ||
     s.last_name?.toLowerCase().includes(search.toLowerCase()) ||
     s.student_id?.includes(search)
@@ -76,7 +74,7 @@ export default function DocumentsPage() {
             <CardContent className="space-y-3">
               <Input placeholder="Search students..." value={search} onChange={(e) => setSearch(e.target.value)} />
               <div className="max-h-80 space-y-1 overflow-y-auto">
-                {filtered.map((s) => (
+                {filtered.map((s: any) => (
                   <button key={s.id} onClick={() => selectStudent(s)}
                     className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                       selectedStudent?.id === s.id ? "bg-blue-100 text-blue-800" : "hover:bg-muted"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,30 +8,16 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { academicService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
+import { useClasses, useSubjects } from "@/hooks/queries"
 import { BookOpen, Loader2, Plus, Pencil, Trash2, X, Check } from "lucide-react"
 
 export default function AdminSubjectsPage() {
-  const [classes, setClasses] = useState<any[]>([])
-  const [subjects, setSubjects] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: classes = [], isLoading } = useClasses()
+  const { data: subjects = [], refetch: refetchSubjects } = useSubjects({ limit: 200 })
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ name: "", code: "", class_id: "" })
   const [saving, setSaving] = useState(false)
-
-  const fetchAll = async () => {
-    setLoading(true)
-    try {
-      const [clsRes, subRes] = await Promise.all([
-        academicService.classes.list(),
-        academicService.subjects.list({ limit: 200 }),
-      ])
-      setClasses(Array.isArray(clsRes.data) ? clsRes.data : [])
-      setSubjects(Array.isArray(subRes.data) ? subRes.data : [])
-    } catch {} finally { setLoading(false) }
-  }
-
-  useEffect(() => { fetchAll() }, [])
 
   const resetForm = () => {
     setForm({ name: "", code: "", class_id: "" })
@@ -57,7 +43,7 @@ export default function AdminSubjectsPage() {
         toast({ title: "Subject created" })
       }
       resetForm()
-      fetchAll()
+      refetchSubjects()
     } catch (err: any) {
       toast({ title: err?.response?.data?.detail || "Failed to save", variant: "destructive" })
     } finally { setSaving(false) }
@@ -68,11 +54,11 @@ export default function AdminSubjectsPage() {
     try {
       await academicService.subjects.delete(id)
       toast({ title: "Subject deleted" })
-      fetchAll()
+      refetchSubjects()
     } catch { toast({ title: "Failed to delete", variant: "destructive" }) }
   }
 
-  const getClassName = (id: string) => classes.find(c => c.id === id)?.name || "—"
+  const getClassName = (id: string) => classes.find((c: any) => c.id === id)?.name || "—"
 
   return (
     <div className="space-y-6">
@@ -108,7 +94,7 @@ export default function AdminSubjectsPage() {
                     <SelectValue placeholder="Select class..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.map(c => (
+                    {classes.map((c: any) => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -127,7 +113,7 @@ export default function AdminSubjectsPage() {
 
       <Card>
         <CardContent className="p-0">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : subjects.length === 0 ? (
             <div className="flex flex-col items-center py-12 text-center">

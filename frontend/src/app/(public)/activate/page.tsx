@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Building2, Network, Key, CheckCircle2, AlertCircle, Loader2, ArrowRight } from "lucide-react"
@@ -8,39 +8,47 @@ import { Logo } from "@/components/branding"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useSetup } from "@/services/setup-context"
-import { setupService } from "@/services/api"
-import { GradientMeshBackground } from "@/components/3d/gradient-mesh"
+import { useValidateLicense } from "@/hooks/queries"
+import { DynamicGradientMeshBackground } from "@/components/3d/dynamic"
 
 export default function ActivateLicensePage() {
   const router = useRouter()
   const { data, update } = useSetup()
-  const [loading, setLoading] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState<{ valid: boolean; license_type?: string; max_branches?: string; valid_until?: string; message: string } | null>(null)
   const [error, setError] = useState("")
 
-  const handleValidate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-    setResult(null)
-    try {
-      const res = await setupService.validateLicense({ key: data.mainKey })
-      const r = res.data
+  const { data: validationData, isLoading } = useValidateLicense(
+    { key: data.mainKey, _t: attempt } as any,
+    attempt > 0 && !!data.mainKey
+  )
+
+  useEffect(() => {
+    if (!attempt || isLoading) return
+    if (validationData) {
+      const r = validationData as any
       setResult(r)
       if (r.valid) {
         setTimeout(() => router.push("/activate/main"), 1200)
+      } else {
+        setError(r.message || "Validation failed. Check the license key and try again.")
       }
-    } catch {
+    } else {
       setError("Validation failed. Check the license key and try again.")
-    } finally {
-      setLoading(false)
     }
+  }, [attempt, isLoading, validationData, router])
+
+  const handleValidate = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setResult(null)
+    setAttempt(prev => prev + 1)
   }
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
       {/* Premium gradient mesh background */}
-      <GradientMeshBackground colors={["#2563EB", "#1a1a4a", "#00B4FF", "#6366f1"]} />
+      <DynamicGradientMeshBackground colors={["#2563EB", "#1a1a4a", "#00B4FF", "#6366f1"]} />
       
       {/* Grid pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
@@ -188,12 +196,12 @@ export default function ActivateLicensePage() {
                 {/* Submit Button */}
                 <motion.button
                   type="submit"
-                  disabled={loading}
-                  whileHover={{ scale: loading ? 1 : 1.01 }}
-                  whileTap={{ scale: loading ? 1 : 0.99 }}
+                  disabled={isLoading}
+                  whileHover={{ scale: isLoading ? 1 : 1.01 }}
+                  whileTap={{ scale: isLoading ? 1 : 0.99 }}
                   className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (
+                  {isLoading ? (
                     <div className="flex items-center justify-center gap-3">
                       <Loader2 className="w-5 h-5 animate-spin" />
                       <span>Verifying License...</span>
