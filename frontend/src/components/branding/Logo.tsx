@@ -56,6 +56,7 @@ export const Logo = memo(({
           {imgError ? (
             <FallbackLogo />
           ) : (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={basePath}
               alt="ZENOVA"
@@ -79,6 +80,7 @@ export const Logo = memo(({
           {imgError ? (
             <FallbackLogo />
           ) : (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={basePath}
               alt="ZENOVA"
@@ -97,6 +99,7 @@ export const Logo = memo(({
           {imgError ? (
             <FallbackLogo />
           ) : (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={basePath}
               alt="ZENOVA"
@@ -116,6 +119,7 @@ export const Logo = memo(({
           {imgError ? (
             <FallbackLogo />
           ) : (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={basePath}
               alt="ZENOVA"

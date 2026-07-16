@@ -19,37 +19,6 @@ import {
   Building2,
 } from "lucide-react";
 
-interface PlatformInvoice {
-  id: string;
-  invoice_number: string;
-  transaction_count: number;
-  total_amount: number;
-  status: string;
-  created_at: string;
-}
-
-interface InvoiceHistoryItem {
-  id: string;
-  invoice_number: string;
-  month: number;
-  year: number;
-  transaction_count: number;
-  total_amount: number;
-  status: string;
-  paid_at: string | null;
-}
-
-interface PlatformDashboardData {
-  current_month: number;
-  current_year: number;
-  transactions_this_month: number;
-  platform_fee_per_transaction: number;
-  pending_fees: number;
-  total_due: number;
-  current_invoice: PlatformInvoice | null;
-  invoice_history: InvoiceHistoryItem[];
-}
-
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",

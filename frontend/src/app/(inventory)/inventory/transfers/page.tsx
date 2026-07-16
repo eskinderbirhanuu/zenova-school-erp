@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRightLeft, Clock, Truck, CheckCircle2, Loader2 } from "lucide-react"
 import { KPICard } from "@/components/ui/kpi-card"
@@ -12,7 +11,6 @@ const statusColor: Record<string, string> = {
 }
 
 export default function InventoryTransfersPage() {
-  const [search, setSearch] = useState("")
   const { data: transfers, isLoading } = useStockMovements({ limit: 200 })
 
   const pending = (transfers || []).filter((t: any) => t.status === "pending").length

@@ -43,7 +43,7 @@ export default function AdminSchool() {
         language: s.language || "",
       })
     }
-  }, [schoolData]) // eslint-disable-next-line react-hooks/set-state-in-effect
+  }, [schoolData])
 
   const update = (p: Partial<typeof form>) => setForm(prev => ({ ...prev, ...p }))
 

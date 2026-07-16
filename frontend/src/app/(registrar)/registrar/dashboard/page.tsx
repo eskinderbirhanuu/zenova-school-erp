@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,9 +11,9 @@ import { useStudents, useParents } from "@/hooks/queries"
 import Link from "next/link"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
-  Users, UserPlus, Sparkles, QrCode, Loader2, ArrowRight,
-  BarChart3, FileText, CheckCircle, AlertTriangle, Printer,
-  ClipboardList, Clock, ShieldAlert, CreditCard, TrendingUp
+  Users, UserPlus, Sparkles, QrCode, Loader2,
+  BarChart3, FileText, CheckCircle, Printer,
+  ClipboardList, Clock, ShieldAlert, TrendingUp
 } from "lucide-react"
 
 import { DynamicAnimatedBackground } from "@/components/3d/dynamic"

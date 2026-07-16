@@ -11,16 +11,11 @@ import { toast } from "@/hooks/use-toast";
 import api from "@/services/api";
 import { useParentPaymentsDashboard } from "@/hooks/queries";
 import {
-  CreditCard,
-  Receipt,
   TrendingUp,
   TrendingDown,
-  AlertCircle,
   CheckCircle,
-  Clock,
   Download,
   ArrowRight,
-  Wallet,
   Users,
 } from "lucide-react";
 
@@ -69,7 +64,7 @@ export default function ParentPaymentsPage() {
   const router = useRouter();
   const { data: _dashboard, isLoading: loading } = useParentPaymentsDashboard();
   const dashboard = _dashboard as DashboardData | null;
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [, setSelectedInvoice] = useState<Invoice | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("chapa");
 

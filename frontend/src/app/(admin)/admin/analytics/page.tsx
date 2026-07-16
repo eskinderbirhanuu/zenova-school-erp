@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend,
 } from "recharts"
-import { Users, DollarSign, GraduationCap, TrendingUp, Loader2, ScanLine } from "lucide-react"
+import { Users, DollarSign, GraduationCap, Loader2, ScanLine } from "lucide-react"
 import api from "@/services/api"
 import { useDashboardOverview, useDashboardTrends } from "@/hooks/queries"
 

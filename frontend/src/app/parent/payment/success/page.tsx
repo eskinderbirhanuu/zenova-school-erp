@@ -14,7 +14,6 @@ export default function PaymentSuccessPage() {
   const sessionId = searchParams.get("session");
   const { data: session, isLoading: loading, refetch } = usePaymentSession(sessionId || undefined);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!session || session.receipt_id) return;
     let attempts = 0;
@@ -30,6 +29,7 @@ export default function PaymentSuccessPage() {
       }
     }, 2000);
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.receipt_id, refetch]);
 
   if (loading) {

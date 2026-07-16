@@ -18,7 +18,7 @@ export default function MainSchoolInstallerPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
 
   const [result, setResult] = useState<{ server_id?: string; school_id?: string; admin_email?: string } | null>(null)
-  const [copied, setCopied] = useState("")
+  const [, setCopied] = useState("")
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)

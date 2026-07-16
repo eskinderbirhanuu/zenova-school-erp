@@ -19,7 +19,7 @@ export default function BranchInstallerPage() {
   const [adminPassword, setAdminPassword] = useState("")
 
   const [result, setResult] = useState<{ server_id?: string; branch_id?: string; admin_email?: string } | null>(null)
-  const [copied, setCopied] = useState("")
+  const [, setCopied] = useState("")
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)

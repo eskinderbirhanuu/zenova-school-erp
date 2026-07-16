@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { setupService } from "@/services/api"
-import { Loader2, Key, ArrowLeft, CheckCircle2, AlertCircle, Lock, User } from "lucide-react"
+import { Loader2, ArrowLeft, CheckCircle2, AlertCircle, Lock } from "lucide-react"
 
 export default function ResetPasswordPage() {
   const router = useRouter()

@@ -11,7 +11,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import {
   BookOpen, LayoutGrid, CalendarCheck, Clock, Loader2,
   BarChart3, ClipboardCheck, Users, FileText, MapPin, GraduationCap,
-  AlertCircle, CheckCircle2, Circle
 } from "lucide-react"
 import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
@@ -64,8 +63,7 @@ function saveUngraded(items: UngradedItem[]) {
 function computeClassDistribution(slots: TimetableSlot[]): { day: string; classes: number }[] {
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   const counts: Record<string, number> = {}
-  slots.forEach((s: any) => {
-    const dayIndex = new Date().getDay()
+  slots.forEach(() => {
     const daysToShow = [0, 1, 2, 3, 4, 5, 6]
     daysToShow.forEach((d: any) => {
       const dayName = days[d]
@@ -78,10 +76,7 @@ function computeClassDistribution(slots: TimetableSlot[]): { day: string; classe
     const dayIndex = (today + i) % 7
     result.push({
       day: days[dayIndex],
-      classes: slots.filter((s: any) => {
-        const slotDay = dayIndex
-        return slotDay === i
-      }).length || Math.floor(Math.random() * 4) + 2,
+      classes: slots.filter(() => dayIndex === i).length || Math.floor(Math.random() * 4) + 2,
     })
   }
   return result.length ? result : [
@@ -194,6 +189,7 @@ export default function TeacherDashboard() {
     return null
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const currentClass = useMemo(() => getCurrentClass(), [activeTimetable])
   const totalUngraded = (ungradedItems.length > 0 ? ungradedItems : loadUngraded()).reduce((s, u) => s + u.submissions, 0)
   const displayUngraded = ungradedItems.length > 0 ? ungradedItems : loadUngraded()

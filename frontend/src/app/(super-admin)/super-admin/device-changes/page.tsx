@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { useDeviceReviews, useApproveDeviceReview, useRejectDeviceReview } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
-import { CheckCircle2, XCircle, RotateCcw, HardDrive } from "lucide-react"
+import { CheckCircle2, XCircle, HardDrive } from "lucide-react"
 
 export default function SuperAdminDeviceChanges() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
@@ -32,8 +32,6 @@ export default function SuperAdminDeviceChanges() {
       toast({ title: "Error", description: err.response?.data?.detail || err.message, variant: "destructive" })
     }
   }
-
-  const statusLabel = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 
   return (
     <div className="space-y-6 p-6">

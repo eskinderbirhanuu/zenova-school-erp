@@ -8,7 +8,6 @@ import { useStudents } from "@/hooks/queries"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { FileText, Upload, Search, Download, Trash2 } from "lucide-react"
-import Link from "next/link"
 
 export default function DocumentsPage() {
   const [search, setSearch] = useState("")

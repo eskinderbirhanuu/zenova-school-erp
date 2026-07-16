@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/ui/page-header"
 import { nfcV2Service } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
-import { CreditCard, Scan, CheckCircle, XCircle, User, Smartphone, Loader2 } from "lucide-react"
+import { Scan, CheckCircle, XCircle, User, Smartphone, Loader2 } from "lucide-react"
 
 const CARD_COLORS: Record<string, string> = {
   student: "bg-blue-50 border-blue-200 text-blue-700",
@@ -148,6 +148,7 @@ export default function NfcScanPage() {
                 <div className="rounded-lg border p-4 space-y-3">
                   <div className="flex items-center gap-3">
                     {result.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={result.photo_url} alt="" className="h-12 w-12 rounded-full object-cover" />
                     ) : (
                       <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">

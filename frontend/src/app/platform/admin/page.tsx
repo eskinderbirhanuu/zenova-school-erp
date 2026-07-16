@@ -15,24 +15,6 @@ import {
   Layers,
 } from "lucide-react";
 
-interface SchoolRanking {
-  school_id: string;
-  school_name: string;
-  transactions: number;
-  revenue: number;
-}
-
-interface AdminDashboardData {
-  month: number;
-  year: number;
-  total_transactions: number;
-  pending_fees: number;
-  invoiced_fees: number;
-  paid_fees: number;
-  total_revenue: number;
-  school_rankings: SchoolRanking[];
-}
-
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",

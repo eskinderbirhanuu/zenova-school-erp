@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { useMe, useTimetable } from "@/hooks/queries"
 import { Calendar, Loader2 } from "lucide-react"
 

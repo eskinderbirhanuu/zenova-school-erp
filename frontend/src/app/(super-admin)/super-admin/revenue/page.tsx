@@ -4,7 +4,7 @@ import { KPICard } from "@/components/ui/kpi-card"
 import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { DollarSign, TrendingUp, Key, AlertCircle } from "lucide-react"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ComposedChart, Legend } from "recharts"
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend } from "recharts"
 import { usePlatformAdminDashboard, useDashboardTrends, usePlatformSchoolReport } from "@/hooks/queries"
 
 export default function SuperAdminRevenue() {
@@ -18,7 +18,6 @@ export default function SuperAdminRevenue() {
 
   const d = dashboardData as any
   const monthly = d?.total_revenue ?? 0
-  const yearly = d?.total_revenue ?? 0
   const pending = d?.pending_fees ?? 0
   const invoiced = d?.invoiced_fees ?? 0
   const paid = d?.paid_fees ?? 0

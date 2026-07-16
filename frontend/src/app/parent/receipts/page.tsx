@@ -1,23 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import api from "@/services/api";
 import { useReceipts } from "@/hooks/queries";
 import { Receipt, Download, ArrowLeft, FileText } from "lucide-react";
-
-interface ReceiptItem {
-  id: string;
-  receipt_number: string;
-  amount_paid: number;
-  payment_method: string;
-  payment_date: string;
-  status: string;
-  transaction_id: string;
-}
 
 export default function ReceiptsPage() {
   const { data: receipts, isLoading: loading } = useReceipts();

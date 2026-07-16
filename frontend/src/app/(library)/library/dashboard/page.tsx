@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,8 +10,8 @@ import { useBooks, useBorrowings } from "@/hooks/queries"
 import Link from "next/link"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
-  BookOpen, ArrowUp, ArrowDown, DollarSign, Loader2, ArrowRight,
-  BarChart3, BookPlus, ClipboardCheck, Calendar, Users
+  BookOpen, ArrowUp, ArrowDown, DollarSign, ArrowRight,
+  BarChart3, BookPlus, ClipboardCheck, Users
 } from "lucide-react"
 
 import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
@@ -38,7 +37,6 @@ const recentLibrary = [
 export default function LibraryDashboard() {
   const { data: books } = useBooks({ limit: 1 })
   const { data: borrowings } = useBorrowings({ limit: 1 })
-  const loading = false
 
   const bookCount = Array.isArray(books) ? books.length : 0
   const borrowedCount = Array.isArray(borrowings) ? borrowings.length : 0

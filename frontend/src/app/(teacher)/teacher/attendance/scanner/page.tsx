@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
 import { hrService } from "@/services/api"
 import { useClasses, useSections } from "@/hooks/queries"
 import { Html5Qrcode } from "html5-qrcode"
@@ -9,7 +8,6 @@ import { Html5Qrcode } from "html5-qrcode"
 const SCANNER_ID = "qr-reader"
 
 export default function QRScannerPage() {
-  const router = useRouter()
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const [scannerStarted, setScannerStarted] = useState(false)
   const [scanResult, setScanResult] = useState<{ student_name: string; message: string } | null>(null)
@@ -38,7 +36,7 @@ export default function QRScannerPage() {
         () => {},
       )
       setScannerStarted(true)
-    } catch (e: any) {
+    } catch {
       setScanError("Camera access denied or not available")
     }
   }

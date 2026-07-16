@@ -129,13 +129,13 @@ export function DataTable<T>({
                 <th
                   key={col.key}
                   className={`px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground ${col.className ?? ""}`}
+                  aria-sort={col.sortable ? (sortKey === col.key ? (sortDir === "asc" ? "ascending" : sortDir === "desc" ? "descending" : "none") : "none") : undefined}
                 >
                   {col.sortable ? (
                     <button
                       onClick={() => handleSort(col.key)}
                       className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
                       aria-label={`Sort by ${col.header}`}
-                      aria-sort={sortKey === col.key ? (sortDir === "asc" ? "ascending" : sortDir === "desc" ? "descending" : "none") : "none"}
                     >
                       {col.header}
                       {sortKey === col.key && sortDir === "asc" && <ArrowUp className="h-3 w-3" />}

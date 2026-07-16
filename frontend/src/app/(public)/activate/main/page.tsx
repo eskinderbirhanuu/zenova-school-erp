@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { setupService } from "@/services/api"
-import { Shield, CheckCircle2, Loader2, Key, ArrowLeft, Building2, User, Mail, Phone, Lock, Copy, Eye, EyeOff } from "lucide-react"
+import { CheckCircle2, Loader2, Key, ArrowLeft, Building2, User, Copy } from "lucide-react"
 
 export default function ActivateMainPage() {
   const router = useRouter()
@@ -33,8 +33,7 @@ export default function ActivateMainPage() {
     school_id?: string; admin_id?: string;
     admin_email?: string; admin_employee_id?: string;
   } | null>(null)
-  const [showPassword, setShowPassword] = useState(false)
-  const [copied, setCopied] = useState("")
+  const [, setCopied] = useState("")
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)

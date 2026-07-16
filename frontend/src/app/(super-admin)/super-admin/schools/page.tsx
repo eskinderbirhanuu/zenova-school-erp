@@ -4,7 +4,7 @@ import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
-import { Eye, Edit3, Ban, CheckCircle } from "lucide-react"
+import { Eye, Edit3 } from "lucide-react"
 import { useSchoolList } from "@/hooks/queries"
 
 interface School {
@@ -58,7 +58,7 @@ export default function SuperAdminSchools() {
       onCreateLabel="Create School" onCreateClick={() => window.location.href = "/super-admin/schools/new"}
       emptyTitle="No schools found"
       extraFilters={
-        <div className="flex gap-2">{[["All","default"],["Active","outline"],["Inactive","outline"]].map(([f, v]) => (
+        <div className="flex gap-2">{[["All","default"],["Active","outline"],["Inactive","outline"]].map(([f]) => (
           <Button key={f} variant={filter === f ? "default" : "outline"} size="sm" onClick={() => setFilter(f)}>{f}</Button>
         ))}</div>
       }

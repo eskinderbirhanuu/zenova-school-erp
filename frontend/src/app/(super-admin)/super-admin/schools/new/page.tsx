@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label"
 import { PageHeader } from "@/components/ui/page-header"
 import { Building2, CheckCircle, ArrowLeft, Copy, RefreshCw, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { setupService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 
@@ -21,7 +20,6 @@ function generateLicenseKey() {
 }
 
 export default function NewSchool() {
-  const router = useRouter()
   const [name, setName] = useState("")
   const [code, setCode] = useState("")
   const [address, setAddress] = useState("")

@@ -1,12 +1,10 @@
 "use client"
 
-import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { useAuditLogs } from "@/hooks/queries"
 
 export default function AuditorSecurity() {
-  const [search, setSearch] = useState("")
   const { data: raw, isLoading } = useAuditLogs({ limit: 200, type: "security" })
 
   const events = ((raw || []) as any[]).map((l: any) => ({

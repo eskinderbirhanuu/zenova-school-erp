@@ -12,7 +12,6 @@ function GradientBlob({ position, color, size, speed, mixColor }: {
   mixColor: string
 }) {
   const meshRef = useRef<THREE.Mesh>(null)
-  const targetPosition = useRef(new THREE.Vector3(...position))
 
   useFrame(({ clock }) => {
     if (meshRef.current) {

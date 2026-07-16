@@ -1,16 +1,15 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useMemo } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { SectionHeader } from "@/components/ui/section-header"
-import { PageHeader } from "@/components/ui/page-header"
 import { useStudentPortalDashboard } from "@/hooks/queries"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
   ClipboardCheck, Award, Calendar, Wallet, Loader2,
-  BarChart3, BookOpen, Clock, CheckCircle, Sun, Moon, CloudSun,
+  BarChart3, Clock, Sun, Moon, CloudSun,
   Flame, BellRing
 } from "lucide-react"
 

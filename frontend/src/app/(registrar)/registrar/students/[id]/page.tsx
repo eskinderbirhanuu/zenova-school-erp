@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useStudent } from "@/hooks/queries"
 import api from "@/services/api"
 import { toast } from "@/hooks/use-toast"
-import { QrCode, CreditCard, CheckCircle, XCircle } from "lucide-react"
+import { QrCode, CreditCard, CheckCircle } from "lucide-react"
 
 export default function StudentDetailPage() {
   const params = useParams()

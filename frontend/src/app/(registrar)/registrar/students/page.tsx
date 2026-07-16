@@ -9,15 +9,6 @@ import { Upload, Download } from "lucide-react"
 import Link from "next/link"
 import api from "@/services/api"
 
-interface Student {
-  id: string
-  student_id: string
-  first_name: string
-  last_name: string
-  grade_id: string | null
-  status: string
-}
-
 export default function RegistrarStudentsPage() {
   const [search, setSearch] = useState("")
   const { data, isLoading } = useStudents({ limit: 50 })

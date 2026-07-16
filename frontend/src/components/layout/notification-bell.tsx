@@ -35,6 +35,7 @@ export function NotificationBell() {
       wsRef.current = ws
     } catch { load() }
     return () => { ws?.close() }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   const markRead = async (id: string) => {

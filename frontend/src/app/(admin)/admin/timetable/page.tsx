@@ -4,12 +4,10 @@ import { useState } from "react"
 import { academicService } from "@/services/api"
 import { useClasses, useTeachers, useSections, useTimetable, useSubjects } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
-import { Plus, Pencil, Trash2, X, Check, AlertTriangle, Loader2 } from "lucide-react"
+import { Pencil, Trash2, X, Check, AlertTriangle, Loader2 } from "lucide-react"
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const HOURS = Array.from({ length: 10 }, (_, i) => i + 7)
-const DAY_INDEX_MAP: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5 }
-
 export default function TimetableBuilderPage() {
   const [selectedClass, setSelectedClass] = useState("")
   const [selectedSection, setSelectedSection] = useState("")
@@ -96,11 +94,6 @@ export default function TimetableBuilderPage() {
 
   const getEntry = (day: number, hour: number) =>
     entries.find((e: any) => e.day_of_week === day && parseInt(e.start_time) <= hour && parseInt(e.end_time) > hour)
-
-  const getSubjectName = (id: string) => {
-    const subject = classes.find((c: any) => c.id === selectedClass) ? null : null
-    return id || "—"
-  }
 
   const teacherName = (id: string) => {
     if (!id) return ""

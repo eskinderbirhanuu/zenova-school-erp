@@ -15,13 +15,10 @@ import {
   Phone,
   Hash,
   School,
-  MapPin,
   Calendar,
   Loader2,
   BadgeCheck,
-  Users,
 } from "lucide-react"
-import Link from "next/link"
 
 interface StudentProfile {
   id: string

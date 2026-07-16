@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { setupService } from "@/services/api"
-import { Loader2, Key, ArrowLeft, Building2, CheckCircle2, Copy, Eye, EyeOff } from "lucide-react"
+import { Loader2, ArrowLeft, Building2, CheckCircle2, Copy, Eye, EyeOff } from "lucide-react"
 
 export default function ActivateBranchPage() {
   const router = useRouter()

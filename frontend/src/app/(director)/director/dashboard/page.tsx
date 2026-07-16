@@ -19,8 +19,6 @@ import {
 import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
-const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"]
-
 export default function DirectorDashboard() {
   const { data: overview, isLoading: overviewLoading } = useDashboardOverview()
   const { data: classes, isLoading: classesLoading } = useClasses()

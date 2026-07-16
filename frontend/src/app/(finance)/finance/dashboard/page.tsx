@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useReducedMotion } from "framer-motion"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
@@ -131,7 +130,6 @@ function OutstandingReceivables() {
 }
 
 export default function FinanceDashboard() {
-  const prefersReducedMotion = useReducedMotion()
   const [period, setPeriod] = useState<Period>("this-month")
   const { data: tb, isLoading: tbLoading } = useTrialBalance()
   const { data: invoices, isLoading: invLoading } = useInvoices({ limit: 200 } as any)

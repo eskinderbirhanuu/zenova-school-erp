@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, BookCheck, Users, Loader2 } from "lucide-react"
+import { BookOpen, BookCheck, Loader2 } from "lucide-react"
 import { useBooks, useBorrowings } from "@/hooks/queries"
 
 export default function DirectorLibrary() {

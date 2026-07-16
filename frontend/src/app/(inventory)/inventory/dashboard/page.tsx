@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,7 +10,7 @@ import { useInventoryItems, useSuppliers } from "@/hooks/queries"
 import Link from "next/link"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
-  Package, AlertTriangle, Truck, DollarSign, Loader2, ArrowRight,
+  Package, AlertTriangle, Truck, DollarSign, ArrowRight,
   BarChart3, Plus, ClipboardCheck, ListChecks, Warehouse
 } from "lucide-react"
 
@@ -37,7 +36,6 @@ const recentActivity = [
 export default function InventoryDashboard() {
   const { data: items } = useInventoryItems({ limit: 100 })
   const { data: suppliersData } = useSuppliers()
-  const loading = false
 
   const itemArr = Array.isArray(items) ? items : []
   const totalItems = itemArr.length

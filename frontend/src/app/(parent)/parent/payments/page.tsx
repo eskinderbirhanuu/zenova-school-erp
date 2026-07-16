@@ -2,38 +2,16 @@
 
 import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { DollarSign, Loader2 } from "lucide-react"
-import { usePayments, useCreatePayment } from "@/hooks/queries"
+import { Card, CardContent } from "@/components/ui/card"
+import { Loader2 } from "lucide-react"
+import { usePayments } from "@/hooks/queries"
 
 export default function ParentPaymentsPage() {
   const { data: payments, isLoading } = usePayments({})
-  const createPayment = useCreatePayment()
-  const [payingId, setPayingId] = useState<string | null>(null)
-  const [paying, setPaying] = useState(false)
-  const [payError, setPayError] = useState("")
-  const [paySuccess, setPaySuccess] = useState(false)
+  const [payingId] = useState<string | null>(null)
+  const [payError] = useState("")
+  const [paySuccess] = useState(false)
   const items = payments || []
-
-  const handlePay = async (payment: any) => {
-    setPaying(true)
-    setPayError("")
-    setPaySuccess(false)
-    try {
-      await createPayment.mutateAsync({
-        invoice_id: payment.invoice_id,
-        amount: payment.amount,
-        payment_method: "online",
-        payment_date: new Date().toISOString().split("T")[0],
-      })
-      setPaySuccess(true)
-      setPayingId(payment.id)
-    } catch (e: any) {
-      setPayError(e?.response?.data?.detail || "Payment failed")
-    }
-    setPaying(false)
-  }
 
   if (isLoading) {
     return (

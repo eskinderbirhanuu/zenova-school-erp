@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { studentService, parentService } from "@/services/api"
 import { useClasses, useSections } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
-import { ArrowLeft, Save, Search, X, Plus, UserCheck, User, GraduationCap, Heart, Phone, MapPin } from "lucide-react"
+import { ArrowLeft, Save, Search, X, Plus, UserCheck, User, GraduationCap, Heart } from "lucide-react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -81,7 +80,7 @@ export default function RegisterStudentPage() {
   const { data: classes } = useClasses()
   const [mounted, setMounted] = useState(false)
 
-  const [form, setForm] = useState({
+  const [form] = useState({
     first_name: "", middle_name: "", last_name: "",
     gender: "", date_of_birth: "",
     grade_id: "", section_id: "",
@@ -141,10 +140,6 @@ export default function RegisterStudentPage() {
     } catch {
       toast({ title: "Failed", description: "Could not create parent", variant: "destructive" })
     }
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

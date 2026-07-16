@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { useExamResults } from "@/hooks/queries"
 

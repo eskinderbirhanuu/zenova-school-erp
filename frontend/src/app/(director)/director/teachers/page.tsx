@@ -6,15 +6,6 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { useTeachers } from "@/hooks/queries"
 
-interface Teacher {
-  id: string
-  teacher_id: string
-  full_name: string
-  email: string
-  department: string | null
-  is_active: boolean
-}
-
 export default function DirectorTeachers() {
   const { data: teachers, isLoading } = useTeachers()
   const [search, setSearch] = useState("")

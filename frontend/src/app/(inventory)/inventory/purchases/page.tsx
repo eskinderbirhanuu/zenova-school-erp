@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { useStockMovements } from "@/hooks/queries"

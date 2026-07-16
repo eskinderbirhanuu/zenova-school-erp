@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,11 +10,8 @@ import { academicService, studentService } from "@/services/api"
 import { useMyProfile, useMySubjects, useExams } from "@/hooks/queries"
 import { toast } from "@/hooks/use-toast"
 import { Loader2, ArrowLeft, Save, AlertCircle } from "lucide-react"
-import Link from "next/link"
 import { PageHeader } from "@/components/ui/page-header"
 
-interface Subject { id: string; name: string; code: string }
-interface Exam { id: string; name: string; max_score: number }
 interface Student { id: string; student_id: string; full_name: string }
 
 export default function GradeEntryPage() {
@@ -31,10 +28,10 @@ export default function GradeEntryPage() {
   const { data: examsData } = useExams(selectedSubject ? { subject_id: selectedSubject } : {})
 
   const subjects = subjectsData || []
-  const exams = selectedSubject ? (examsData || []) : []
+  const exams = useMemo(() => selectedSubject ? (examsData || []) : [], [selectedSubject, examsData])
   const me = meData
 
-  const [loadingStudents, setLoadingStudents] = useState(false)
+  const [, setLoadingStudents] = useState(false)
 
   const handleLoadStudents = useCallback(async () => {
     if (!selectedExam) return

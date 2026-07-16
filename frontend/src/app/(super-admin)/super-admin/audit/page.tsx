@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { useAuditLogs } from "@/hooks/queries"
-import { toast } from "@/hooks/use-toast"
 
 const actionColors: Record<string, string> = {
   CREATE: "bg-green-100 text-green-700", UPDATE: "bg-blue-100 text-blue-700",

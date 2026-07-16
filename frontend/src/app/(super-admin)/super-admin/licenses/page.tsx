@@ -1,19 +1,13 @@
 "use client"
 
-import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { useLicenses } from "@/hooks/queries"
 
 export default function SuperAdminLicenses() {
-  const [search, setSearch] = useState("")
   const { data, isLoading } = useLicenses()
 
   const licenses = (data as any)?.licenses || data || []
-  const filtered = !search ? licenses : licenses.filter((l: any) =>
-    l.key?.toLowerCase().includes(search.toLowerCase()) ||
-    l.school_id?.toLowerCase().includes(search.toLowerCase()) ||
-    l.license_type?.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <GenericListPage

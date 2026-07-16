@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Building2, Network, Key, CheckCircle2, AlertCircle, Loader2, ArrowRight } from "lucide-react"
+import { Key, CheckCircle2, AlertCircle, Loader2, ArrowRight } from "lucide-react"
 import { Logo } from "@/components/branding"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useSetup } from "@/services/setup-context"
 import { useValidateLicense } from "@/hooks/queries"
@@ -32,11 +31,9 @@ export default function ActivateLicensePage() {
       if (r.valid) {
         setTimeout(() => router.push("/activate/main"), 1200)
       } else {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setError(r.message || "Validation failed. Check the license key and try again.")
       }
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError("Validation failed. Check the license key and try again.")
     }
   }, [attempt, isLoading, validationData, router])

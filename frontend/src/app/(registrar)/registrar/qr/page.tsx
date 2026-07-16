@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { qrService } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
 import { QrCode, Download, Copy, Check } from "lucide-react"
@@ -25,20 +24,6 @@ export default function QRPage() {
       toast({ title: `Generated ${data.length} QR code(s)` })
     } catch { toast({ title: "Generation failed", variant: "destructive" }) }
     setGenerating(false)
-  }
-
-  const generateSingle = async (sid: string) => {
-    try {
-      const res = await qrService.generate({ student_ids: [sid] } as any)
-      const data = Array.isArray(res.data) ? res.data[0] : (res.data as any)?.codes?.[0]
-      if (data) {
-        setQrCodes(prev => {
-          const filtered = prev.filter((q: any) => q.student_id !== sid)
-          return [...filtered, data]
-        })
-      }
-      toast({ title: `QR generated for ${sid}` })
-    } catch { toast({ title: `Failed for ${sid}`, variant: "destructive" }) }
   }
 
   const copyUuid = async (uuid: string) => {

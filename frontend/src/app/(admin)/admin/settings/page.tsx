@@ -61,10 +61,8 @@ export default function AdminSettings() {
       sectionDefs.forEach((sec: any) => sec.fields.forEach((f: any) => { defaults[f.key] = s[f.key] || "" }))
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setValues(defaults)
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false)
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false)
     }
   }, [settingsData])

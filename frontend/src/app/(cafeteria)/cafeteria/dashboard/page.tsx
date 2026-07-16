@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { KPICard } from "@/components/ui/kpi-card"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,7 +10,7 @@ import { useCafeteriaProducts, useCafeteriaOrders } from "@/hooks/queries"
 import Link from "next/link"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
-  Coffee, ShoppingCart, DollarSign, CheckCircle, Loader2, ArrowRight,
+  Coffee, ShoppingCart, DollarSign, CheckCircle, ArrowRight,
   BarChart3, Plus, ClipboardCheck, Clock, TrendingUp
 } from "lucide-react"
 
@@ -36,10 +35,8 @@ const recentOrders = [
 ]
 
 export default function CafeteriaDashboard() {
-  const [stats, setStats] = useState({ products: "—", orders: "—" })
   const { data: products } = useCafeteriaProducts({ limit: 1 })
   const { data: orders } = useCafeteriaOrders({ limit: 1 })
-  const loading = false
 
   return (
     <div className="space-y-8 animate-fade-in">

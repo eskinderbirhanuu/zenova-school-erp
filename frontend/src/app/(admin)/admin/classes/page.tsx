@@ -40,6 +40,7 @@ export default function AdminClassesPage() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     try {
       if (editingId) {
         await updateClass.mutateAsync({ id: editingId, data: form })

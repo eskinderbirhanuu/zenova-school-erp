@@ -22,6 +22,7 @@ export default function TimetablePage() {
         headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
       }).then((r: any) => r.json()).then(setEntries).catch(() => {})
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionId])
 
   const grouped: Record<number, any[]> = {}

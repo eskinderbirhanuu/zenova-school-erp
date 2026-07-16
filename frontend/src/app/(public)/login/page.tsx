@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Mail, Lock, Eye, EyeOff, User, CheckCircle2, AlertCircle, Loader2, Building2, Fingerprint } from "lucide-react"
 import { Logo } from "@/components/branding"
 import { useAuth } from "@/services/auth-context"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { DynamicGradientMeshBackground } from "@/components/3d/dynamic"
@@ -39,7 +38,6 @@ function LoginForm() {
   const [passkeyLoading, setPasskeyLoading] = useState(false)
 
   const [school, setSchool] = useState<SchoolBranding | null>(null)
-  const [brandingLoaded, setBrandingLoaded] = useState(false)
   
   const [mode, setMode] = useState<"email" | "employee">("email")
   const [identifier, setIdentifier] = useState("")
@@ -56,7 +54,6 @@ function LoginForm() {
         if (data && data.name) setSchool(data)
       })
       .catch(() => {})
-      .finally(() => setBrandingLoaded(true))
   }, [])
 
   const hasSchool = school && school.name && school.is_setup_complete
@@ -125,6 +122,7 @@ function LoginForm() {
                 <div className="relative">
                   {school.logo_url ? (
                     <div className="w-20 h-20 rounded-2xl bg-white dark:bg-gray-800 p-2 flex items-center justify-center shadow-2xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={school.logo_url}
                         alt={school.name}

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/page-header"
 import { useNfcPrintRequests, useNfcCreatePrintRequest } from "@/hooks/queries"
 import { nfcV2Service } from "@/services/api"
 import { toast } from "@/hooks/use-toast"
-import { Printer, Plus, Loader2, CheckCircle, XCircle, Clock, Download } from "lucide-react"
+import { Printer, Plus, Loader2, Download } from "lucide-react"
 
 export default function CardPrintingPage() {
   const [filterStatus, setFilterStatus] = useState("")

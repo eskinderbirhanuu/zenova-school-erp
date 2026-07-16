@@ -351,7 +351,7 @@ export function RoleLayout({ role, navItems, children }: { role: string; navItem
   )
 }
 
-function CommandPalette({ navItems, onClose, accent }: { navItems: NavSection[]; onClose: () => void; accent: RoleAccent }) {
+function CommandPalette({ navItems, onClose }: { navItems: NavSection[]; onClose: () => void; accent: RoleAccent }) {
   const [query, setQuery] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)

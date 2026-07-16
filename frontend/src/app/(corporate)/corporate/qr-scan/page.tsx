@@ -21,7 +21,6 @@ export default function QrScanPage() {
   const [result, setResult] = useState<any>(null)
   const [manualUid, setManualUid] = useState("")
   const [scanType, setScanType] = useState("verification")
-  const videoRef = useRef<HTMLVideoElement>(null)
   const scannerRef = useRef<any>(null)
 
   useEffect(() => {
@@ -168,6 +167,7 @@ export default function QrScanPage() {
                 <div className="rounded-lg border p-4 space-y-3">
                   <div className="flex items-center gap-3">
                     {result.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={result.photo_url} alt="" className="h-12 w-12 rounded-full object-cover" />
                     ) : (
                       <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">

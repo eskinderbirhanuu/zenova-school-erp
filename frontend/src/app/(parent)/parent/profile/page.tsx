@@ -71,7 +71,7 @@ export default function ParentProfile() {
         relationship: p.relationship || "",
       })
     }
-  }, [meData, parentsData, profile]) // eslint-disable-next-line react-hooks/set-state-in-effect
+  }, [meData, parentsData, profile])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Shield, CheckCircle2, AlertCircle, Loader2, ArrowLeft, Key, Mail, Lock, Eye, EyeOff, Copy } from "lucide-react"
+import { Shield, CheckCircle2, AlertCircle, Loader2, ArrowLeft, Eye, EyeOff, Copy } from "lucide-react"
 import { setupService } from "@/services/api"
 
 export default function SuperAdminInstallerPage() {
@@ -18,7 +18,7 @@ export default function SuperAdminInstallerPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   const [result, setResult] = useState<{ server_id?: string; email?: string } | null>(null)
-  const [copied, setCopied] = useState("")
+  const [, setCopied] = useState("")
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)

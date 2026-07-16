@@ -40,7 +40,6 @@ export default function CardDesignPage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSchoolId(stored)
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false)
     }
   }, [])
@@ -53,16 +52,13 @@ export default function CardDesignPage() {
       if (data.design_json) {
         try {
           const saved = JSON.parse(data.design_json)
-          // eslint-disable-next-line react-hooks/set-state-in-effect
           setForm(prev => ({ ...prev, ...saved }))
-          // eslint-disable-next-line react-hooks/set-state-in-effect
           if (saved.cardTier) setCardTier(saved.cardTier)
         } catch { /* ignore */ }
       }
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false)
     }
-  }, [cardDesignData]) // eslint-disable-next-line react-hooks/set-state-in-effect
+  }, [cardDesignData])
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -172,6 +168,7 @@ export default function CardDesignPage() {
                     <div className="flex items-center gap-2">
                       <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                         {schoolLogo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img src={schoolLogo} alt="School" className="h-8 w-8 rounded-full object-cover" />
                         ) : "S"}
                       </div>
