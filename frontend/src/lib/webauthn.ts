@@ -1,6 +1,5 @@
 import api from "@/services/api"
 
-const RP_ID = window.location.hostname || "zenova.local"
 const ORIGIN = window.location.origin
 
 export interface WebAuthnCredential {

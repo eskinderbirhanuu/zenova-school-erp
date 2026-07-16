@@ -21,7 +21,7 @@ export function PWAInstallPrompt() {
   const handleInstall = async () => {
     if (!deferredPrompt) return
     ;(deferredPrompt as any).prompt()
-    const result = await (deferredPrompt as any).userChoice
+    await (deferredPrompt as any).userChoice
     setShow(false)
     setDeferredPrompt(null)
   }

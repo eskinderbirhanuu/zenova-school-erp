@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, type ReactNode, useEffect } from "react"
-import { Search, Plus, SlidersHorizontal, Download, LayoutGrid, List } from "lucide-react"
+import { useState, type ReactNode } from "react"
+import { Search, Plus, SlidersHorizontal, Download } from "lucide-react"
 import { Input } from "./input"
 import { Button } from "./button"
-import { PageHeader } from "./page-header"
 import { DataTable } from "./data-table"
 import { EmptyState } from "./empty-state"
 import { cn } from "@/lib/utils"
@@ -60,11 +59,8 @@ export function GenericListPage<T>({
   onExport, caption, totalItems,
 }: GenericListPageProps<T>) {
   const [searchInput, setSearchInput] = useState("")
-  const [mounted, setMounted] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const prefersReducedMotion = useReducedMotion()
-
-  useEffect(() => { setMounted(true) }, [])
 
   const handleSearch = (val: string) => {
     setSearchInput(val)

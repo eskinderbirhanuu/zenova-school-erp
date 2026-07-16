@@ -8,7 +8,7 @@ export default function NotFound() {
       <div className="mb-6 text-7xl font-bold text-primary/20">404</div>
       <h2 className="text-xl font-semibold text-foreground">Page not found</h2>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        The page you are looking for doesn't exist or has been moved.
+        The page you are looking for doesn&apos;t exist or has been moved.
       </p>
       <Button asChild className="mt-6" size="sm">
         <Link href="/dashboard">

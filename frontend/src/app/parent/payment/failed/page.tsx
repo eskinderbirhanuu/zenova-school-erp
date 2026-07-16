@@ -1,44 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
-import api from "@/services/api";
+import { usePaymentSession } from "@/hooks/queries";
 import { XCircle, AlertCircle, RefreshCw, ArrowLeft } from "lucide-react";
-
-interface SessionDetails {
-  session_id: string;
-  status: string;
-  error_message: string | null;
-  amount: number;
-  student_name: string;
-}
 
 export default function PaymentFailedPage() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
-  const [session, setSession] = useState<SessionDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!sessionId) {
-      setLoading(false);
-      return;
-    }
-    (async () => {
-      try {
-        const res = await api.get(`/parent-payments/session/${sessionId}`);
-        setSession(res.data);
-      } catch {
-        toast({ title: "Failed to load session details", variant: "destructive" });
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [sessionId]);
+  const { data: session, isLoading: loading } = usePaymentSession(sessionId || undefined);
 
   const handleRetry = () => {
     window.location.href = "/parent/payments";

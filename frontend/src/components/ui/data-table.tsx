@@ -2,7 +2,7 @@
 
 import { type ReactNode, useState, useCallback, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight } from "lucide-react"
+import { ArrowUpDown, ArrowUp, ArrowDown, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type SortDirection = "asc" | "desc" | null

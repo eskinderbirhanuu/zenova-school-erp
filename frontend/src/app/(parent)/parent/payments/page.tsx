@@ -47,7 +47,7 @@ export default function ParentPaymentsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Invoices & Payments</h1>
-        <p className="text-gray-600">View and pay your children's school invoices.</p>
+        <p className="text-gray-600">View and pay your children&apos;s school invoices.</p>
       </div>
 
       {paySuccess && payingId && (

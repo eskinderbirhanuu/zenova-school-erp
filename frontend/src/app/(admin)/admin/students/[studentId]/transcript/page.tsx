@@ -1,24 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import api from "@/services/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Button } from "@/components/ui/button"
 import { Printer, Download, Loader2 } from "lucide-react"
+import { useStudentTranscript } from "@/hooks/queries"
 
 export default function StudentTranscriptPage() {
   const params = useParams()
-  const [transcript, setTranscript] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api.get(`/students/${params.studentId}/transcript`)
-      .then((r: any) => setTranscript(r.data))
-      .catch(() => setTranscript(null))
-      .finally(() => setLoading(false))
-  }, [params.studentId])
+  const { data: transcript, isLoading: loading } = useStudentTranscript(params.studentId as string)
 
   if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>

@@ -1,25 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { auditService } from "@/services/api"
 import { ClipboardList, Search, Loader2 } from "lucide-react"
-import { toast } from "@/hooks/use-toast"
+import { useAuditLogs } from "@/hooks/queries"
 
 export default function DirectorAudit() {
-  const [logs, setLogs] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-
-  useEffect(() => {
-    setLoading(true)
-    auditService
-      .list({ limit: 50 })
-      .then((r: any) => setLogs(r.data?.logs || []))
-      .catch(() => toast({ title: "Failed to load audit logs", variant: "destructive" }))
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: logsData, isLoading: loading } = useAuditLogs({ limit: 50 })
+  const logs = (logsData as any)?.logs || []
 
   const filtered = logs.filter((l: any) => !search || l.action?.toLowerCase().includes(search.toLowerCase()) || l.user?.toLowerCase().includes(search.toLowerCase())
   )

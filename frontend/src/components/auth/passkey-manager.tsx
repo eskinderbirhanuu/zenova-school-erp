@@ -23,6 +23,7 @@ export function PasskeyManager() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchCredentials() }, [])
 
   const handleRegister = async () => {

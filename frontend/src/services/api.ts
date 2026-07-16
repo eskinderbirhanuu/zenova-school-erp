@@ -1,6 +1,6 @@
 import axios from "axios"
 import type {
-  ApiResponse, UserProfile, LoginRequest,
+  ApiResponse, UserProfile,
   Student, Parent, Teacher, Staff,
   Class, Section, Subject, AcademicYear, Semester, Exam, ExamResult, TimetableEntry,
   Branch, DashboardOverview, DashboardTrends,

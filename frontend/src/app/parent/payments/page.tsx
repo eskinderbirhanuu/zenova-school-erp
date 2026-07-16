@@ -90,9 +90,9 @@ export default function ParentPaymentsPage() {
       const { checkout_url } = initRes.data;
 
       if (checkout_url) {
-        window.location.href = checkout_url;
+        window.location.assign(checkout_url);
       }
-    } catch (error) {
+    } catch {
       toast({ title: "Failed to create payment session", variant: "destructive" });
     }
   };

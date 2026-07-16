@@ -1,68 +1,36 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import api from "@/services/api";
+import { usePaymentSession } from "@/hooks/queries";
 import { CheckCircle, Receipt, ArrowLeft, RefreshCw, AlertCircle } from "lucide-react";
-
-interface SessionDetails {
-  session_id: string;
-  amount: number;
-  status: string;
-  receipt_id: string | null;
-  receipt_number: string | null;
-  student_name: string;
-  invoice_number: string;
-}
 
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session");
-  const [session, setSession] = useState<SessionDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [polling, setPolling] = useState(false);
+  const { data: session, isLoading: loading, refetch } = usePaymentSession(sessionId || undefined);
 
-  const fetchSession = useCallback(async () => {
-    if (!sessionId) return;
-    try {
-      const res = await api.get(`/parent-payments/session/${sessionId}`);
-      setSession(res.data);
-      return res.data;
-    } catch {
-      return null;
-    }
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (!sessionId) {
-      setLoading(false);
-      return;
-    }
-    fetchSession().finally(() => setLoading(false));
-  }, [sessionId, fetchSession]);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!session || session.receipt_id) return;
     let attempts = 0;
     const maxAttempts = 3;
-    setPolling(true);
     const interval = setInterval(async () => {
       attempts++;
-      const data = await fetchSession();
+      const { data } = await refetch();
       if (data?.receipt_id || attempts >= maxAttempts) {
         clearInterval(interval);
-        setPolling(false);
         if (data?.receipt_id) {
           toast({ title: "Receipt ready" });
         }
       }
     }, 2000);
     return () => clearInterval(interval);
-  }, [session?.receipt_id, fetchSession]);
+  }, [session?.receipt_id, refetch]);
 
   if (loading) {
     return (
@@ -135,7 +103,7 @@ export default function PaymentSuccessPage() {
           </Card>
         )}
 
-        {polling && (
+        {session && !session.receipt_id && (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <RefreshCw className="h-4 w-4 animate-spin" />
             Waiting for receipt...

@@ -57,7 +57,7 @@ export default function SuperAdminBackups() {
           {isLoading ? (
             <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : backups.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No backups yet. Click "Create Backup" to start.</div>
+            <div className="p-8 text-center text-muted-foreground">No backups yet. Click &quot;Create Backup&quot; to start.</div>
           ) : (
             <table className="w-full text-sm">
               <thead>

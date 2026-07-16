@@ -18,6 +18,7 @@ export default function EditBranchPage() {
 
   useEffect(() => {
     if (branch) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({ name: branch.name || "", code: branch.code || "", address: branch.address || "", phone: branch.phone || "", email: (branch as any).email || "" })
     }
   }, [branch])

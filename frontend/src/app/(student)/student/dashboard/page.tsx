@@ -213,7 +213,7 @@ export default function StudentDashboard() {
         <Card shadow="default">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Calendar className="h-4 w-4 text-primary" /> Today's Schedule
+              <Calendar className="h-4 w-4 text-primary" /> Today&apos;s Schedule
             </CardTitle>
             <CardDescription>Your class schedule for today</CardDescription>
           </CardHeader>

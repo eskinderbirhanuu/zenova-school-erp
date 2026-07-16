@@ -1,8 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { usePathname } from "next/navigation"
+import { motion } from "framer-motion"
 import { Sparkles, Zap, Shield, TrendingUp, Users, BookOpen } from "lucide-react"
 
 const features = [
@@ -15,10 +13,6 @@ const features = [
 ]
 
 export function WelcomeHero() {
-  const [mounted, setMounted] = useState(false)
-  const pathname = usePathname()
-
-  useEffect(() => setMounted(true), [])
 
   return (
     <div className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">

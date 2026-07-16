@@ -8,7 +8,7 @@ import {
   TrendingDown, Briefcase, PiggyBank, BarChart3, HardDrive,
   Truck, ShoppingCart, ArrowDown, TrendingUp, Monitor,
   Plus, Activity, Bell, Megaphone, Download, Printer, Palette, Radio,
-  Building, Globe, type LucideIcon,
+  Building, type LucideIcon,
 } from "lucide-react"
 
 export const ROLE_DASHBOARD: Record<string, string> = {

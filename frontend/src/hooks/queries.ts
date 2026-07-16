@@ -8,7 +8,7 @@ import type {
   InventoryCategory, InventoryItem, StockMovement, Supplier,
   Book, Borrowing, CafeteriaProduct, CafeteriaOrder,
   License, AuditLog,
-  NfcAssignment, PrintRequest,
+  PrintRequest,
   NotificationPreferences,
   CorporateDepartment, CorporateEmployee, UserProfile,
 } from "@/types/api"
@@ -875,10 +875,22 @@ export function useParentPaymentsDashboard() {
   return useApiQuery<any>(["parent-payments", "dashboard"], () => api.get("/parent-payments/dashboard"))
 }
 
+// ─── Payment Session ─────────────────────────────────────
+
+export function usePaymentSession(sessionId?: string) {
+  return useApiQuery<any>(["parent-payments", "session", sessionId], () => api.get(`/parent-payments/session/${sessionId}`), { enabled: !!sessionId })
+}
+
 // ─── Receipts ─────────────────────────────────────────────
 
 export function useReceipts() {
   return useApiQuery<any[]>(["parent-payments", "receipts"], () => api.get("/parent-payments/receipts"))
+}
+
+// ─── Student Transcript ───────────────────────────────────
+
+export function useStudentTranscript(studentId?: string) {
+  return useApiQuery<any>(["students", "transcript", studentId], () => api.get(`/students/${studentId}/transcript`), { enabled: !!studentId })
 }
 
 // ─── Platform Dashboard (Services) ────────────────────────

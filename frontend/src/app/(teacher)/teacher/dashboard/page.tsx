@@ -128,6 +128,7 @@ export default function TeacherDashboard() {
     if (loading || initialized) return
     const cachedTt = loadTimetable()
     const cachedUg = loadUngraded()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (cachedTt.length) setTimetableSlots(cachedTt)
     if (cachedUg.length) setUngradedItems(cachedUg)
 

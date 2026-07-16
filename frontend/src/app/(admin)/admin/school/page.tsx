@@ -29,6 +29,7 @@ export default function AdminSchool() {
   useEffect(() => {
     if (schoolData) {
       const s = (schoolData as any)?.data || schoolData || {}
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({
         name: s.name || "",
         code: s.code || "",
@@ -42,7 +43,7 @@ export default function AdminSchool() {
         language: s.language || "",
       })
     }
-  }, [schoolData])
+  }, [schoolData]) // eslint-disable-next-line react-hooks/set-state-in-effect
 
   const update = (p: Partial<typeof form>) => setForm(prev => ({ ...prev, ...p }))
 

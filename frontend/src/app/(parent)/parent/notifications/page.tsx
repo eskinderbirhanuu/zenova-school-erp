@@ -60,6 +60,7 @@ export default function ParentNotifications() {
 
   useEffect(() => {
     if (prefsData) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPrefs((prev) => ({ ...prev, ...prefsData } as NotificationPrefs))
     }
   }, [prefsData])
@@ -184,7 +185,7 @@ export default function ParentNotifications() {
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <ol className="list-decimal list-inside space-y-1">
-            <li>Open Telegram and search for your school's bot</li>
+            <li>Open Telegram and search for your school&apos;s bot</li>
             <li>Send <code className="bg-muted px-1 rounded text-xs">/link</code> followed by your student ID and parent portal password</li>
             <li>Format: <code className="bg-muted px-1 rounded text-xs">/link STUDENT123 yourpassword</code></li>
             <li>Once linked, come back here and enable Telegram toggles</li>

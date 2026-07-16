@@ -141,7 +141,7 @@ export default function HrDashboard() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <BarChart3 className="h-4 w-4 text-primary" /> Attendance Overview
             </CardTitle>
-            <CardDescription>This month's attendance statistics</CardDescription>
+            <CardDescription>This month&apos;s attendance statistics</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">

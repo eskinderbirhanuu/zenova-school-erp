@@ -18,7 +18,7 @@ export default function TermsPage() {
       <p>ZENOVA commits to 99.9% platform uptime, excluding scheduled maintenance. Credits apply for verified downtime exceeding this threshold under the enterprise agreement.</p>
 
       <h2>5. Limitation of Liability</h2>
-      <p>ZENOVA's liability is limited to the fees paid in the 12 months preceding a claim. The platform is provided "as is" with all faults.</p>
+      <p>ZENOVA&apos;s liability is limited to the fees paid in the 12 months preceding a claim. The platform is provided &ldquo;as is&rdquo; with all faults.</p>
 
       <h2>6. Termination</h2>
       <p>Either party may terminate with 30 days written notice. Upon termination, customer data is exported and deleted per the data processing agreement.</p>

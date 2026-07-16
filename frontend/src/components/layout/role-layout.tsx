@@ -368,6 +368,7 @@ function CommandPalette({ navItems, onClose, accent }: { navItems: NavSection[];
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveIndex(0)
   }, [query])
 

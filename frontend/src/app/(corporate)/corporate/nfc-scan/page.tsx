@@ -85,7 +85,7 @@ export default function NfcScanPage() {
             <CardTitle className="flex items-center gap-2">
               <Scan className="h-5 w-5" /> Scan Card
             </CardTitle>
-            <CardDescription>Enter the NFC card UID or use your phone's NFC reader</CardDescription>
+            <CardDescription>Enter the NFC card UID or use your phone&apos;s NFC reader</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-1.5">

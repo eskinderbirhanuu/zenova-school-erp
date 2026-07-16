@@ -1,7 +1,6 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "./card"
 import { Button } from "./button"
 import { EmptyState } from "./empty-state"
 import { ArrowLeft, Edit } from "lucide-react"
@@ -32,17 +31,14 @@ interface GenericDetailCardProps {
   sections?: { title: string; fields: FieldProps[] }[]
 }
 
-export function GenericDetailCard({ title, backHref, editHref, loading, error, fields, sections }: GenericDetailCardProps) {
-  if (loading) return <EmptyState variant="loading" title="Loading..." />
-  if (error) return <EmptyState variant="error" title="Error" description={error} />
-
-  const DetailCard = ({ title, children }: { title?: string, children: ReactNode }) => (
+function DetailCard({ title, children }: { title?: string, children: ReactNode }) {
+  return (
     <div className="relative rounded-2xl border border-border/40 bg-card/70 backdrop-blur-xl shadow-sm overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-primary/[0.01]" />
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
       {title && (
         <div className="relative px-6 py-4 border-b border-border/30">
-          <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</CardTitle>
+          <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</span>
         </div>
       )}
       <div className="relative p-6">
@@ -50,6 +46,11 @@ export function GenericDetailCard({ title, backHref, editHref, loading, error, f
       </div>
     </div>
   )
+}
+
+export function GenericDetailCard({ title, backHref, editHref, loading, error, fields, sections }: GenericDetailCardProps) {
+  if (loading) return <EmptyState variant="loading" title="Loading..." />
+  if (error) return <EmptyState variant="error" title="Error" description={error} />
 
   return (
     <div className="space-y-5">

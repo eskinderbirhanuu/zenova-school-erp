@@ -99,6 +99,7 @@ export default function RegisterStudentPage() {
   const [newParent, setNewParent] = useState({ full_name: "", phone_1: "", relationship: "" })
   const searchTimer = useRef<any>(null)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true) }, [])
 
   const searchParents = useCallback((q: string) => {

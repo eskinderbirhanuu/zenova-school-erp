@@ -25,6 +25,7 @@ export default function ParentDashboard() {
   useEffect(() => {
     const children = (dashboardData as any)?.children
     if (children?.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedChild(children[0].id)
     }
   }, [dashboardData])

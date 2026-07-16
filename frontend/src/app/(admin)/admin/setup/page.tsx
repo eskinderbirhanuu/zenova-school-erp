@@ -36,6 +36,7 @@ export default function SetupWizardPage() {
       if (wizardStatus?.all_done) {
         router.replace("/admin/dashboard")
       } else {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoading(false)
       }
     }

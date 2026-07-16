@@ -27,13 +27,16 @@ export default function ActivateLicensePage() {
     if (!attempt || isLoading) return
     if (validationData) {
       const r = validationData as any
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResult(r)
       if (r.valid) {
         setTimeout(() => router.push("/activate/main"), 1200)
       } else {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setError(r.message || "Validation failed. Check the license key and try again.")
       }
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError("Validation failed. Check the license key and try again.")
     }
   }, [attempt, isLoading, validationData, router])

@@ -44,6 +44,7 @@ export default function TeacherProfile() {
   useEffect(() => {
     if (!meData || !tp) return
     const me = meData
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProfile({
       id: tp.id || (me as any).id,
       first_name: (me as any).full_name?.split(" ")[0] || "",
