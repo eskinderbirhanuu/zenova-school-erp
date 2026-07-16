@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useApiQuery, useApiMutation } from "./use-api"
 import type {
   Student, Parent, Teacher, Staff,
