@@ -32,7 +32,15 @@ TABLES = [
 
 
 def upgrade() -> None:
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing = [t.name for t in inspector.get_table_names()]
     for table in TABLES:
+        if table not in existing:
+            continue
+        columns = [c["name"] for c in inspector.get_columns(table)]
+        if "school_id" in columns:
+            continue
         op.add_column(
             table,
             sa.Column(
@@ -46,5 +54,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing = [t.name for t in inspector.get_table_names()]
     for table in reversed(TABLES):
+        if table not in existing:
+            continue
+        columns = [c["name"] for c in inspector.get_columns(table)]
+        if "school_id" not in columns:
+            continue
         op.drop_column(table, "school_id")
