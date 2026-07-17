@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd -r zenova && useradd -r -g zenova -d /app -s /sbin/nologin zenova
 
 COPY --from=builder /root/.local /root/.local
+RUN chmod -R a+rX /root/.local
 ENV PATH=/root/.local/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
