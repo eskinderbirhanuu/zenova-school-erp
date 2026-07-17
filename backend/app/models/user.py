@@ -15,6 +15,7 @@ class PasswordHistory(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="password_history")
 
@@ -37,9 +38,9 @@ class User(Base):
     mfa_backup_codes = Column(Text, nullable=True)
     must_change_password = Column(Boolean, default=False)
     last_login_at = Column(DateTime, nullable=True)
-    role_id = Column(String(36), ForeignKey("roles.id"), nullable=True)
-    school_id = Column(String(36), ForeignKey("schools.id"), nullable=True)
-    branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
+    role_id = Column(String(36), ForeignKey("roles.id"), nullable=True, index=True)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=True, index=True)
+    branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime, nullable=True)

@@ -16,3 +16,4 @@ class WebAuthnCredential(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_used_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True)

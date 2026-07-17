@@ -1,8 +1,8 @@
-from fastapi import Request, HTTPException, status
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
-
-MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+from app.core.exceptions import RequestEntityTooLargeException, UnsupportedMediaTypeException
+from app.core.constants import MAX_UPLOAD_SIZE
 
 ALLOWED_UPLOAD_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -29,18 +29,12 @@ class UploadLimitMiddleware(BaseHTTPMiddleware):
         ):
             content_length = request.headers.get("content-length")
             if content_length and int(content_length) > MAX_UPLOAD_SIZE:
-                raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail=f"File too large. Max size is {MAX_UPLOAD_SIZE // (1024*1024)} MB",
-                )
+                raise RequestEntityTooLargeException(f"File too large. Max size is {MAX_UPLOAD_SIZE // (1024*1024)} MB")
             content_type = request.headers.get("content-type", "")
             if "multipart/form-data" in content_type:
                 pass
             elif content_type and content_type not in ALLOWED_UPLOAD_TYPES:
-                raise HTTPException(
-                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                    detail=f"Unsupported content type: {content_type}",
-                )
+                raise UnsupportedMediaTypeException(f"Unsupported content type: {content_type}")
 
         response = await call_next(request)
         return response

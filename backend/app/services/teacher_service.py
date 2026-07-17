@@ -7,6 +7,8 @@ from app.models.teacher_grade_assignment import TeacherGradeAssignment
 from app.models.teacher_section_assignment import TeacherSectionAssignment
 from app.core.security import get_password_hash
 from app.core.audit import log_audit
+from app.core.exceptions import ConflictException, NotFoundException, BadRequestException
+from app.core.error_codes import ErrorCode
 
 
 def create_teacher(
@@ -31,11 +33,11 @@ def create_teacher(
         q = q.filter(User.school_id == school_id)
     existing = q.first()
     if existing:
-        raise ValueError("Email already exists")
+        raise ConflictException("Email already exists", code=ErrorCode.CONFLICT_DUPLICATE_EMAIL)
 
     teacher_role = db.query(Role).filter(Role.name == "TEACHER").first()
     if not teacher_role:
-        raise ValueError("TEACHER role not found. Run seed first.")
+        raise NotFoundException("TEACHER role not found. Run seed first.", code=ErrorCode.NOT_FOUND_ROLE)
 
     user = User(
         email=email,
@@ -177,11 +179,11 @@ def update_teacher_profile(
         TeacherProfile.school_id == school_id,
     ).first()
     if not profile:
-        raise ValueError("Teacher not found")
+        raise NotFoundException("Teacher not found", code=ErrorCode.NOT_FOUND_GENERIC)
 
     user = db.query(User).filter(User.id == profile.user_id).first()
     if not user:
-        raise ValueError("User not found")
+        raise NotFoundException("User not found", code=ErrorCode.NOT_FOUND_USER)
 
     if full_name is not None:
         user.full_name = full_name
@@ -191,7 +193,7 @@ def update_teacher_profile(
             existing_q = existing_q.filter(User.school_id == school_id)
         existing = existing_q.first()
         if existing:
-            raise ValueError("Email already in use")
+            raise ConflictException("Email already in use", code=ErrorCode.CONFLICT_DUPLICATE_EMAIL)
         user.email = email
     if phone is not None:
         user.phone = phone

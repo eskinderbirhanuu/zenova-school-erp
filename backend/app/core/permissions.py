@@ -1,7 +1,8 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from app.core.auth_deps import get_current_user
 from app.models.user import User
 from app.core.server_identity import get_server_identity
+from app.core.exceptions import ForbiddenException, ServiceUnavailableException
 
 
 class Permission:
@@ -19,6 +20,7 @@ class Permission:
     INVENTORY_MANAGE = "inventory.manage"
     LIBRARY_MANAGE = "library.manage"
     CAFETERIA_POS = "cafeteria.pos"
+    ATTENDANCE_MARK = "attendance.mark"
     AUDIT_VIEW = "audit.view"
     SETTINGS_MANAGE = "settings.manage"
     LICENSE_MANAGE = "licenses.manage"
@@ -65,6 +67,7 @@ ROLE_PERMISSIONS = {
         Permission.LIBRARY_MANAGE, Permission.CAFETERIA_POS,
         Permission.AUDIT_VIEW, Permission.SETTINGS_MANAGE,
         Permission.INFRASTRUCTURE_VIEW,
+        Permission.ATTENDANCE_MARK,
         Permission.CARD_PRINT, Permission.CARD_PRINT_ASSIGN,
         Permission.CORPORATE_EMPLOYEE_VIEW, Permission.CORPORATE_DEPARTMENT_VIEW,
         Permission.CORPORATE_DEPARTMENT_MANAGE, Permission.CORPORATE_FINANCE_VIEW,
@@ -82,9 +85,9 @@ ROLE_PERMISSIONS = {
         Permission.PARENT_CREATE, Permission.PARENT_EDIT,
         Permission.AUDIT_VIEW,
     ],
-    "TEACHER": [Permission.STUDENT_VIEW, Permission.GRADE_ENTER],
+    "TEACHER": [Permission.STUDENT_VIEW, Permission.GRADE_ENTER, Permission.ATTENDANCE_MARK],
     "FINANCE": [Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS],
-    "HR": [Permission.HR_MANAGE],
+    "HR": [Permission.HR_MANAGE, Permission.ATTENDANCE_MARK],
     "INVENTORY": [Permission.INVENTORY_MANAGE],
     "LIBRARY": [Permission.LIBRARY_MANAGE],
     "CAFETERIA": [Permission.CAFETERIA_POS],
@@ -130,10 +133,7 @@ def require_permission(*permissions: str):
         for perm in permissions:
             if has_permission(current_user, perm):
                 return current_user
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Missing one of: {', '.join(permissions)}",
-        )
+        raise ForbiddenException(f"Missing one of: {', '.join(permissions)}")
     return Depends(_check)
 
 
@@ -149,12 +149,6 @@ def require_server_role(*allowed_roles: str):
     """
     identity = get_server_identity()
     if identity is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Server not initialized — run the installer first",
-        )
+        raise ServiceUnavailableException("Server not initialized — run the installer first")
     if identity["server_role"] not in allowed_roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Server role '{identity['server_role']}' not allowed (requires {', '.join(allowed_roles)})",
-        )
+        raise ForbiddenException(f"Server role '{identity['server_role']}' not allowed (requires {', '.join(allowed_roles)})")

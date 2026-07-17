@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Providers } from "@/services/providers"
 import { AuthProvider } from "@/services/auth-context"
 import { Toaster } from "@/components/layout/toaster"
@@ -6,11 +6,14 @@ import { PWARegister } from "@/components/pwa/register-sw"
 import { PWAInstallPrompt } from "@/components/pwa/install-prompt"
 import "./globals.css"
 
+export const viewport: Viewport = {
+  themeColor: "#2563EB",
+}
+
 export const metadata: Metadata = {
   title: "ZENOVA - Smart School • Limitless Possibilities",
   description: "Enterprise School Management Platform - Finance, HR, Academic & More",
   manifest: "/manifest.json",
-  themeColor: "#2563EB",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

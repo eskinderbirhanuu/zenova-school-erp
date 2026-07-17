@@ -1,0 +1,113 @@
+/* ZENOVA Documentation Custom Styles */
+
+/* Cover page styling */
+.zenova-cover {
+  text-align: center;
+  padding: 60px 0;
+}
+
+.zenova-cover h1 {
+  font-size: 3em;
+  margin-bottom: 0.2em;
+}
+
+.zenova-cover .subtitle {
+  font-size: 1.5em;
+  color: var(--md-primary-fg-color);
+  margin-bottom: 1em;
+}
+
+/* Dashboard wireframe styling */
+.dashboard-wireframe {
+  border: 2px solid var(--md-primary-fg-color);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  background: var(--md-code-bg-color);
+  font-family: var(--md-code-font-family);
+  font-size: 0.8em;
+  overflow-x: auto;
+}
+
+.dashboard-wireframe .header {
+  border-bottom: 2px solid var(--md-primary-fg-color);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.dashboard-wireframe .sidebar {
+  border-right: 1px solid var(--md-primary-fg-color);
+  padding-right: 8px;
+}
+
+/* ASCII art diagrams */
+.ascii-diagram {
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 4px;
+  padding: 12px;
+  margin: 12px 0;
+  background: var(--md-code-bg-color);
+  font-family: var(--md-code-font-family);
+  font-size: 0.75em;
+  line-height: 1.2;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Mermaid diagram containers */
+.mermaid {
+  text-align: center;
+  margin: 20px 0;
+}
+
+/* Comparison tables */
+.md-typeset table:not([class]) th {
+  background-color: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color);
+}
+
+/* Role badges */
+.role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+/* Custom admonitions */
+.md-typeset .admonition.zenova-arch,
+.md-typeset details.zenova-arch {
+  border-color: rgb(43, 155, 70);
+}
+.md-typeset .zenova-arch > .admonition-title,
+.md-typeset .zenova-arch > summary {
+  background-color: rgba(43, 155, 70, 0.1);
+  border-color: rgb(43, 155, 70);
+}
+.md-typeset .zenova-arch > .admonition-title::before,
+.md-typeset .zenova-arch > summary::before {
+  background-color: rgb(43, 155, 70);
+  -webkit-mask-image: var(--md-admonition-icon--info);
+  mask-image: var(--md-admonition-icon--info);
+}
+
+/* Make emoji in headings render properly */
+.md-typeset h1 em,
+.md-typeset h2 em,
+.md-typeset h3 em {
+  font-style: normal;
+}
+
+/* Print-specific */
+@media print {
+  .md-sidebar,
+  .md-header,
+  .md-footer {
+    display: none !important;
+  }
+  .md-content {
+    margin: 0 !important;
+  }
+}

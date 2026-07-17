@@ -2,11 +2,11 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt
 from passlib.context import CryptContext
 from app.config import settings
+from app.core.constants import BCRYPT_ROUNDS
 import re
 import secrets
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-BCRYPT_ROUNDS = 12
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -66,7 +66,8 @@ def create_password_reset_token(data: dict, expires_delta: timedelta | None = No
     """Dedicated password-reset token. Distinct `type` so it can NEVER be used as an
     access or refresh token — see get_current_user which only accepts type=access."""
     to_encode = data.copy()
-    ttl = expires_delta or timedelta(minutes=15)
+    from app.core.constants import PASSWORD_RESET_TOKEN_TTL_MINUTES
+    ttl = expires_delta or timedelta(minutes=PASSWORD_RESET_TOKEN_TTL_MINUTES)
     to_encode.update({
         "exp": datetime.now(timezone.utc) + ttl,
         "type": "password_reset",
@@ -99,7 +100,9 @@ def _recovery_secret() -> bytes:
     return _hashlib.sha256(("recovery:" + settings.secret_key).encode()).digest()
 
 
-def issue_password_recovery_code(user_id: str, ttl_seconds: int = 600) -> str:
+def issue_password_recovery_code(user_id: str, ttl_seconds: int | None = None) -> str:
+    from app.core.constants import RECOVERY_CODE_TTL_SECONDS
+    ttl_seconds = ttl_seconds or RECOVERY_CODE_TTL_SECONDS
     """Mint a TTL-bound, single-use recovery code for a user_id.
 
     Format: <user_id>.<exp_epoch>.<hmac_hex>

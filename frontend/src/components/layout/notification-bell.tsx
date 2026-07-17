@@ -1,27 +1,33 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useMe } from "@/hooks/queries"
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<any[]>([])
   const wsRef = useRef<WebSocket | null>(null)
+  const { data: user } = useMe()
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
   const WS_BASE = API_BASE.replace(/^http/, "ws")
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : ""
+  const load = useCallback(() => {
+    const opts: RequestInit = {
+      credentials: "include",
+      headers: { "X-CSRF-Token": document.cookie.replace(/(?:(?:^|.*;\s*)csrf_token\s*=\s*([^;]*).*$)|^.*$/, "$1") },
+    }
+    fetch(`${API_BASE}/notifications?unread_only=true`, opts)
+      .then((r) => r.json())
+      .then((data: unknown) => { if (Array.isArray(data)) setNotifications(data as any[]) })
+      .catch(() => {})
+  }, [API_BASE])
 
   useEffect(() => {
-    if (!token) return
-    const load = () => {
-      fetch(`${API_BASE}/notifications?unread_only=true`, {
-        headers: { Authorization: `Bearer ${token}` }
-      }).then((r: any) => r.json()).then((data: any) => { if (Array.isArray(data)) setNotifications(data) }).catch(() => {})
-    }
+    if (!user) return
     load()
-    const wsUrl = `${WS_BASE}/ws/notifications?token=${token}`
+    const wsUrl = `${WS_BASE}/ws/notifications`
     let ws: WebSocket | null = null
     try {
       ws = new WebSocket(wsUrl)
@@ -36,13 +42,15 @@ export function NotificationBell() {
     } catch { load() }
     return () => { ws?.close() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [user, load])
 
   const markRead = async (id: string) => {
     await fetch(`${API_BASE}/notifications/${id}/read`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` }
+      method: "POST",
+      credentials: "include",
+      headers: { "X-CSRF-Token": document.cookie.replace(/(?:(?:^|.*;\s*)csrf_token\s*=\s*([^;]*).*$)|^.*$/, "$1") },
     })
-    setNotifications(prev => prev.filter((n: any) => n.id !== id))
+    setNotifications(prev => prev.filter((n) => n.id !== id))
   }
 
   return (

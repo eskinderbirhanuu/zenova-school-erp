@@ -2,6 +2,7 @@
 from unittest.mock import MagicMock, patch, ANY
 import pytest
 from app.services import corporate_service
+from app.core.exceptions import ConflictException
 
 
 class TestCreateDepartment:
@@ -19,7 +20,7 @@ class TestCreateDepartment:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = MagicMock()
 
-        with pytest.raises(ValueError, match="already exists"):
+        with pytest.raises(ConflictException, match="already exists"):
             corporate_service.create_department(db, "Engineering", "ENG")
 
 

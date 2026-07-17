@@ -1,3 +1,4 @@
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -24,7 +25,7 @@ def create_teacher(
     school_id = (data.school_id if current_user.is_superuser else None) or current_user.school_id
     branch_id = (data.branch_id if current_user.is_superuser else None) or current_user.branch_id
     teacher_id = id_service.generate_id(db, "teacher", school_id)
-    password = data.password or "changeme123"
+    password = data.password or secrets.token_urlsafe(12)
 
     try:
         result = teacher_service.create_teacher(
@@ -67,9 +68,9 @@ def update_teacher(
     teacher_id: str,
     data: TeacherUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.TEACHER_CREATE),
 ):
-    """Update own teacher profile (TEACHER) or any teacher (DIRECTOR/ADMIN)"""
+    """Update a teacher profile (requires TEACHER_CREATE permission)"""
     school_id = current_user.school_id
     try:
         result = teacher_service.update_teacher_profile(

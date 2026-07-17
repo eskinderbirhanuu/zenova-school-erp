@@ -18,6 +18,7 @@ class ArchiveJob(Base):
     started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
     created_by = Column(String(36), nullable=True)
+    deleted_at = Column(DateTime, nullable=True)
 
 
 class ArchivedRecord(Base):
@@ -30,3 +31,4 @@ class ArchivedRecord(Base):
     school_id = Column(String(36), nullable=True, index=True)
     data = Column(JSON, nullable=False)
     archived_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    deleted_at = Column(DateTime, nullable=True)

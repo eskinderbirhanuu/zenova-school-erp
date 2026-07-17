@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "@/hooks/use-toast";
 import api from "@/services/api";
 import { useParentPaymentsDashboard } from "@/hooks/queries";
+import { useFeatures } from "@/hooks/use-features";
 import {
   TrendingUp,
   TrendingDown,
@@ -63,33 +64,44 @@ interface DashboardData {
 export default function ParentPaymentsPage() {
   const router = useRouter();
   const { data: _dashboard, isLoading: loading } = useParentPaymentsDashboard();
+  const { isChapaEnabled } = useFeatures();
   const dashboard = _dashboard as DashboardData | null;
   const [, setSelectedInvoice] = useState<Invoice | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("chapa");
+  const [paymentMethod, setPaymentMethod] = useState("telebirr");
 
   const handlePayNow = async (invoice: Invoice) => {
-    try {
-      const sessionRes = await api.post("/parent-payments/create-session", null, {
-        params: {
-          student_id: invoice.student_id,
-          amount: parseFloat(paymentAmount) || invoice.balance,
-          payment_method: paymentMethod,
-          invoice_id: invoice.id,
-        },
-      });
-
-      const { session_id } = sessionRes.data;
-
-      const initRes = await api.post(`/parent-payments/chapa/initialize?session_id=${session_id}`);
-      const { checkout_url } = initRes.data;
-
-      if (checkout_url) {
-        window.location.assign(checkout_url);
-      }
-    } catch {
-      toast({ title: "Failed to create payment session", variant: "destructive" });
+    if (paymentMethod === "chapa" && !isChapaEnabled) {
+      toast({ title: "Chapa is coming soon — please use another method." });
+      return;
     }
+
+    if (paymentMethod === "chapa") {
+      try {
+        const sessionRes = await api.post("/parent-payments/create-session", null, {
+          params: {
+            student_id: invoice.student_id,
+            amount: parseFloat(paymentAmount) || invoice.balance,
+            payment_method: paymentMethod,
+            invoice_id: invoice.id,
+          },
+        });
+
+        const { session_id } = sessionRes.data;
+
+        const initRes = await api.post(`/parent-payments/chapa/initialize?session_id=${session_id}`);
+        const { checkout_url } = initRes.data;
+
+        if (checkout_url) {
+          window.location.assign(checkout_url);
+        }
+      } catch {
+        toast({ title: "Failed to create payment session", variant: "destructive" });
+      }
+      return;
+    }
+
+    toast({ title: `Coming soon: ${paymentMethod} payments. Check back later.` });
   };
 
   const getStatusColor = (status: string) => {
@@ -228,7 +240,11 @@ export default function ParentPaymentsPage() {
                                 value={paymentMethod}
                                 onChange={(e) => setPaymentMethod(e.target.value)}
                               >
-                                <option value="chapa">Chapa</option>
+                                {isChapaEnabled ? (
+                                  <option value="chapa">Chapa</option>
+                                ) : (
+                                  <option value="chapa" disabled>Chapa — Coming Soon</option>
+                                )}
                                 <option value="telebirr">Telebirr</option>
                                 <option value="cbe">CBE Birr</option>
                                 <option value="cash">Cash</option>

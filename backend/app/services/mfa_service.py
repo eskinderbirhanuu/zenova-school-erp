@@ -1,19 +1,22 @@
+import hashlib
 import json
 import secrets
 import pyotp
 from sqlalchemy.orm import Session
 from app.models.user import User
-
-
-MFA_ISSUER = "ZENOVA"
+from app.core.constants import MFA_ISSUER, BACKUP_CODE_COUNT, MFA_REQUIRED_ROLES, MFA_VALID_WINDOW
 
 
 def generate_secret() -> str:
     return pyotp.random_base32()
 
 
-def generate_backup_codes(count: int = 10) -> list[str]:
-    return [secrets.token_hex(4).upper() for _ in range(count)]
+def _hash_code(code: str) -> str:
+    return hashlib.sha256(code.encode()).hexdigest()
+
+def generate_backup_codes(count: int = BACKUP_CODE_COUNT) -> list[str]:
+    raw = [secrets.token_hex(4).upper() for _ in range(count)]
+    return raw
 
 
 def get_totp(secret: str) -> pyotp.TOTP:
@@ -22,19 +25,20 @@ def get_totp(secret: str) -> pyotp.TOTP:
 
 def verify_totp(secret: str, code: str) -> bool:
     totp = get_totp(secret)
-    return totp.verify(code, valid_window=1)
+    return totp.verify(code, valid_window=MFA_VALID_WINDOW)
 
 
 def verify_backup_code(user: User, code: str) -> bool:
     if not user.mfa_backup_codes:
         return False
     try:
-        codes = json.loads(user.mfa_backup_codes)
+        hashes = json.loads(user.mfa_backup_codes)
     except (json.JSONDecodeError, TypeError):
         return False
-    if code.upper() in codes:
-        codes.remove(code.upper())
-        user.mfa_backup_codes = json.dumps(codes)
+    code_hash = _hash_code(code.upper())
+    if code_hash in hashes:
+        hashes.remove(code_hash)
+        user.mfa_backup_codes = json.dumps(hashes)
         return True
     return False
 
@@ -64,7 +68,8 @@ def complete_mfa_setup(db: Session, user: User, code: str) -> dict | None:
     if not user.mfa_secret or not verify_totp(user.mfa_secret, code):
         return None
     backup_codes = generate_backup_codes()
-    user.mfa_backup_codes = json.dumps(backup_codes)
+    code_hashes = [_hash_code(c) for c in backup_codes]
+    user.mfa_backup_codes = json.dumps(code_hashes)
     user.mfa_enabled = True
     db.commit()
     db.refresh(user)
@@ -81,7 +86,8 @@ def disable_mfa(db: Session, user: User) -> None:
 def regenerate_backup_codes(db: Session, user: User) -> list[str]:
     """Replace existing backup codes with new ones."""
     codes = generate_backup_codes()
-    user.mfa_backup_codes = json.dumps(codes)
+    code_hashes = [_hash_code(c) for c in codes]
+    user.mfa_backup_codes = json.dumps(code_hashes)
     db.commit()
     return codes
 
@@ -92,9 +98,6 @@ def verify_mfa_code(user: User, code: str) -> bool:
     if verify_totp(user.mfa_secret, code):
         return True
     return verify_backup_code(user, code)
-
-
-MFA_REQUIRED_ROLES = {"SUPER_ADMIN", "FINANCE"}
 
 
 def mfa_required_for_role(role_name: str | None) -> bool:

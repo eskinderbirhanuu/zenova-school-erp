@@ -5,6 +5,7 @@ from app.models.role import Role
 from app.models.staff_profile import StaffProfile
 from app.core.security import get_password_hash
 from app.core.exceptions import NotFoundException, ConflictException, BadRequestException
+from app.core.error_codes import ErrorCode
 from app.core.audit import log_audit
 
 
@@ -37,18 +38,18 @@ def create_staff(
 ) -> dict:
     """Create staff (User + StaffProfile)"""
     if role_name not in ROLE_MAP:
-        raise ValueError(f"Invalid staff role: {role_name}")
+        raise BadRequestException(f"Invalid staff role: {role_name}", code=ErrorCode.VALIDATION_INVALID_ENUM)
 
     q = db.query(User).filter(User.email == email)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
     existing = q.first()
     if existing:
-        raise ValueError("Email already exists")
+        raise ConflictException("Email already exists", code=ErrorCode.CONFLICT_DUPLICATE_EMAIL)
 
     staff_role = db.query(Role).filter(Role.name == role_name).first()
     if not staff_role:
-        raise ValueError(f"{role_name} role not found. Run seed first.")
+        raise NotFoundException(f"{role_name} role not found. Run seed first.", code=ErrorCode.NOT_FOUND_ROLE)
 
     user = User(
         email=email,

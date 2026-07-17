@@ -14,6 +14,12 @@ from app.models.academic_year import AcademicYear
 from app.core.security import get_password_hash
 from app.core.audit import log_audit
 from app.core.permissions import ROLE_PERMISSIONS
+from app.core.exceptions import (
+    ConflictException,
+    NotFoundException,
+    BadRequestException,
+)
+from app.core.error_codes import ErrorCode
 
 # ─── Base58 alphabet (no 0/O/I/l to avoid confusion) ─────────────
 BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -169,7 +175,7 @@ def create_license(
     """Create a new license (SUPER_ADMIN only)"""
     existing = db.query(License).filter(License.key == key).first()
     if existing:
-        raise ValueError("License key already exists")
+        raise ConflictException("License key already exists", code=ErrorCode.CONFLICT_LICENSE_EXISTS)
 
     if valid_from is None:
         valid_from = datetime.now(timezone.utc)
@@ -227,7 +233,7 @@ def create_school(db: Session, name: str, code: str, address: str | None = None,
     """Create a new school"""
     existing = db.query(School).filter(School.code == code).first()
     if existing:
-        raise ValueError(f"School code '{code}' already exists")
+        raise ConflictException(f"School code '{code}' already exists", code=ErrorCode.CONFLICT_SCHOOL_EXISTS)
 
     school = School(
         name=name,
@@ -259,7 +265,7 @@ def create_branch(db: Session, school_id: str, name: str, code: str,
     """Create a new branch under a school"""
     school = db.query(School).filter(School.id == school_id).first()
     if not school:
-        raise ValueError("School not found")
+        raise NotFoundException("School not found", code=ErrorCode.NOT_FOUND_SCHOOL)
 
     branch = Branch(
         name=name,
@@ -291,11 +297,11 @@ def create_setup_admin(db: Session, school_id: str, branch_id: str,
     """Create the first admin user during setup"""
     existing = db.query(User).filter(User.email == email).first()
     if existing:
-        raise ValueError("Email already registered")
+        raise ConflictException("Email already registered", code=ErrorCode.CONFLICT_DUPLICATE_EMAIL)
 
     admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
     if not admin_role:
-        raise ValueError("ADMIN role not found. Run seed first.")
+        raise NotFoundException("ADMIN role not found. Run seed first.", code=ErrorCode.NOT_FOUND_ROLE)
 
     admin = User(
         email=email,
@@ -501,13 +507,13 @@ def create_branch_with_license(
     """Create a branch with branch license validation."""
     result = verify_license(db, license_key)
     if not result["valid"]:
-        raise ValueError(f"Branch license invalid: {result['message']}")
+        raise BadRequestException(f"Branch license invalid: {result['message']}", code=ErrorCode.VALIDATION_GENERIC)
 
     lic = db.query(License).filter(License.key == license_key).first()
     if lic and lic.school_id and lic.school_id != school_id:
-        raise ValueError("Branch license already in use by another school")
+        raise ConflictException("Branch license already in use by another school", code=ErrorCode.CONFLICT_LICENSE_EXISTS)
     if lic and lic.branch_id:
-        raise ValueError("Branch license already in use by another branch")
+        raise ConflictException("Branch license already in use by another branch", code=ErrorCode.CONFLICT_LICENSE_EXISTS)
 
     branch = create_branch(
         db, school_id=school_id, name=name, code=code,

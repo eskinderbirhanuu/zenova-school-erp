@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.deps import get_current_user
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.sync_queue import SyncQueue, SyncStatus
 from app.services import sync_service
@@ -28,7 +29,7 @@ def sync_status(
 @router.post("/sync/trigger")
 def trigger_sync(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
     result = sync_service.process_queue(db)
     return result
@@ -65,7 +66,7 @@ def sync_queue_list(
 @router.post("/sync/retry-failed")
 def retry_failed(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
     failed = db.query(SyncQueue).filter(
         SyncQueue.status == SyncStatus.FAILED
@@ -80,7 +81,7 @@ def retry_failed(
 def purge_old_sync(
     days: int = Query(30, alias="older_than_days"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
     from datetime import datetime, timedelta
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)

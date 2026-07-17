@@ -9,7 +9,9 @@ KNOWN_WEAK_KEYS = frozenset({
     "dev-secret-key-change-in-production",
     "your-super-secret-key-change-this-in-production",
     "change-me-to-a-strong-secret-key",
+    "change-me-to-a-random-64-char-string",
     "zenova-super-admin-secret-key-change-in-production",
+    "your-secret-key-change-in-production",
 })
 
 
@@ -70,6 +72,7 @@ class Settings(BaseSettings):
     license_server_url: str = "https://superadmin.free.nf"
     license_offline_grace_days: int = 45
     chapa_api_url: str = "https://api.chapa.co/v1"
+    feature_chapa: bool = False
 
     @property
     def is_production(self) -> bool:

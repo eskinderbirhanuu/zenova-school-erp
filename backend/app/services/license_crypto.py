@@ -20,6 +20,8 @@ from app.database import SessionLocal
 from app.models.license import License, LicenseStatus
 from app.core.redis_client import get_redis
 from app.core.audit import log_audit
+from app.core.constants import OFFLINE_GRACE_DAYS, FINGERPRINT_MATCH_THRESHOLD
+from app.utils.circuit_breaker import CircuitBreaker
 
 
 # ─── Machine Fingerprinting (8 components + 75% tolerance) ─
@@ -129,7 +131,7 @@ def detect_environment() -> str:
 
 
 ENVIRONMENT_GRACE_DAYS = {
-    "bare_metal": 45,
+    "bare_metal": OFFLINE_GRACE_DAYS,
     "vm": 30,
     "docker": 15,
     "unknown": 7,
@@ -346,7 +348,7 @@ def decode_hardware_components(encoded: str) -> dict:
     return json.loads(base64.b64decode(encoded))
 
 
-def match_fingerprint_components(stored_components_b64: str, threshold: float = 0.75) -> tuple:
+def match_fingerprint_components(stored_components_b64: str, threshold: float = FINGERPRINT_MATCH_THRESHOLD) -> tuple:
     """Compare stored hardware components with current hardware.
 
     Uses the keys present in stored data (supports environment-reduced sets
@@ -383,7 +385,7 @@ def match_hostname(pattern: str) -> bool:
     return current == pattern
 
 
-def match_fingerprint(stored_hash: str, threshold: float = 0.75) -> bool:
+def match_fingerprint(stored_hash: str, threshold: float = FINGERPRINT_MATCH_THRESHOLD) -> bool:
     """Compare stored fingerprint hash with current hardware.
     
     Uses 75% tolerance: at least 6 of 8 components must match.
@@ -510,19 +512,26 @@ def verify_license_file(
 
 # ─── License Validation ──────────────────────────────────
 
-OFFLINE_GRACE_DAYS = 45  # default; overridden by environment-specific value at runtime
+_license_server_breaker = CircuitBreaker("license_server", failure_threshold=3, recovery_timeout=60)
 
 
 def _can_reach_license_server() -> bool:
     """Check if Super Admin license server is reachable."""
-    import httpx
-    from app.config import settings
-    try:
+
+    def _ping():
+        import httpx
+        from app.config import settings
         resp = httpx.get(
             f"{settings.license_server_url}/api/v1/license/ping",
             timeout=5,
         )
-        return resp.status_code == 200
+        if resp.status_code != 200:
+            raise ConnectionError(f"License server ping returned {resp.status_code}")
+        return True
+
+    import httpx
+    try:
+        return _license_server_breaker.call(_ping)
     except Exception:
         return False
 
@@ -530,9 +539,10 @@ def _can_reach_license_server() -> bool:
 def _verify_cloud_license(key: str, fingerprint: str, tpm_sealed: str | None = None,
                            environment: str | None = None) -> dict:
     """Verify license against cloud license server."""
-    import httpx
-    from app.config import settings
-    try:
+
+    def _verify():
+        import httpx
+        from app.config import settings
         payload = {
             "key": key,
             "machine_fingerprint": fingerprint,
@@ -546,7 +556,10 @@ def _verify_cloud_license(key: str, fingerprint: str, tpm_sealed: str | None = N
         )
         if resp.status_code == 200:
             return resp.json()
-        return {"valid": False, "message": f"Cloud server returned {resp.status_code}"}
+        raise ConnectionError(f"Cloud server returned {resp.status_code}")
+
+    try:
+        return _license_server_breaker.call(_verify)
     except Exception as e:
         return {"valid": False, "message": str(e)}
 

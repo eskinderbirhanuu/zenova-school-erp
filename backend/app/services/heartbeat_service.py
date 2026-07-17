@@ -8,14 +8,16 @@ from typing import Optional, Dict
 from sqlalchemy.orm import Session
 import httpx
 from app.config import settings
+from app.core.constants import HEARTBEAT_INTERVAL_HOURS
 from app.models.school import School
 from app.models.server import ServerIdentity
 from app.models.license import License
+from app.utils.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 
-HEARTBEAT_INTERVAL_HOURS = 6
 LICENSE_SERVER_URL = settings.license_server_url
+_heartbeat_breaker = CircuitBreaker("heartbeat", failure_threshold=3, recovery_timeout=120)
 
 
 def _generate_hmac(school_code: str, secret: str) -> str:
@@ -40,8 +42,8 @@ def send_heartbeat(db: Session) -> Dict:
         "license_key": identity.current_license_key or "",
     }
 
-    try:
-        response = httpx.post(
+    def _do_heartbeat():
+        r = httpx.post(
             f"{LICENSE_SERVER_URL}/api/v1/heartbeat",
             json=payload,
             headers={
@@ -51,8 +53,11 @@ def send_heartbeat(db: Session) -> Dict:
             },
             timeout=15.0,
         )
-        response.raise_for_status()
-        data = response.json()
+        r.raise_for_status()
+        return r.json()
+
+    try:
+        data = _heartbeat_breaker.call(_do_heartbeat)
 
         identity.last_heartbeat = datetime.now(timezone.utc)
         identity.last_heartbeat_response = json.dumps(data)

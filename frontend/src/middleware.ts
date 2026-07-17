@@ -1,39 +1,11 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-export const PUBLIC_ROUTES = ["/login", "/forgot-password", "/activate", "/activate/main", "/activate/branch", "/setup", "/unauthorized", "/super-admin/login"]
-
-const ROLE_DASHBOARD: Record<string, string> = {
-  SUPER_ADMIN: "/super-admin/dashboard",
-  ADMIN: "/admin/dashboard",
-  DIRECTOR: "/director/dashboard",
-  REGISTRAR: "/registrar/dashboard",
-  TEACHER: "/teacher/dashboard",
-  FINANCE: "/finance/dashboard",
-  INVENTORY: "/inventory/dashboard",
-  HR: "/hr/dashboard",
-  LIBRARY: "/library/dashboard",
-  CAFETERIA: "/cafeteria/dashboard",
-  AUDITOR: "/audit/dashboard",
-  PARENT: "/parent/dashboard",
-  STUDENT: "/student/dashboard",
-}
-
-const ROLE_PREFIXES: Record<string, string[]> = {
-  SUPER_ADMIN: ["/super-admin", "/admin", "/users", "/settings", "/reports", "/audit", "/communications", "/calendar", "/bulk-import"],
-  ADMIN: ["/admin", "/users", "/settings", "/reports", "/audit", "/students", "/academic", "/finance", "/hr", "/inventory", "/library", "/cafeteria", "/communications", "/calendar", "/procurement", "/payroll-budget", "/bulk-import"],
-  DIRECTOR: ["/director", "/reports", "/audit", "/students", "/academic", "/finance", "/hr", "/inventory", "/library", "/cafeteria", "/communications", "/calendar"],
-  REGISTRAR: ["/registrar", "/students", "/academic", "/communications", "/calendar", "/bulk-import"],
-  TEACHER: ["/teacher", "/students", "/academic", "/communications", "/calendar"],
-  FINANCE: ["/finance", "/payroll-budget", "/reports", "/procurement", "/communications", "/calendar", "/students"],
-  INVENTORY: ["/inventory", "/procurement", "/communications", "/calendar"],
-  HR: ["/hr", "/payroll-budget", "/communications", "/calendar", "/bulk-import"],
-  LIBRARY: ["/library", "/communications", "/calendar"],
-  CAFETERIA: ["/cafeteria", "/communications", "/calendar"],
-  AUDITOR: ["/audit", "/reports", "/communications", "/calendar", "/finance"],
-  PARENT: ["/parent"],
-  STUDENT: ["/student"],
-}
+import {
+  PUBLIC_ROUTES,
+  ROLE_DASHBOARD,
+  ROLE_PREFIXES,
+} from "@/config/roles"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
 

@@ -3,7 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.deps import get_current_user
+from app.core.permissions import require_permission, Permission
 from app.models.attendance import Attendance
+from app.models.user import User
 from app.models.student import Student
 from app.models.school import School
 from app.schemas.hr import AttendanceBulkItem, AttendanceBulkResponse, AttendanceResponse, AttendanceUpdate
@@ -32,7 +34,7 @@ router = APIRouter(tags=["attendance"])
 def mark_attendance_bulk(
     records: list[AttendanceBulkItem],
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = require_permission(Permission.ATTENDANCE_MARK),
 ):
     """Mark attendance for multiple students/staff in bulk.
     Accessible by TEACHER, HR, ADMIN roles.
@@ -157,7 +159,7 @@ def patch_attendance(
     attendance_id: str,
     data: AttendanceUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = require_permission(Permission.ATTENDANCE_MARK),
 ):
     """Update an attendance record (status, reason, etc.).
     Attendance window: 2 ጠዋት–4 ጠዋት (08:00–10:00 Ethiopian time / UTC+3)."""

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -8,6 +8,9 @@ from app.database import Base
 class Role(Base):
     __tablename__ = "roles"
 
+    __table_args__ = (
+        UniqueConstraint("school_id", "name", name="uq_role_school_name"),
+    )
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=True, index=True)
     name = Column(String(100), nullable=False, index=True)

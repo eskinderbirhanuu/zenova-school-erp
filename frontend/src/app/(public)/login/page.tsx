@@ -133,7 +133,10 @@ function LoginForm() {
                           if (parent) {
                             const fallback = document.createElement("div")
                             fallback.className = "w-full h-full flex items-center justify-center"
-                            fallback.innerHTML = `<span class="text-3xl font-bold text-indigo-600">${school.name.charAt(0)}</span>`
+                            const span = document.createElement("span")
+                            span.className = "text-3xl font-bold text-indigo-600"
+                            span.textContent = school.name.charAt(0)
+                            fallback.appendChild(span)
                             parent.appendChild(fallback)
                           }
                         }}

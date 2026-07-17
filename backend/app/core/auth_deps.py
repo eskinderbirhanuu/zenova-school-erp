@@ -1,12 +1,13 @@
 """Core authentication dependencies — safe for use from other core modules without circular imports."""
 import ipaddress
-from fastapi import Depends, HTTPException, Header, Request, status
+from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.auth_service import decode_token, get_user_by_id
 from app.models.user import User
 from app.config import settings
 from app.core.redis_client import get_redis
+from app.core.exceptions import UnauthorizedException, ForbiddenException
 
 
 def get_client_ip(request: Request) -> str:
@@ -35,39 +36,21 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
     if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
-        )
+        raise UnauthorizedException("Missing authentication token")
     payload = decode_token(token)
     if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-        )
+        raise UnauthorizedException("Invalid or expired token")
     if payload.get("type") != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type",
-        )
+        raise UnauthorizedException("Invalid token type")
     user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
-        )
+        raise UnauthorizedException("Invalid token payload")
     jti = payload.get("jti")
     if jti and _is_token_blacklisted(jti):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has been revoked",
-        )
+        raise UnauthorizedException("Token has been revoked")
     user = get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive",
-        )
+        raise UnauthorizedException("User not found or inactive")
     return user
 
 
@@ -76,15 +59,9 @@ def require_csrf(request: Request, x_csrf_token: str = Header(None, alias="X-CSR
         return
     csrf_cookie = request.cookies.get("csrf_token")
     if not x_csrf_token:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Missing CSRF token",
-        )
+        raise ForbiddenException("Missing CSRF token")
     if not csrf_cookie or x_csrf_token != csrf_cookie:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid CSRF token",
-        )
+        raise ForbiddenException("Invalid CSRF token")
 
 
 def _ip_in_networks(ip_str: str, networks_csv: str) -> bool:
@@ -114,10 +91,7 @@ def require_licensed_feature(feature: str = "default"):
         if not status_data["valid"]:
             restrict_key = f"restrict_{feature}"
             if status_data.get(restrict_key, True):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"View only mode. Cannot use {feature} without a valid license.",
-                )
+                raise ForbiddenException(f"View only mode. Cannot use {feature} without a valid license.")
         return current_user
     return _check
 
@@ -171,10 +145,7 @@ class AuthContext:
         for perm in permissions:
             if _has_perm(self.user, perm):
                 return self
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Missing one of: {', '.join(permissions)}",
-        )
+        raise ForbiddenException(f"Missing one of: {', '.join(permissions)}")
 
     @property
     def school_id(self) -> Optional[str]:

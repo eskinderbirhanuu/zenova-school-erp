@@ -11,43 +11,8 @@ import {
   Building, type LucideIcon,
 } from "lucide-react"
 
-export const ROLE_DASHBOARD: Record<string, string> = {
-  SUPER_ADMIN: "/super-admin/dashboard",
-  ADMIN: "/admin/dashboard",
-  DIRECTOR: "/director/dashboard",
-  REGISTRAR: "/registrar/dashboard",
-  TEACHER: "/teacher/dashboard",
-  FINANCE: "/finance/dashboard",
-  INVENTORY: "/inventory/dashboard",
-  HR: "/hr/dashboard",
-  LIBRARY: "/library/dashboard",
-  CAFETERIA: "/cafeteria/dashboard",
-  AUDITOR: "/audit/dashboard",
-  PARENT: "/parent/dashboard",
-  STUDENT: "/student/dashboard",
-  ZENOVA_CORPORATE_ADMIN: "/corporate/dashboard",
-  ZENOVA_CARD_OFFICER: "/corporate/card-printing",
-  ZENOVA_SUPPORT: "/corporate/dashboard",
-}
-
-export const ROLE_PREFIXES: Record<string, string[]> = {
-  SUPER_ADMIN: ["/super-admin"],
-  ADMIN: ["/admin"],
-  DIRECTOR: ["/director"],
-  REGISTRAR: ["/registrar"],
-  TEACHER: ["/teacher"],
-  FINANCE: ["/finance"],
-  INVENTORY: ["/inventory"],
-  HR: ["/hr"],
-  LIBRARY: ["/library"],
-  CAFETERIA: ["/cafeteria"],
-  AUDITOR: ["/audit"],
-  PARENT: ["/parent"],
-  STUDENT: ["/student"],
-  ZENOVA_CORPORATE_ADMIN: ["/corporate"],
-  ZENOVA_CARD_OFFICER: ["/corporate"],
-  ZENOVA_SUPPORT: ["/corporate"],
-}
+import { ROLE_DASHBOARD, ROLE_PREFIXES } from "@/config/roles"
+export { ROLE_DASHBOARD, ROLE_PREFIXES }
 
 export interface NavItem {
   href: string

@@ -347,13 +347,14 @@ def refresh_token(request: Request, response: Response, data: RefreshRequest, db
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token type",
         )
-        from app.core.redis_client import get_redis
-        from app.core.auth_deps import _is_token_blacklisted
-        redis = get_redis()
-        jti = payload.get("jti", "")
-        user_id = payload.get("sub")
 
-        # ── Refresh Token Rotation + Reuse Detection ──────────────
+    from app.core.redis_client import get_redis
+    from app.core.auth_deps import _is_token_blacklisted
+    redis = get_redis()
+    jti = payload.get("jti", "")
+    user_id = payload.get("sub")
+
+    # ── Refresh Token Rotation + Reuse Detection ──────────────
     # Each refresh token belongs to a "family" identified by the user id.
     # Redis stores the current (latest) jti for the family under `rtf:{user_id}`.
     # If an old (already-blacklisted) refresh token is presented, we detect

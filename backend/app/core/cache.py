@@ -5,8 +5,7 @@ from typing import Optional, Callable
 from fastapi import Request, Response
 from app.core.redis_client import get_redis
 
-
-def _cache_key(prefix: str, method: str, path: str, query_params: str) -> str:
+CACHE_DEFAULT_TTL = 300
     raw = f"{prefix}:{method}:{path}:{query_params}"
     return f"cache:{hashlib.sha256(raw.encode()).hexdigest()}"
 
@@ -28,7 +27,7 @@ def _set_cached(key: str, body: str, ttl: int):
         pass
 
 
-def get_cached_or_compute(prefix: str, request: Request, func: Callable, *args, ttl_seconds: int = 300, **kwargs):
+def get_cached_or_compute(prefix: str, request: Request, func: Callable, *args, ttl_seconds: int = CACHE_DEFAULT_TTL, **kwargs):
     """Sync helper: return cached JSON Response or compute via func and cache it."""
     if request.method != "GET":
         return func(*args, **kwargs)
@@ -47,7 +46,7 @@ def get_cached_or_compute(prefix: str, request: Request, func: Callable, *args, 
     return result
 
 
-def cache_response(prefix: str, ttl_seconds: int = 300):
+def cache_response(prefix: str, ttl_seconds: int = CACHE_DEFAULT_TTL):
     """Decorator for async endpoints. Caches GET responses in Redis.
 
     Usage:

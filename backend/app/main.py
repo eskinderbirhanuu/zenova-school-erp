@@ -11,11 +11,13 @@ from app.api.v1.router import router as v1_router
 from app.database import Base, engine, SessionLocal
 from app.config import settings
 from app.core.exceptions import AppException
+from app.core.error_codes import ErrorCode
 from app.core.rate_limit_middleware import RateLimitMiddleware
 from app.core.upload_limit_middleware import UploadLimitMiddleware
 from app.core.logging_config import configure_logging
 from app.api.v1.endpoints.metrics import MetricsMiddleware
 from app.core.request_logging_middleware import RequestLoggingMiddleware
+from app.core.request_id_middleware import RequestIDMiddleware, get_request_id
 
 logger = configure_logging(settings.environment)
 
@@ -69,6 +71,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(UploadLimitMiddleware)
 app.add_middleware(MetricsMiddleware)
@@ -81,6 +84,10 @@ CSRF_EXEMPT_PATHS = {
     "/api/v1/auth/forgot-password",
     "/api/v1/auth/reset-password",
     "/api/v1/auth/refresh",
+    "/api/v1/auth/recovery/initiate",
+    "/api/v1/auth/recovery/codes/verify",
+    "/api/v1/auth/recovery/apply",
+    "/api/v1/auth/recovery/emergency/apply",
     "/api/v1/setup/status",
     "/api/v1/activate/validate",
     "/api/v1/activate/validate-type",
@@ -106,7 +113,11 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
             return JSONResponse(
                 status_code=403,
-                content={"detail": "Invalid or missing CSRF token"},
+                content={
+                    "detail": "Invalid or missing CSRF token",
+                    "code": ErrorCode.AUTH_CSRF_INVALID.value,
+                    "request_id": get_request_id(),
+                },
             )
         response = await call_next(request)
         return response
@@ -120,21 +131,56 @@ app.include_router(v1_router)
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException):
     """Centralized handler for all application-level exceptions."""
-    logger.warning("AppException %s: %s", exc.status_code, exc.detail)
+    rid = get_request_id()
+    logger.warning("AppException %s [%s]: %s", exc.status_code, exc.code, exc.detail)
     return JSONResponse(
         status_code=exc.status_code,
-        content={"detail": exc.detail},
+        content={
+            "detail": exc.detail,
+            "code": exc.code.value if hasattr(exc.code, "value") else exc.code,
+            "request_id": rid,
+        },
+    )
+
+
+_HTTP_CODE_MAP: dict[int, ErrorCode] = {
+    400: ErrorCode.REQ_BAD_REQUEST,
+    401: ErrorCode.AUTH_INVALID_CREDENTIALS,
+    403: ErrorCode.PERM_FORBIDDEN,
+    404: ErrorCode.NOT_FOUND_GENERIC,
+    409: ErrorCode.CONFLICT_GENERIC,
+    422: ErrorCode.VALIDATION_GENERIC,
+    429: ErrorCode.RATE_LIMIT_EXCEEDED,
+    503: ErrorCode.SERVICE_UNAVAILABLE,
+}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handler for plain HTTPException (not subclasses already caught above)."""
+    rid = get_request_id()
+    code = _HTTP_CODE_MAP.get(exc.status_code, ErrorCode.INTERNAL_SERVER_ERROR)
+    logger.warning("HTTPException %s: %s", exc.status_code, exc.detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "code": code.value, "request_id": rid},
     )
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Return a clean 422 response for request validation failures."""
+    rid = get_request_id()
     errors = exc.errors()
     logger.warning("Validation error on %s %s: %s", request.method, request.url.path, errors)
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": errors[0]["msg"] if errors else "Validation error", "errors": errors},
+        content={
+            "detail": errors[0]["msg"] if errors else "Validation error",
+            "code": ErrorCode.VALIDATION_GENERIC.value,
+            "errors": errors,
+            "request_id": rid,
+        },
     )
 
 
@@ -146,6 +192,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     with a sanitized message and logs the full traceback server-side.
     """
     import traceback
+    rid = get_request_id()
     
     # Always log the full exception
     logger.error("Unhandled exception: %s", exc, exc_info=True)
@@ -157,21 +204,19 @@ async def global_exception_handler(request: Request, exc: Exception):
     # In all other environments, return a sanitized 500
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"},
+        content={"detail": "Internal server error", "code": ErrorCode.INTERNAL_SERVER_ERROR.value, "request_id": rid},
     )
 
 
 @app.middleware("http")
 async def watermark_middleware(request: Request, call_next):
-    """Add forensic watermark + request ID to all API responses."""
-    import uuid
+    """Add forensic watermark to all API responses."""
     from app.services.watermark import encrypt_watermark, get_watermark
 
     response = await call_next(request)
     if request.url.path.startswith("/api/"):
         response.headers["X-Zenova-Instance"] = encrypt_watermark(get_watermark())
         response.headers["X-Zenova-Build"] = os.environ.get("BUILD_ID", "0")
-        response.headers["X-Request-ID"] = str(uuid.uuid4())[:8]
         response.headers["Server"] = "ZENOVA-SECURE"
     return response
 

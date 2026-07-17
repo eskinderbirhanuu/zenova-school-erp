@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.nfc_card import NFCCard
 from app.core.audit import log_audit
+from app.core.exceptions import ConflictException
+from app.core.error_codes import ErrorCode
 from app.utils.uid_hash import hash_card_uid
 
 
@@ -17,7 +19,7 @@ def assign_nfc(
     uid_hash = hash_card_uid(card_uid)
     existing = db.query(NFCCard).filter(NFCCard.card_uid == uid_hash).first()
     if existing:
-        raise ValueError("NFC card UID already assigned")
+        raise ConflictException("NFC card UID already assigned", code=ErrorCode.CONFLICT_GENERIC)
 
     nfc = NFCCard(
         card_uid=uid_hash,

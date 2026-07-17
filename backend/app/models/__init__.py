@@ -48,7 +48,7 @@ from app.models.library import BookCategory, Book, BookBorrowing
 from app.models.library_member import LibraryMember
 from app.models.library_fine import LibraryFine
 from app.models.cafeteria import CafeteriaProduct, CafeteriaOrder, CafeteriaOrderItem
-from app.models.communication import Announcement, Notification, Message
+from app.models.communication import Announcement as CommunicationAnnouncement, Notification, Message
 from app.models.notification_preference import NotificationPreference
 from app.models.telegram_bot import SchoolTelegramBot
 from app.models.event import Event
@@ -75,3 +75,4 @@ from app.models.card_print_request import CardPrintRequest
 from app.models.card_design import CardDesign
 from app.models.corporate_department import CorporateDepartment
 from app.models.corporate_employee import CorporateEmployee
+from app.models.password_recovery import PasswordResetRequest, RecoveryCode, PasswordAudit

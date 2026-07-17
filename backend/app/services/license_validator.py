@@ -28,6 +28,7 @@ from app.services.license_crypto import (
 )
 from app.licensing.coreval_wrapper import verify_lic_file as c_verify_lic, has_c_extension
 from app.database import SessionLocal
+from app.utils.circuit_breaker import CircuitBreaker
 from app.models.license import License, LicenseType, LicenseStatus
 from app.core.audit import log_audit
 
@@ -61,11 +62,15 @@ class LicenseValidationResult:
         }
 
 
+_license_breaker_validator = CircuitBreaker("license_validator", failure_threshold=3, recovery_timeout=60)
+
+
 def _check_cloud_license(key: str, fingerprint: str) -> dict:
     """Verify license against cloud license server (superadmin.free.nf)."""
-    import httpx
-    from app.config import settings
-    try:
+
+    def _verify():
+        import httpx
+        from app.config import settings
         resp = httpx.post(
             f"{settings.license_server_url}/api/v1/license/verify",
             json={"key": key, "machine_fingerprint": fingerprint},
@@ -73,7 +78,10 @@ def _check_cloud_license(key: str, fingerprint: str) -> dict:
         )
         if resp.status_code == 200:
             return resp.json()
-        return {"valid": False, "message": "Cloud license server error"}
+        raise ConnectionError(f"Cloud server returned {resp.status_code}")
+
+    try:
+        return _license_breaker_validator.call(_verify)
     except Exception as e:
         return {"valid": False, "message": f"Cannot reach license server: {e}"}
 

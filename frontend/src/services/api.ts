@@ -38,17 +38,22 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+let refreshPromise: Promise<void> | null = null
+
 api.interceptors.response.use((response) => response,
   async (error) => {
     const originalRequest = error.config
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       try {
-        await axios.post(
-          `${BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        )
+        if (!refreshPromise) {
+          refreshPromise = axios.post(
+            `${BASE_URL}/auth/refresh`,
+            {},
+            { withCredentials: true }
+          ).then(() => {}).finally(() => { refreshPromise = null })
+        }
+        await refreshPromise
         return api(originalRequest)
       } catch {
         if (typeof window !== "undefined") {
@@ -56,14 +61,37 @@ api.interceptors.response.use((response) => response,
         }
       }
     }
-    if (error.response?.status === 429) {
-      console.error("Rate limited — too many requests")
+    if (error.response?.status === 429 && typeof window !== "undefined") {
+      console.warn("Rate limited — too many requests")
     }
     return Promise.reject(error)
   }
 )
 
 export default api
+
+export const recoveryService = {
+  initiate: (data: { identifier: string; reason?: string }): ApiResponse<any> =>
+    api.post("/auth/recovery/initiate", data),
+  generateTempPassword: (data: { target_user_id: string; reason: string }): ApiResponse<any> =>
+    api.post("/auth/recovery/admin/temp-password", data),
+  generateRecoveryCodes: (): ApiResponse<any> =>
+    api.post("/auth/recovery/codes/generate"),
+  listRecoveryCodes: (): ApiResponse<any> =>
+    api.get("/auth/recovery/codes"),
+  verifyRecoveryCode: (data: { code: string; user_id: string }): ApiResponse<any> =>
+    api.post("/auth/recovery/codes/verify", data),
+  approve: (data: { request_id: string; approved: boolean; reason?: string }): ApiResponse<any> =>
+    api.post("/auth/recovery/approve", data),
+  apply: (data: { request_id: string; new_password: string; confirm_password: string }): ApiResponse<any> =>
+    api.post("/auth/recovery/apply", data),
+  generateEmergencyToken: (data: { target_user_id: string; ttl_seconds?: number }): ApiResponse<any> =>
+    api.post("/auth/recovery/emergency/generate-token", data),
+  emergencyApply: (data: { token: string; new_password: string; confirm_password: string }): ApiResponse<any> =>
+    api.post("/auth/recovery/emergency/apply", data),
+  auditLog: (params?: { target_user_id?: string; action?: string; limit?: number; offset?: number }): ApiResponse<any> =>
+    api.get("/auth/recovery/audit", { params }),
+}
 
 export const authService = {
   login: (email: string, password: string, employee_id?: string): ApiResponse<{ access_token: string; user: UserProfile }> =>

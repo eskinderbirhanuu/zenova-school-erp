@@ -419,6 +419,73 @@ export interface CorporateDepartment {
   is_active: boolean
 }
 
+// ─── Password Recovery ─────────────────────────────────
+export interface InitiateRecoveryRequest {
+  identifier: string
+  reason?: string
+}
+
+export interface InitiateRecoveryResponse {
+  message: string
+  request_id: string | null
+  requires_approval: boolean
+  alternative_method: string | null
+  target_user_name?: string
+}
+
+export interface GenerateTempPasswordRequest {
+  target_user_id: string
+  reason: string
+}
+
+export interface GenerateTempPasswordResponse {
+  temp_password: string
+  expires_at: string
+  must_change_on_login: boolean
+}
+
+export interface RecoveryCodeItem {
+  id: string
+  prefix: string
+  is_used: boolean
+  created_at: string
+  expires_at: string | null
+}
+
+export interface VerifyRecoveryCodeRequest {
+  code: string
+  user_id: string
+}
+
+export interface ApplyRecoveryRequest {
+  request_id: string
+  new_password: string
+  confirm_password: string
+}
+
+export interface GenerateEmergencyTokenResponse {
+  token: string
+  expires_at: string
+  command: string
+}
+
+export interface EmergencyApplyRequest {
+  token: string
+  new_password: string
+  confirm_password: string
+}
+
+export interface PasswordAuditEntry {
+  id: string
+  action: string
+  target_user_id: string
+  initiated_by_user_id: string | null
+  approved_by_user_id: string | null
+  ip_address: string | null
+  reason: string | null
+  created_at: string
+}
+
 export interface CorporateEmployee {
   id: string
   employee_id?: string

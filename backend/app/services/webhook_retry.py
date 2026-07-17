@@ -3,11 +3,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 from sqlalchemy.orm import Session
 from app.core.payment_gateway import PaymentGatewayFactory
+from app.core.constants import WEBHOOK_WEBHOOK_MAX_RETRIES, WEBHOOK_WEBHOOK_RETRY_DELAYS
 from app.models.payment_session import PaymentSession
-
-
-MAX_RETRIES = 3
-RETRY_DELAYS = [60, 300, 900]  # 1min, 5min, 15min
 
 
 def enqueue_failed_webhook(
@@ -28,9 +25,9 @@ def enqueue_failed_webhook(
     session.webhook_retry_count = retry_count
     session.webhook_last_error = error
     session.webhook_next_retry = datetime.now(timezone.utc) + timedelta(
-        seconds=RETRY_DELAYS[min(retry_count - 1, len(RETRY_DELAYS) - 1)]
+        seconds=WEBHOOK_RETRY_DELAYS[min(retry_count - 1, len(WEBHOOK_RETRY_DELAYS) - 1)]
     )
-    session.status = "failed" if retry_count >= MAX_RETRIES else "pending"
+    session.status = "failed" if retry_count >= WEBHOOK_MAX_RETRIES else "pending"
     db.commit()
 
 
@@ -38,7 +35,7 @@ def process_retry_queue(db: Session) -> list[str]:
     """Process all pending webhooks due for retry. Returns processed session IDs."""
     pending = db.query(PaymentSession).filter(
         PaymentSession.webhook_next_retry <= datetime.now(timezone.utc),
-        PaymentSession.webhook_retry_count < MAX_RETRIES,
+        PaymentSession.webhook_retry_count < WEBHOOK_MAX_RETRIES,
     ).all()
 
     processed = []
@@ -57,11 +54,11 @@ def process_retry_queue(db: Session) -> list[str]:
         except Exception:
             retry_count = (session.webhook_retry_count or 0) + 1
             session.webhook_retry_count = retry_count
-            if retry_count >= MAX_RETRIES:
+            if retry_count >= WEBHOOK_MAX_RETRIES:
                 session.status = "dead"
             else:
                 session.webhook_next_retry = datetime.now(timezone.utc) + timedelta(
-                    seconds=RETRY_DELAYS[min(retry_count - 1, len(RETRY_DELAYS) - 1)]
+                    seconds=WEBHOOK_RETRY_DELAYS[min(retry_count - 1, len(WEBHOOK_RETRY_DELAYS) - 1)]
                 )
             session.webhook_last_error = "Retry failed"
 

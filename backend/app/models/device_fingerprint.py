@@ -17,3 +17,4 @@ class DeviceFingerprint(Base):
     first_seen_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_seen_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime, nullable=True)

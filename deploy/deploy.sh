@@ -37,7 +37,12 @@ sleep 5
 docker compose -f docker-compose.vps.yml exec -T db pg_isready -U "${DB_USER:-zenova}"
 
 echo "--- Running migrations ---"
-docker compose -f docker-compose.vps.yml exec -T backend python -m alembic upgrade head
+if ! docker compose -f docker-compose.vps.yml exec -T backend python -m alembic upgrade head; then
+  echo "ERROR: Migration failed. Rolling back..."
+  docker compose -f docker-compose.vps.yml exec -T backend python -m alembic downgrade -1 2>/dev/null || true
+  docker compose -f docker-compose.vps.yml down
+  exit 1
+fi
 
 echo "=== Deploy complete! https://$DOMAIN ==="
 echo ""

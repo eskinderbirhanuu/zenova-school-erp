@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, licenses, setup, dashboard, installer, iga, backup, parent_portal, sync, card_design, webauthn, currencies
-from app.api.v1.endpoints import students, parents, teachers, staff, qr, nfc, nfc_v2, corporate, archive, conflicts, sequences, metrics
+from app.api.v1.endpoints import health, auth, licenses, setup, dashboard, installer, iga, backup, parent_portal, sync, card_design, webauthn, currencies, password_recovery
+from app.api.v1.endpoints import students, parents, teachers, staff, qr, nfc, nfc_v2, corporate, archive, conflicts, sequences, metrics, features
 from app.api.v1.endpoints import academic
 from app.api.v1.endpoints import finance
 from app.api.v1.endpoints import platform_commission
@@ -63,4 +63,6 @@ router.include_router(metrics.router, prefix="", tags=["metrics"])
 router.include_router(card_design.router, prefix="", tags=["card-design"])
 router.include_router(webauthn.router, prefix="/auth", tags=["webauthn"])
 router.include_router(currencies.router, prefix="/finance", tags=["currencies"])
+router.include_router(features.router, prefix="", tags=["features"])
+router.include_router(password_recovery.router, prefix="", tags=["password-recovery"])
 

@@ -1,0 +1,133 @@
+site_name: ZENOVA የትምህርት ቴክኖሎጂ ማኔጅመንት ሲስተም
+site_description: ምስላዊ የሥርዓት ሰነድ - ሙሉ የZENOVA EdTech መድረክ ዲዛይን፣ አርክቴክቸር እና የተጠቃሚ ሚና ሰነድ
+site_author: ZENOVA Team
+site_url: https://zenova.edu/
+copyright: Copyright &copy; 2026 ZENOVA
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - toc.follow
+    - content.code.copy
+    - content.tabs.link
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: zenova
+      repo: platform
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search
+  - mermaid2:
+      version: 10.9.0
+      arguments:
+        theme: |
+          ^(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default')
+  - tags
+  - print-site:
+      add_to_navigation: true
+      print_page_title: '📄 ሙሉ ሰነድ ማተሚያ (Print Full Guide)'
+
+nav:
+  - 🏠 መነሻ: index.md
+  - ክፍል 1 — መግቢያ:
+      - "ምዕራፍ 1: ZENOVA ምንድን ነው?": chapter-01-what-is-zenova.md
+      - "ምዕራፍ 2: የሲስተም አርክቴክቸር": chapter-02-system-architecture.md
+  - ክፍል 2 — የተጠቃሚ ሚናዎች:
+      - "ምዕራፍ 3: ሱፐር አድሚን": chapter-03-super-admin.md
+      - "ምዕራፍ 4: የትምህርት ቤት ባለቤት": chapter-04-school-owner.md
+      - "ምዕራፍ 5: ዳይሬክተር": chapter-05-director.md
+      - "ምዕራፍ 6: አድሚን": chapter-06-admin.md
+      - "ምዕራፍ 7: ሬጅስትራር": chapter-07-registrar.md
+      - "ምዕራፍ 8: ፋይናንስ": chapter-08-finance.md
+      - "ምዕራፍ 9: መምህር": chapter-09-teacher.md
+      - "ምዕራፍ 10: ወላጅ": chapter-10-parent.md
+      - "ምዕራፍ 11: ተማሪ": chapter-11-student.md
+      - "ምዕራፍ 12: ቤተ-መጻሕፍት": chapter-12-library.md
+      - "ምዕራፍ 13: ካፍቴሪያ": chapter-13-cafeteria.md
+      - "ምዕራፍ 14: መደብር": chapter-14-store.md
+  - ክፍል 3 — ቴክኖሎጂ ሥርዓቶች:
+      - "ምዕራፍ 15: NFC ሥርዓት": chapter-15-nfc-system.md
+      - "ምዕራፍ 16: QR ኮድ ሥርዓት": chapter-16-qr-code-system.md
+      - "ምዕራፍ 17: የደህንነት ሥርዓት": chapter-17-security-system.md
+      - "ምዕራፍ 18: የፍቃድ አሰጣጥ ሥርዓት": chapter-18-license-system.md
+  - ክፍል 4 — መሠረተ-ልማት:
+      - "ምዕራፍ 19: የደመና ማመሳሰል": chapter-19-cloud-sync.md
+      - "ምዕራፍ 20: የሲስተም አሰማራት": chapter-20-deployment.md
+      - "ምዕራፍ 21: የውሂብ ጎታ ዝምድና": chapter-21-database-relationships.md
+      - "ምዕራፍ 22: የፍቃድ ተዋረድ": chapter-22-permission-hierarchy--dashboard-summary.md
+  - ክፍል 5 — ተግባራዊ ምሳሌዎች:
+      - "ምዕራፍ 23: ዕለታዊ ምሳሌ": chapter-23-complete-daily-example.md
+      - "ምዕራፍ 24: የወደፊት ዕቅድ": chapter-24-future-roadmap--gaps.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/zenova
+    - icon: fontawesome/brands/telegram
+      link: https://t.me/zenova
+  generator: false

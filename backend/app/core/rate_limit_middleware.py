@@ -1,6 +1,7 @@
-from fastapi import Request, HTTPException, status
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.rate_limit import API_RATE_LIMIT
+from app.core.exceptions import TooManyRequestsException
 
 RATE_LIMIT_EXEMPT_PATHS = {
     "/api/v1/auth/login",
@@ -25,7 +26,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         try:
             API_RATE_LIMIT(request)
-        except HTTPException:
+        except TooManyRequestsException:
             raise
         except Exception as e:
             import logging

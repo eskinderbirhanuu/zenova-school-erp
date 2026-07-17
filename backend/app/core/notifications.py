@@ -8,8 +8,10 @@ from app.config import settings
 from app.models.student import Student
 from app.models.parent import Parent
 from app.models.school import School
+from app.utils.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
+_smtp_core_breaker = CircuitBreaker("smtp_core", failure_threshold=3, recovery_timeout=120)
 
 
 def send_payment_confirmation(
@@ -81,7 +83,8 @@ def _send_email(to: str, subject: str, body: str):
         return
     import smtplib
     from email.message import EmailMessage
-    try:
+
+    def _do_send():
         msg = EmailMessage()
         msg.set_content(body)
         msg["Subject"] = subject
@@ -91,6 +94,9 @@ def _send_email(to: str, subject: str, body: str):
             if settings.smtp_username:
                 server.login(settings.smtp_username, settings.smtp_password or "")
             server.send_message(msg)
+
+    try:
+        _smtp_core_breaker.call(_do_send)
         logger.info("Email sent to %s: %s", to, subject)
     except Exception as e:
         logger.error("Failed to send email to %s: %s", to, e)

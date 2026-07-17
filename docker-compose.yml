@@ -10,8 +10,8 @@ services:
       POSTGRES_PASSWORD: "${DB_PASSWORD:-zenova_pass}"
       POSTGRES_DB: zenova_db
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
-    ports:
-      - "${DB_PORT:-5432}:5432"
+    expose:
+      - "5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -31,9 +31,12 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --maxmemory "${REDIS_MEM_LIMIT:-256M}" --maxmemory-policy allkeys-lru --appendonly yes
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server --maxmemory "${REDIS_MEM_LIMIT:-256M}"
+      --maxmemory-policy allkeys-lru --appendonly yes
+      ${REDIS_PASSWORD:+--requirepass "${REDIS_PASSWORD}"}
+    expose:
+      - "6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -52,8 +55,8 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+    expose:
+      - "8000"
     environment:
       <<: *common-env
       DATABASE_URL: "postgresql://zenova_user:${DB_PASSWORD:-zenova_pass}@db:5432/zenova_db"

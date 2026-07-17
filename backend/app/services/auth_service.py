@@ -8,6 +8,8 @@ from app.models.user import User, PasswordHistory, PASSWORD_HISTORY_LIMIT
 from app.models.role import Role
 from app.models.audit_log import AuditLog
 from app.services.sync_service import enqueue_sync
+from app.core.exceptions import BadRequestException
+from app.core.error_codes import ErrorCode
 
 
 def authenticate_user(db: Session, email: str | None = None, employee_id: str | None = None, password: str = "") -> User | None:
@@ -173,7 +175,8 @@ def _check_password_history(db: Session, user_id: str, new_password: str):
     ).order_by(PasswordHistory.created_at.desc()).limit(PASSWORD_HISTORY_LIMIT).all()
     for entry in history:
         if verify_password(new_password, entry.hashed_password):
-            raise ValueError(f"Password has been used recently. Choose a different password.")
+            raise BadRequestException("Password has been used recently. Choose a different password.",
+                                       code=ErrorCode.AUTH_PASSWORD_WEAK)
 
 
 def _record_password_history(db: Session, user_id: str, hashed_password: str):
@@ -191,11 +194,12 @@ def _record_password_history(db: Session, user_id: str, hashed_password: str):
 def reset_password(db: Session, user_id: str, new_password: str):
     valid, msg = validate_password_strength(new_password)
     if not valid:
-        raise ValueError(msg)
+        raise BadRequestException(msg, code=ErrorCode.AUTH_PASSWORD_WEAK)
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         if verify_password(new_password, user.hashed_password):
-            raise ValueError("New password must be different from the current password")
+            raise BadRequestException("New password must be different from the current password",
+                                       code=ErrorCode.VALIDATION_GENERIC)
         _check_password_history(db, user_id, new_password)
         new_hash = get_password_hash(new_password)
         user.hashed_password = new_hash

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Enum as SAEnum
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, Enum as SAEnum, Index
 from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
@@ -28,15 +28,18 @@ class LicenseStatus(str, enum.Enum):
 class License(Base):
     __tablename__ = "licenses"
 
+    __table_args__ = (
+        Index("ix_licenses_school_id_status", "school_id", "status"),
+    )
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     key = Column(String(255), unique=True, nullable=False, index=True)
     license_type = Column(SAEnum(LicenseType), nullable=False)
     status = Column(SAEnum(LicenseStatus), default=LicenseStatus.ACTIVE)
-    school_id = Column(String(36), ForeignKey("schools.id"), nullable=True)
-    branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=True, index=True)
+    branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True, index=True)
     valid_from = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     valid_until = Column(DateTime, nullable=True)
-    max_users = Column(String(50), nullable=True)
+    max_users = Column(Integer, nullable=True)
     machine_fingerprint = Column(String(128), nullable=True, index=True, comment="SHA-256 machine fingerprint for hardware binding")
     hardware_id = Column(String(255), nullable=True, comment="Base64 encoded hardware identifiers")
     offline_grace_start = Column(DateTime, nullable=True, comment="When offline period started (45-day grace)")

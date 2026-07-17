@@ -33,7 +33,7 @@ export default function ActivateMainPage() {
     school_id?: string; admin_id?: string;
     admin_email?: string; admin_employee_id?: string;
   } | null>(null)
-  const [, setCopied] = useState("")
+  const [copied, setCopied] = useState("")
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)

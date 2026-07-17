@@ -39,6 +39,18 @@ spec:
       ports:
         - port: 5432
         - port: 6379
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 53
+          protocol: UDP
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

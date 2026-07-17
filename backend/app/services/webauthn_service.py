@@ -9,11 +9,9 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.exceptions import InvalidSignature
 
-logger = logging.getLogger(__name__)
+from app.core.constants import CHALLENGE_LENGTH, RP_ID, RP_NAME
 
-CHALLENGE_LENGTH = 32
-RP_ID = "zenova.local"
-RP_NAME = "Zenova School"
+logger = logging.getLogger(__name__)
 
 
 def _b64url(data: bytes) -> str:

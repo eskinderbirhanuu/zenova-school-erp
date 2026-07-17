@@ -38,7 +38,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: zenova-secrets
-                  key: DATABASE_URL
+                  key: DB_PASSWORD
             - name: POSTGRES_DB
               value: "zenova_db"
           volumeMounts:
@@ -49,6 +49,11 @@ spec:
               command: ["pg_isready", "-U", "zenova_user", "-d", "zenova_db"]
             initialDelaySeconds: 10
             periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "zenova_user", "-d", "zenova_db"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
   volumeClaimTemplates:
     - metadata:
         name: pgdata

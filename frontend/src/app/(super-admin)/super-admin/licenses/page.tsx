@@ -1,10 +1,12 @@
 "use client"
 
+import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { useLicenses } from "@/hooks/queries"
 
 export default function SuperAdminLicenses() {
+  const [search, setSearch] = useState("")
   const { data, isLoading } = useLicenses()
 
   const licenses = (data as any)?.licenses || data || []

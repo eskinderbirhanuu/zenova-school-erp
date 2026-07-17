@@ -58,6 +58,8 @@ def pay_platform_invoice(
     current_user: User = Depends(get_current_user),
 ):
     """Initialize payment for a platform invoice via configured gateway."""
+    if not settings.feature_chapa:
+        raise HTTPException(status_code=503, detail="Chapa is not available")
     if not current_user.school_id:
         raise HTTPException(status_code=400, detail="No school associated")
 
@@ -102,6 +104,8 @@ async def platform_invoice_webhook(
     db: Session = Depends(get_db),
 ):
     """Handle payment gateway webhook for platform invoice payments."""
+    if not settings.feature_chapa:
+        raise HTTPException(status_code=503, detail="Chapa is not available")
     payload = await request.body()
     data = await request.json()
     tx_ref = data.get("tx_ref", "")

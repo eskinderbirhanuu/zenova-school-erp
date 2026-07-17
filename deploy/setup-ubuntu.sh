@@ -101,7 +101,22 @@ systemctl daemon-reload
 systemctl enable zenova
 systemctl start zenova || warn "zenova service start may need docker images loaded first"
 
-# ─── 7. Static IP (optional) ────────────────────────────────
+# ─── 7. Firewall (UFW) ──────────────────────────────────────
+info "Configuring firewall..."
+if command -v ufw &>/dev/null; then
+    ufw --force reset
+    ufw default deny incoming
+    ufw default allow outgoing
+    ufw allow ssh
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    ufw --force enable
+    info "Firewall enabled: SSH, HTTP(80), HTTPS(443)"
+else
+    warn "UFW not found — install with: apt install ufw"
+fi
+
+# ─── 8. Static IP (optional) ────────────────────────────────
 if [ "${ZENOVA_STATIC_IP}" != "dhcp" ]; then
     info "Configuring static IP ${ZENOVA_STATIC_IP}..."
     # Find the main interface
@@ -129,7 +144,7 @@ NETPLAN
     fi
 fi
 
-# ─── 8. Summary ─────────────────────────────────────────────
+# ─── 9. Summary ─────────────────────────────────────────────
 echo ""
 echo "========================================"
 echo "  ZENOVA Ubuntu Setup Complete!"

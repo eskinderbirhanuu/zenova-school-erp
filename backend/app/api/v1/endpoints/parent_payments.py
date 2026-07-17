@@ -109,6 +109,8 @@ def initialize_chapa_payment(
     current_user: User = Depends(get_current_user),
 ):
     """Initialize a payment session via the configured gateway."""
+    if not settings.feature_chapa:
+        raise HTTPException(status_code=503, detail="Chapa is not available")
     session = db.query(PaymentSession).filter(
         PaymentSession.session_id == session_id,
         PaymentSession.parent_id == current_user.parent_id,
@@ -158,6 +160,8 @@ async def chapa_webhook_handler(
     db: Session = Depends(get_db),
 ):
     """Handle payment gateway webhook callbacks."""
+    if not settings.feature_chapa:
+        raise HTTPException(status_code=503, detail="Chapa is not available")
     payload = await request.body()
     data = await request.json()
     tx_ref = data.get("tx_ref", "")

@@ -4,23 +4,29 @@ from app.core.exceptions import NotFoundException, BadRequestException
 from app.models.telegram_bot import SchoolTelegramBot
 from app.models.notification_preference import NotificationPreference
 from app.config import settings
+from app.utils.circuit_breaker import CircuitBreaker
 import logging
 logger = logging.getLogger(__name__)
 
 
 TELEGRAM_API = "https://api.telegram.org/bot"
+_telegram_breaker = CircuitBreaker("telegram", failure_threshold=5, recovery_timeout=60)
 
 
 async def _telegram_api(method: str, token: str, payload: dict | None = None) -> dict:
     url = f"{TELEGRAM_API}{token}/{method}"
-    async with httpx.AsyncClient() as client:
-        r = await client.post(url, json=payload or {}, timeout=10)
-    if r.status_code != 200:
-        raise BadRequestException(f"Telegram API error: {r.text}")
-    data = r.json()
-    if not data.get("ok"):
-        raise BadRequestException(f"Telegram API error: {data.get('description', 'unknown')}")
-    return data["result"]
+
+    async def _do_call():
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json=payload or {}, timeout=10)
+        if r.status_code != 200:
+            raise BadRequestException(f"Telegram API error: {r.text}")
+        data = r.json()
+        if not data.get("ok"):
+            raise BadRequestException(f"Telegram API error: {data.get('description', 'unknown')}")
+        return data["result"]
+
+    return await _telegram_breaker.call_async(_do_call)
 
 
 async def connect_bot(db: Session, school_id: str, bot_token: str) -> SchoolTelegramBot:

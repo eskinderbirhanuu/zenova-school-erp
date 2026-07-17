@@ -6,14 +6,13 @@ import tempfile
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from app.config import settings
+from app.core.constants import BACKUP_BACKUP_RETENTION_HOURLY, BACKUP_BACKUP_RETENTION_DAILY, BACKUP_BACKUP_RETENTION_WEEKLY
+from app.utils.circuit_breaker import CircuitBreaker
 
 BACKUP_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "backups")
+_cloud_backup_breaker = CircuitBreaker("cloud_backup", failure_threshold=3, recovery_timeout=120)
 MANIFEST_PATH = os.path.join(BACKUP_DIR, "manifest.json")
 os.makedirs(BACKUP_DIR, exist_ok=True)
-
-RETENTION_HOURLY = 24
-RETENTION_DAILY = 30
-RETENTION_WEEKLY = 12
 
 
 def _load_manifest() -> list:
@@ -83,17 +82,20 @@ def _upload_to_cloud(filepath: str) -> bool:
             with open(filepath, "rb") as f:
                 data = f.read()
 
-            req = urllib.request.Request(
-                url,
-                data=data,
-                method="PUT",
-                headers={
-                    "Authorization": f"Basic {auth_bytes}",
-                    "Content-Type": "application/octet-stream",
-                },
-            )
-            with urllib.request.urlopen(req, timeout=60):
-                pass
+            def _do_upload():
+                req = urllib.request.Request(
+                    url,
+                    data=data,
+                    method="PUT",
+                    headers={
+                        "Authorization": f"Basic {auth_bytes}",
+                        "Content-Type": "application/octet-stream",
+                    },
+                )
+                with urllib.request.urlopen(req, timeout=60):
+                    pass
+
+            _cloud_backup_breaker.call(_do_upload)
         else:
             # Try rclone
             rclone_path = shutil.which("rclone")
@@ -175,7 +177,7 @@ def _apply_rotation():
     for e in by_age:
         created = datetime.fromisoformat(e["created_at"])
         if (now - created) < timedelta(hours=24):
-            if kept_hourly < RETENTION_HOURLY:
+            if kept_hourly < BACKUP_RETENTION_HOURLY:
                 keep.add(e["filename"])
                 kept_hourly += 1
 
@@ -185,7 +187,7 @@ def _apply_rotation():
         created = datetime.fromisoformat(e["created_at"])
         date_key = created.strftime("%Y-%m-%d")
         if date_key not in seen_dates:
-            if kept_daily < RETENTION_DAILY:
+            if kept_daily < BACKUP_RETENTION_DAILY:
                 keep.add(e["filename"])
                 seen_dates.add(date_key)
                 kept_daily += 1
@@ -196,7 +198,7 @@ def _apply_rotation():
         created = datetime.fromisoformat(e["created_at"])
         week_key = created.strftime("%Y-W%W")
         if week_key not in seen_weeks:
-            if kept_weekly < RETENTION_WEEKLY:
+            if kept_weekly < BACKUP_RETENTION_WEEKLY:
                 keep.add(e["filename"])
                 seen_weeks.add(week_key)
                 kept_weekly += 1

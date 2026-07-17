@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.corporate_department import CorporateDepartment
 from app.models.corporate_employee import CorporateEmployee
 from app.core.audit import log_audit
+from app.core.exceptions import ConflictException
+from app.core.error_codes import ErrorCode
 
 
 def create_department(
@@ -17,7 +19,7 @@ def create_department(
         (CorporateDepartment.name == name) | (CorporateDepartment.code == code)
     ).first()
     if existing:
-        raise ValueError("Department name or code already exists")
+        raise ConflictException("Department name or code already exists", code=ErrorCode.CONFLICT_GENERIC)
     dept = CorporateDepartment(name=name, code=code, description=description)
     db.add(dept)
     log_audit(

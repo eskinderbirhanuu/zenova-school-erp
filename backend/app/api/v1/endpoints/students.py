@@ -219,7 +219,7 @@ def import_students_excel(
 @router.get("/students/export-excel")
 def export_students_excel(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.STUDENT_VIEW),
 ):
     include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
     students = student_service.search_students(db, school_id=current_user.school_id, limit=5000, include_deleted=include_deleted)
@@ -242,7 +242,7 @@ def export_students_excel(
 def student_transcript(
     student_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.STUDENT_VIEW),
 ):
     from app.models.class_ import ClassGrade
     from app.models.subject import Subject
@@ -401,7 +401,7 @@ def upload_student_document(
     student_id: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.STUDENT_EDIT),
 ):
     student = db.query(Student).filter(Student.id == student_id, Student.school_id == current_user.school_id).execution_options(include_deleted=True).first()
     if not student:
@@ -444,7 +444,7 @@ def delete_student_document(
     student_id: str,
     doc_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = require_permission(Permission.STUDENT_EDIT),
 ):
     student = db.query(Student).filter(Student.id == student_id, Student.school_id == current_user.school_id).execution_options(include_deleted=True).first()
     if not student:

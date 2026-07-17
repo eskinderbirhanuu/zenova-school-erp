@@ -4,14 +4,16 @@ import json
 import hashlib
 import hmac
 from decimal import Decimal
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 from datetime import datetime, timezone
 import httpx
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.utils.circuit_breaker import CircuitBreaker
 
-CHAPA_API_URL = settings.CHAPA_API_URL or "https://api.chapa.co/v1"
+CHAPA_API_URL = settings.chapa_api_url
+_chapa_breaker = CircuitBreaker("chapa", failure_threshold=5, recovery_timeout=30)
 
 
 class ChapaError(Exception):
@@ -75,17 +77,19 @@ def initialize_payment(
     if phone_number:
         payload["phone_number"] = phone_number
 
-    try:
-        response = httpx.post(
-            f"{CHAPA_API_URL}/transaction/initialize",
-            headers=_get_headers(secret_key),
-            json=payload,
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError as e:
-        raise ChapaError(f"Chapa API error: {str(e)}")
+    def _do_initialize():
+        try:
+            r = httpx.post(
+                f"{CHAPA_API_URL}/transaction/initialize",
+                headers=_get_headers(secret_key),
+                json=payload,
+                timeout=30.0,
+            )
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPError as e:
+            raise ChapaError(f"Chapa API error: {str(e)}")
+    return _chapa_breaker.call(_do_initialize)
 
 
 def verify_transaction(
@@ -97,16 +101,18 @@ def verify_transaction(
     if not secret_key:
         raise ChapaError("Chapa secret key not configured")
 
-    try:
-        response = httpx.get(
-            f"{CHAPA_API_URL}/transaction/verify/{tx_ref}",
-            headers=_get_headers(secret_key),
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError as e:
-        raise ChapaError(f"Chapa verification error: {str(e)}")
+    def _do_verify():
+        try:
+            r = httpx.get(
+                f"{CHAPA_API_URL}/transaction/verify/{tx_ref}",
+                headers=_get_headers(secret_key),
+                timeout=30.0,
+            )
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPError as e:
+            raise ChapaError(f"Chapa verification error: {str(e)}")
+    return _chapa_breaker.call(_do_verify)
 
 
 def verify_webhook_signature(

@@ -1,0 +1,9 @@
+node_modules/
+.next/
+site/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.graphite*

@@ -3,8 +3,10 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.sync_queue import SyncQueue, SyncStatus
 from app.models.sync_inbound import SyncInbound
+from app.utils.circuit_breaker import CircuitBreaker
 
 VPS_SYNC_ENABLED = False
+_vps_sync_breaker = CircuitBreaker("vps_sync", failure_threshold=3, recovery_timeout=60)
 
 PRIORITY = {
     "attendance": "1",
@@ -166,10 +168,13 @@ def _send_to_vps(entry: SyncQueue):
         method="POST",
     )
 
-    try:
-        urllib.request.urlopen(req, timeout=30)
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"VPS unreachable: {e.reason}")
+    def _do_send():
+        try:
+            urllib.request.urlopen(req, timeout=30)
+        except urllib.error.URLError as e:
+            raise RuntimeError(f"VPS unreachable: {e.reason}")
+
+    _vps_sync_breaker.call(_do_send)
 
 
 def get_queue_stats(db: Session) -> dict:

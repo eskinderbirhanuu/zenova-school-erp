@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch, ANY
 import pytest
 from datetime import datetime, timezone
 from app.services import nfc_v2_service
+from app.core.exceptions import ConflictException
 from app.utils.uid_hash import hash_card_uid
 
 HASH_B1 = hash_card_uid("04:A7:12:9C:B1")
@@ -26,7 +27,7 @@ class TestAssignStudentCard:
         existing = MagicMock()
         existing.card_uid = HASH_B1
         db.query.return_value.filter.return_value.first.return_value = existing
-        with pytest.raises(ValueError, match="already assigned"):
+        with pytest.raises(ConflictException, match="already assigned"):
             nfc_v2_service.assign_student_card(db, "stu-2", "04:A7:12:9C:B1")
 
 

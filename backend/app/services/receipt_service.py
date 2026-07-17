@@ -19,6 +19,8 @@ from app.models.student import Student
 from app.models.parent import Parent
 from app.models.school import School
 from app.services.parent_payment_service import _next_sequence_number
+from app.core.exceptions import NotFoundException, ConflictException
+from app.core.error_codes import ErrorCode
 
 
 def generate_receipt_number(db: Session, school_id: str) -> str:
@@ -95,7 +97,7 @@ def generate_receipt_pdf(db: Session, receipt_id: str, school_id: str | None = N
         q = q.filter(Receipt.school_id == school_id)
     receipt = q.first()
     if not receipt:
-        raise ValueError("Receipt not found")
+        raise NotFoundException("Receipt not found", code=ErrorCode.NOT_FOUND_GENERIC)
 
     payment = db.query(Payment).filter(Payment.id == receipt.payment_id).first()
     student = db.query(Student).filter(Student.id == receipt.student_id).first()
@@ -194,7 +196,7 @@ def get_receipt_details(db: Session, receipt_id: str, school_id: str | None = No
         q = q.filter(Receipt.school_id == school_id)
     receipt = q.first()
     if not receipt:
-        raise ValueError("Receipt not found")
+        raise NotFoundException("Receipt not found", code=ErrorCode.NOT_FOUND_GENERIC)
 
     payment = db.query(Payment).filter(Payment.id == receipt.payment_id).first()
     student = db.query(Student).filter(Student.id == receipt.student_id).first()
@@ -229,10 +231,10 @@ def cancel_receipt(db: Session, receipt_id: str, reason: str, cancelled_by: str,
         q = q.filter(Receipt.school_id == school_id)
     receipt = q.first()
     if not receipt:
-        raise ValueError("Receipt not found")
+        raise NotFoundException("Receipt not found", code=ErrorCode.NOT_FOUND_GENERIC)
 
     if receipt.status == "cancelled":
-        raise ValueError("Receipt is already cancelled")
+        raise ConflictException("Receipt is already cancelled", code=ErrorCode.CONFLICT_ALREADY_ACTIVE)
 
     receipt.status = "cancelled"
     receipt.notes = f"Cancelled by {cancelled_by}: {reason}"

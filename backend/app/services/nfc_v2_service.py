@@ -11,6 +11,8 @@ from app.models.staff_profile import StaffProfile
 from app.models.parent import Parent
 from app.models.user import User
 from app.core.audit import log_audit
+from app.core.exceptions import ConflictException
+from app.core.error_codes import ErrorCode
 from app.utils.uid_hash import hash_card_uid
 
 _ALL_CARD_MODELS = [StudentCard, StaffCard, ParentCard, EmployeeCard]
@@ -19,7 +21,7 @@ _ALL_CARD_MODELS = [StudentCard, StaffCard, ParentCard, EmployeeCard]
 def _ensure_unique_card_uid(db: Session, uid_hash: str) -> None:
     for model in _ALL_CARD_MODELS:
         if db.query(model).filter(model.card_uid == uid_hash).first():
-            raise ValueError("NFC card UID is already assigned to another card")
+            raise ConflictException("NFC card UID is already assigned to another card", code=ErrorCode.CONFLICT_GENERIC)
 
 
 def assign_student_card(
@@ -32,7 +34,7 @@ def assign_student_card(
     uid_hash = hash_card_uid(card_uid)
     existing = db.query(StudentCard).filter(StudentCard.card_uid == uid_hash).first()
     if existing:
-        raise ValueError("NFC card UID already assigned to a student")
+        raise ConflictException("NFC card UID already assigned to a student", code=ErrorCode.CONFLICT_GENERIC)
     _ensure_unique_card_uid(db, uid_hash)
     _school_id = db.query(Student.school_id).filter(Student.id == student_id).scalar()
     card = StudentCard(student_id=student_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
@@ -59,7 +61,7 @@ def assign_staff_card(
     uid_hash = hash_card_uid(card_uid)
     existing = db.query(StaffCard).filter(StaffCard.card_uid == uid_hash).first()
     if existing:
-        raise ValueError("NFC card UID already assigned to a staff member")
+        raise ConflictException("NFC card UID already assigned to a staff member", code=ErrorCode.CONFLICT_GENERIC)
     _ensure_unique_card_uid(db, uid_hash)
     _school_id = db.query(StaffProfile.school_id).filter(StaffProfile.id == staff_profile_id).scalar()
     card = StaffCard(staff_profile_id=staff_profile_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
@@ -86,7 +88,7 @@ def assign_parent_card(
     uid_hash = hash_card_uid(card_uid)
     existing = db.query(ParentCard).filter(ParentCard.card_uid == uid_hash).first()
     if existing:
-        raise ValueError("NFC card UID already assigned to a parent")
+        raise ConflictException("NFC card UID already assigned to a parent", code=ErrorCode.CONFLICT_GENERIC)
     _ensure_unique_card_uid(db, uid_hash)
     _school_id = db.query(Parent.school_id).filter(Parent.id == parent_id).scalar()
     card = ParentCard(parent_id=parent_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
@@ -113,7 +115,7 @@ def assign_employee_card(
     uid_hash = hash_card_uid(card_uid)
     existing = db.query(EmployeeCard).filter(EmployeeCard.card_uid == uid_hash).first()
     if existing:
-        raise ValueError("NFC card UID already assigned to a corporate employee")
+        raise ConflictException("NFC card UID already assigned to a corporate employee", code=ErrorCode.CONFLICT_GENERIC)
     _ensure_unique_card_uid(db, uid_hash)
     card = EmployeeCard(employee_id=employee_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
@@ -400,7 +402,7 @@ def bulk_assign_cards(
         try:
             fn(db, item["reference_id"], item["card_uid"], assigned_by, item.get("card_tier", "standard"))
             success_count += 1
-        except ValueError as e:
+        except ConflictException as e:
             errors.append({"row": i, "reason": str(e)})
         except Exception as e:
             errors.append({"row": i, "reason": str(e)})

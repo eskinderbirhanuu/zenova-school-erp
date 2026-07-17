@@ -1,2 +1,2 @@
 import { redirect } from "next/navigation"
-export default function LegacyStudentDetail({ params }: { params: { id: string } }) { redirect(`/admin/students/${params.id}`) }
+export default async function LegacyStudentDetail({ params }: { params: Promise<{ id: string }> }) { const { id } = await params; redirect(`/admin/students/${id}`) }
