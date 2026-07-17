@@ -17,10 +17,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("payments", sa.Column("idempotency_key", sa.String(255), nullable=True))
-    op.create_unique_constraint("uq_payments_idempotency_key", "payments", ["idempotency_key"])
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [c["name"] for c in inspector.get_columns("payments")]
+    if "idempotency_key" not in columns:
+        op.add_column("payments", sa.Column("idempotency_key", sa.String(255), nullable=True))
+        op.create_unique_constraint("uq_payments_idempotency_key", "payments", ["idempotency_key"])
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_payments_idempotency_key", "payments", type_="unique")
-    op.drop_column("payments", "idempotency_key")
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [c["name"] for c in inspector.get_columns("payments")]
+    if "idempotency_key" in columns:
+        op.drop_constraint("uq_payments_idempotency_key", "payments", type_="unique")
+        op.drop_column("payments", "idempotency_key")
