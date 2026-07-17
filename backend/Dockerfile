@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc libpq-dev && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # ── Runtime stage (no build toolchain, smaller attack surface) ─────────
 FROM python:3.12-slim
@@ -18,10 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN groupadd -r zenova && useradd -r -g zenova -d /app -s /sbin/nologin zenova
 
-COPY --from=builder /root/.local /root/.local
-RUN chmod -R a+rX /root/.local
-ENV PATH=/root/.local/bin:$PATH \
-    PYTHONDONTWRITEBYTECODE=1 \
+COPY --from=builder /usr/local /usr/local
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
