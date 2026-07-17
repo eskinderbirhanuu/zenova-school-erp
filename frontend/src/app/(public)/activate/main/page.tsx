@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,14 @@ import { setupService } from "@/services/api"
 import { CheckCircle2, Loader2, Key, ArrowLeft, Building2, User, Copy } from "lucide-react"
 
 export default function ActivateMainPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <ActivateMainContent />
+    </Suspense>
+  )
+}
+
+function ActivateMainContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preValidatedKey = searchParams.get("key") || ""
