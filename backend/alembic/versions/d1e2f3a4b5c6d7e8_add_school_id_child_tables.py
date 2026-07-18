@@ -34,7 +34,7 @@ TABLES = [
 def upgrade() -> None:
     conn = op.get_bind()
     inspector = sa.inspect(conn)
-    existing = [t.name for t in inspector.get_table_names()]
+    existing = list(inspector.get_table_names())
     for table in TABLES:
         if table not in existing:
             continue
@@ -56,7 +56,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     conn = op.get_bind()
     inspector = sa.inspect(conn)
-    existing = [t.name for t in inspector.get_table_names()]
+    existing = list(inspector.get_table_names())
     for table in reversed(TABLES):
         if table not in existing:
             continue
