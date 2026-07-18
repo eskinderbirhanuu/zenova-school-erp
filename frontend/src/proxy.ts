@@ -28,7 +28,7 @@ function parseRoles(userRolesCookie: string | undefined): string[] {
   return userRolesCookie.split(",").filter(Boolean)
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (
