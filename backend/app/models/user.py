@@ -46,6 +46,45 @@ class User(Base):
     deleted_at = Column(DateTime, nullable=True)
 
     role = relationship("Role", back_populates="users")
+    user_roles = relationship("UserRole", back_populates="user", lazy="dynamic", cascade="all, delete-orphan", foreign_keys="UserRole.user_id")
     school = relationship("School", back_populates="users", foreign_keys=[school_id])
     branch = relationship("Branch", back_populates="users")
     password_history = relationship("PasswordHistory", back_populates="user", order_by="PasswordHistory.created_at.desc()")
+
+    @property
+    def roles(self) -> list:
+        if self.is_superuser:
+            return []
+        try:
+            assignments = self.user_roles.filter_by(deleted_at=None).all()
+            return [ur.role for ur in assignments if ur.role]
+        except Exception:
+            if self.role:
+                return [self.role]
+            return []
+
+    @property
+    def active_role_assignments(self):
+        if self.is_superuser:
+            return []
+        try:
+            return [ur for ur in self.user_roles.filter_by(deleted_at=None).all() if ur.role]
+        except Exception:
+            return []
+
+    def get_role_names(self) -> list[str]:
+        if self.is_superuser:
+            return ["SUPER_ADMIN"]
+        try:
+            names = [r.name for r in self.roles]
+            if names:
+                return names
+        except Exception:
+            pass
+        if self.role:
+            return [self.role.name]
+        return []
+
+    def get_permissions(self) -> set[str]:
+        from app.core.permissions import get_user_permissions
+        return get_user_permissions(self)

@@ -3,10 +3,10 @@
 import { useAuth } from "@/services/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { ROLE_DASHBOARD } from "@/config/navigation"
+import { getBestDashboard } from "@/config/roles"
 
 export function RoleGuard({ allowedRoles, children }: { allowedRoles: string[]; children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, hasRole } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -15,16 +15,17 @@ export function RoleGuard({ allowedRoles, children }: { allowedRoles: string[]; 
       router.push("/login")
       return
     }
-    if (!allowedRoles.includes(user.role as string)) {
-      const dashboard = ROLE_DASHBOARD[user.role as string]
-      if (dashboard) router.push(dashboard)
+    const hasAccess = allowedRoles.some((r) => hasRole(r))
+    if (!hasAccess) {
+      const best = getBestDashboard(user.roles || [user.role || ""])
+      if (best) router.push(best)
       else router.push("/unauthorized")
     }
-  }, [user, loading, allowedRoles, router])
+  }, [user, loading, allowedRoles, router, hasRole])
 
   if (loading) return <LoadingSkeleton />
 
-  if (!user || !allowedRoles.includes(user.role as string)) return null
+  if (!user || !allowedRoles.some((r) => hasRole(r))) return null
 
   return <>{children}</>
 }

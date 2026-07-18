@@ -716,61 +716,41 @@ export function usePayroll(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["payroll", params], () => financeService.payroll.list(params))
 }
 
-// ─── Finance Reports ────────────────────────────────────
-
 export function useFinanceReports(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["finance", "reports", params], () => financeService.reports.list(params))
 }
-
-// ─── Wallet Transactions ────────────────────────────────
 
 export function useWalletTransactions(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["wallet", "transactions", params], () => financeService.walletTransactions.list(params))
 }
 
-// ─── HR: Performance Reviews ────────────────────────────
-
 export function usePerformanceReviews(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["performance-reviews", params], () => hrService.performanceReviews.list(params))
 }
-
-// ─── HR: Recruitment ────────────────────────────────────
 
 export function useRecruitment(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["recruitment", params], () => hrService.recruitment.list(params))
 }
 
-// ─── HR Reports ─────────────────────────────────────────
-
 export function useHrReports(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["hr", "reports", params], () => hrService.reports.list(params))
 }
-
-// ─── Inventory: Assets ──────────────────────────────────
 
 export function useInventoryAssets(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["inventory", "assets", params], () => inventoryService.assets.list(params))
 }
 
-// ─── Inventory Reports ──────────────────────────────────
-
 export function useInventoryReports(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["inventory", "reports", params], () => inventoryService.reports.list(params))
 }
-
-// ─── Cafeteria Reports ──────────────────────────────────
 
 export function useCafeteriaReports(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["cafeteria", "reports", params], () => cafeteriaService.reports.list(params))
 }
 
-// ─── Users (generic, used across super-admin and director pages) ────────────
-
 export function useUsers(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["users", params], () => api.get("/users", { params }))
 }
-
-// ─── IGA / Monitoring ─────────────────────────────────────
 
 export function useIgaMetrics() {
   return useApiQuery<any>(["iga", "metrics"], () => api.get("/iga/metrics"))
@@ -780,8 +760,6 @@ export function useIgaHealthSummary() {
   return useApiQuery<any>(["iga", "health-summary"], () => api.get("/iga/health-summary"))
 }
 
-// ─── Reports ──────────────────────────────────────────────
-
 export function useSystemReports() {
   return useApiQuery<any[]>(["reports", "system"], () => api.get("/reports/system"))
 }
@@ -789,8 +767,6 @@ export function useSystemReports() {
 export function useAdminReports() {
   return useApiQuery<any[]>(["reports", "admin"], () => api.get("/reports/admin"))
 }
-
-// ─── Support Tickets ──────────────────────────────────────
 
 export function useSupportTickets() {
   return useApiQuery<any[]>(["support", "tickets"], () => api.get("/support/tickets", { params: { limit: 200 } }))
@@ -800,19 +776,13 @@ export function useSupportTicketCounts() {
   return useApiQuery<any>(["support", "tickets", "counts"], () => api.get("/support/tickets/counts"))
 }
 
-// ─── Settings ─────────────────────────────────────────────
-
 export function useSettings() {
   return useApiQuery<any>(["settings"], () => api.get("/settings"))
 }
 
-// ─── School ───────────────────────────────────────────────
-
 export function useMySchool() {
   return useApiQuery<any>(["schools", "me"], () => api.get("/schools/me"))
 }
-
-// ─── Report Cards ─────────────────────────────────────────
 
 export function useReportCards() {
   return useApiQuery<any[]>(["report-cards"], () => api.get("/report-cards"))
@@ -822,79 +792,53 @@ export function useReportCard(id?: string) {
   return useApiQuery<any>(["report-cards", id], () => api.get(`/report-cards/${id}`), { enabled: !!id })
 }
 
-// ─── Library: Categories ──────────────────────────────────
-
 export function useLibraryCategories() {
   return useApiQuery<InventoryCategory[]>(["library", "categories"], () => libraryService.categories.list())
 }
-
-// ─── Library: Fines ───────────────────────────────────────
 
 export function useLibraryFines(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["library", "fines", params], () => api.get("/library/fines", { params }))
 }
 
-// ─── Library: Members ─────────────────────────────────────
-
 export function useLibraryMembers(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["library", "members", params], () => api.get("/library/members", { params }))
 }
-
-// ─── Library: Reports ─────────────────────────────────────
 
 export function useLibraryReports() {
   return useApiQuery<any[]>(["library", "reports"], () => api.get("/reports/library"))
 }
 
-// ─── Events/Calendar ──────────────────────────────────────
-
 export function useCalendarEvents(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["calendar", "events", params], () => api.get("/events", { params }))
 }
-
-// ─── Procurement ──────────────────────────────────────────
 
 export function useProcurementItems(endpoint: string) {
   return useApiQuery<any[]>(["procurement", endpoint], () => api.get(endpoint, { params: { limit: 50 } }), { enabled: !!endpoint })
 }
 
-// ─── Assignments (Student) ────────────────────────────────
-
 export function useStudentAssignments(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["student", "assignments", params], () => api.get("/assignments", { params }))
 }
-
-// ─── Messages ─────────────────────────────────────────────
 
 export function useMessages(params?: Record<string, unknown>) {
   return useApiQuery<any[]>(["messages", params], () => api.get("/messages", { params }))
 }
 
-// ─── Parent Payments Dashboard ────────────────────────────
-
 export function useParentPaymentsDashboard() {
   return useApiQuery<any>(["parent-payments", "dashboard"], () => api.get("/parent-payments/dashboard"))
 }
-
-// ─── Payment Session ─────────────────────────────────────
 
 export function usePaymentSession(sessionId?: string) {
   return useApiQuery<any>(["parent-payments", "session", sessionId], () => api.get(`/parent-payments/session/${sessionId}`), { enabled: !!sessionId })
 }
 
-// ─── Receipts ─────────────────────────────────────────────
-
 export function useReceipts() {
   return useApiQuery<any[]>(["parent-payments", "receipts"], () => api.get("/parent-payments/receipts"))
 }
 
-// ─── Student Transcript ───────────────────────────────────
-
 export function useStudentTranscript(studentId?: string) {
   return useApiQuery<any>(["students", "transcript", studentId], () => api.get(`/students/${studentId}/transcript`), { enabled: !!studentId })
 }
-
-// ─── Platform Dashboard (Services) ────────────────────────
 
 export function usePlatformDashboard() {
   return useApiQuery<any>(["platform", "dashboard"], () => api.get("/platform/dashboard"))

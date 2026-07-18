@@ -104,3 +104,7 @@ def mfa_required_for_role(role_name: str | None) -> bool:
     if not role_name:
         return False
     return role_name.upper() in MFA_REQUIRED_ROLES
+
+
+def mfa_required_for_any_role(role_names: list[str]) -> bool:
+    return any(mfa_required_for_role(r) for r in role_names)

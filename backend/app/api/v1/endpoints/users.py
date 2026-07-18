@@ -32,10 +32,13 @@ def list_users(
     users = q.all()
     result = []
     for u in users:
+        from app.core.permissions import get_user_permissions
         r = UserResponse(
             id=u.id, email=u.email, full_name=u.full_name, phone=u.phone,
             is_active=u.is_active, is_superuser=u.is_superuser, is_view_only=u.is_view_only,
             role_name=u.role.name if u.role else None,
+            roles=u.get_role_names(),
+            permissions=sorted(get_user_permissions(u)),
             school_id=u.school_id, branch_id=u.branch_id,
             created_at=u.created_at, last_login_at=u.last_login_at,
         )
@@ -70,10 +73,13 @@ def update_user(
         setattr(u, key, val)
     db.commit()
     db.refresh(u)
+    from app.core.permissions import get_user_permissions
     return UserResponse(
         id=u.id, email=u.email, full_name=u.full_name, phone=u.phone,
         is_active=u.is_active, is_superuser=u.is_superuser, is_view_only=u.is_view_only,
         role_name=u.role.name if u.role else None,
+        roles=u.get_role_names(),
+        permissions=sorted(get_user_permissions(u)),
         school_id=u.school_id, branch_id=u.branch_id,
         created_at=u.created_at, last_login_at=u.last_login_at,
     )

@@ -11,8 +11,8 @@ from app.models.payment import Payment
 from app.models.school_transaction import SchoolTransaction
 from app.models.platform_fee import PlatformFee
 from app.models.monthly_platform_invoice import MonthlyPlatformInvoice
-from app.models.number_sequence import NumberSequence
 from app.core.audit import log_audit
+from app.utils.sequence import next_sequence_number
 
 PLATFORM_FEE_PER_TRANSACTION = Decimal("5.00")
 
@@ -22,18 +22,7 @@ class PlatformCommissionError(Exception):
 
 
 def _next_invoice_number(db: Session) -> str:
-    year = datetime.now(timezone.utc).year
-    seq = db.query(NumberSequence).filter(
-        NumberSequence.prefix == "PINV",
-        NumberSequence.year == year,
-    ).with_for_update().first()
-    if not seq:
-        seq = NumberSequence(prefix="PINV", school_id="system", year=year, last_number=0)
-        db.add(seq)
-        db.flush()
-    seq.last_number += 1
-    db.flush()
-    return f"PINV-{year}-{seq.last_number:05d}"
+    return next_sequence_number(db, "PINV", school_id="system")
 
 
 def record_transaction(

@@ -12,6 +12,7 @@ from app.database import Base, engine, SessionLocal
 from app.config import settings
 from app.core.exceptions import AppException
 from app.core.error_codes import ErrorCode
+from app.core.constants import CSRF_EXEMPT_PATHS, CSRF_EXEMPT_PREFIXES
 from app.core.rate_limit_middleware import RateLimitMiddleware
 from app.core.upload_limit_middleware import UploadLimitMiddleware
 from app.core.logging_config import configure_logging
@@ -76,26 +77,6 @@ app.add_middleware(RateLimitMiddleware)
 app.add_middleware(UploadLimitMiddleware)
 app.add_middleware(MetricsMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
-
-
-CSRF_EXEMPT_PATHS = {
-    "/api/v1/auth/login",
-    "/api/v1/auth/register",
-    "/api/v1/auth/forgot-password",
-    "/api/v1/auth/reset-password",
-    "/api/v1/auth/refresh",
-    "/api/v1/auth/recovery/initiate",
-    "/api/v1/auth/recovery/codes/verify",
-    "/api/v1/auth/recovery/apply",
-    "/api/v1/auth/recovery/emergency/apply",
-    "/api/v1/setup/status",
-    "/api/v1/activate/validate",
-    "/api/v1/activate/validate-type",
-    "/api/v1/activate/status",
-    "/api/v1/activate/recovery/issue",
-    "/api/v1/activate/recovery/reset",
-}
-CSRF_EXEMPT_PREFIXES = ("/api/v1/auth/verify-super-admin",)
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):

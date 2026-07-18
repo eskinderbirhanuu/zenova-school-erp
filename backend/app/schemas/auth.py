@@ -81,6 +81,8 @@ class UserResponse(BaseModel):
     mfa_enabled: bool = False
     role_id: str | None
     role_name: str | None
+    roles: list[str] = []
+    permissions: list[str] = []
     school_id: str | None
     branch_id: str | None
     created_at: datetime

@@ -6,6 +6,9 @@ from fastapi import Request, Response
 from app.core.redis_client import get_redis
 
 CACHE_DEFAULT_TTL = 300
+
+
+def _cache_key(prefix: str, method: str, path: str, query_params: str) -> str:
     raw = f"{prefix}:{method}:{path}:{query_params}"
     return f"cache:{hashlib.sha256(raw.encode()).hexdigest()}"
 

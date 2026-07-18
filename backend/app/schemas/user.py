@@ -12,6 +12,8 @@ class UserResponse(BaseModel):
     is_superuser: bool
     is_view_only: bool = False
     role_name: Optional[str] = None
+    roles: list[str] = []
+    permissions: list[str] = []
     school_id: Optional[str] = None
     branch_id: Optional[str] = None
     created_at: Optional[datetime] = None

@@ -28,34 +28,16 @@ from app.models.journal import JournalEntry, JournalLine
 from app.models.account import Account
 from app.models.number_sequence import NumberSequence
 from app.core.audit import log_audit
+from app.core.exceptions import AppException
+from app.core.error_codes import ErrorCode
 from app.config import settings
+from app.utils.sequence import next_sequence_number as _next_sequence_number
 
 
-class PaymentError(Exception):
+class PaymentError(AppException):
     """Custom payment exception."""
-    pass
-
-
-def _next_sequence_number(db: Session, prefix: str, school_id: str) -> str:
-    """Generate next sequence number atomically."""
-    year = datetime.now(timezone.utc).year
-    seq = db.query(NumberSequence).filter(
-        NumberSequence.prefix == prefix,
-        NumberSequence.school_id == school_id,
-        NumberSequence.year == year,
-    ).with_for_update().first()
-    if not seq:
-        seq = NumberSequence(prefix=prefix, school_id=school_id, year=year, last_number=0)
-        db.add(seq)
-        db.flush()
-        seq = db.query(NumberSequence).filter(
-            NumberSequence.prefix == prefix,
-            NumberSequence.school_id == school_id,
-            NumberSequence.year == year,
-        ).with_for_update().first()
-    seq.last_number += 1
-    db.flush()
-    return f"{prefix}-{year}-{seq.last_number:05d}"
+    def __init__(self, detail: str = "Payment error"):
+        super().__init__(detail, status_code=502, code=ErrorCode.SERVICE_UNAVAILABLE)
 
 
 def get_parent_children_invoices(db: Session, parent_id: str, school_id: str) -> List[Dict]:

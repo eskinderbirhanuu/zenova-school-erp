@@ -6,7 +6,7 @@ import tempfile
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from app.config import settings
-from app.core.constants import BACKUP_BACKUP_RETENTION_HOURLY, BACKUP_BACKUP_RETENTION_DAILY, BACKUP_BACKUP_RETENTION_WEEKLY
+from app.core.constants import BACKUP_RETENTION_HOURLY, BACKUP_RETENTION_DAILY, BACKUP_RETENTION_WEEKLY
 from app.utils.circuit_breaker import CircuitBreaker
 
 BACKUP_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "backups")

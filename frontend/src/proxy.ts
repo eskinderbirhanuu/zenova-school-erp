@@ -4,7 +4,8 @@ import type { NextRequest } from "next/server"
 import {
   PUBLIC_ROUTES,
   ROLE_DASHBOARD,
-  ROLE_PREFIXES,
+  getBestDashboard,
+  canAccessRoute,
 } from "@/config/roles"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
@@ -20,6 +21,11 @@ async function checkSetupComplete(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+function parseRoles(userRolesCookie: string | undefined): string[] {
+  if (!userRolesCookie || userRolesCookie === "") return []
+  return userRolesCookie.split(",").filter(Boolean)
 }
 
 export async function middleware(request: NextRequest) {
@@ -52,31 +58,31 @@ export async function middleware(request: NextRequest) {
 
   const accessToken = request.cookies.get("access_token")?.value
   const userRole = request.cookies.get("user_role")?.value
+  const userRoles = parseRoles(request.cookies.get("user_roles")?.value)
+  const allRoles = userRoles.length > 0 ? userRoles : (userRole ? [userRole] : [])
 
   if (pathname === "/") {
     const setupComplete = await checkSetupComplete()
     if (!setupComplete) {
       return NextResponse.next()
     }
-    if (accessToken && userRole && ROLE_DASHBOARD[userRole]) {
-      return NextResponse.redirect(new URL(ROLE_DASHBOARD[userRole], request.url))
+    if (accessToken && allRoles.length > 0) {
+      const bestDashboard = getBestDashboard(allRoles) || (userRole ? ROLE_DASHBOARD[userRole] : null)
+      if (bestDashboard) {
+        return NextResponse.redirect(new URL(bestDashboard, request.url))
+      }
     }
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  if (!accessToken || !userRole) {
+  if (!accessToken || allRoles.length === 0) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  const allowedPrefixes = ROLE_PREFIXES[userRole]
-  if (!allowedPrefixes) {
-    return NextResponse.redirect(new URL("/unauthorized", request.url))
-  }
-
-  const onAllowedRoute = allowedPrefixes.some((prefix: any) => pathname.startsWith(prefix))
-  if (onAllowedRoute) {
+  const allowed = canAccessRoute(allRoles, pathname)
+  if (allowed) {
     const response = NextResponse.next()
     if (!request.cookies.has("csrf_token")) {
       const csrfToken = crypto.randomUUID()
@@ -91,9 +97,9 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  const dashboard = ROLE_DASHBOARD[userRole]
-  if (dashboard) {
-    return NextResponse.redirect(new URL(dashboard, request.url))
+  const bestDashboard = getBestDashboard(allRoles) || (userRole ? ROLE_DASHBOARD[userRole] : null)
+  if (bestDashboard) {
+    return NextResponse.redirect(new URL(bestDashboard, request.url))
   }
 
   return NextResponse.redirect(new URL("/unauthorized", request.url))

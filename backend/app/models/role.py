@@ -22,3 +22,5 @@ class Role(Base):
     deleted_at = Column(DateTime, nullable=True)
 
     users = relationship("User", back_populates="role")
+    user_assignments = relationship("UserRole", back_populates="role", lazy="dynamic", foreign_keys="UserRole.role_id")
+    permission_assignments = relationship("RolePermission", back_populates="role", lazy="dynamic", cascade="all, delete-orphan")

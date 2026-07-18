@@ -138,6 +138,14 @@ class AuthContext:
         from app.core.permissions import has_permission as _has_perm
         return _has_perm(self.user, permission)
 
+    def has_any_permission(self, *permissions: str) -> bool:
+        from app.core.permissions import has_permission as _has_perm
+        return any(_has_perm(self.user, p) for p in permissions)
+
+    def has_all_permissions(self, *permissions: str) -> bool:
+        from app.core.permissions import has_permission as _has_perm
+        return all(_has_perm(self.user, p) for p in permissions)
+
     def require_permission(self, *permissions: str) -> "AuthContext":
         if not permissions:
             return self
@@ -162,6 +170,15 @@ class AuthContext:
     @property
     def role(self) -> Optional[str]:
         return self.user.role.name if self.user.role else None
+
+    @property
+    def roles(self) -> list[str]:
+        return self.user.get_role_names()
+
+    @property
+    def permissions(self) -> list[str]:
+        from app.core.permissions import get_user_permissions
+        return sorted(get_user_permissions(self.user))
 
 
 def get_auth_context(user: User = Depends(get_current_user)) -> AuthContext:

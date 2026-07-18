@@ -1,7 +1,7 @@
 """add school_id to child/detail tables
 
 Revision ID: d1e2f3a4b5c6d7e8
-Revises: b8c9d0e1f2a3
+Revises: 73ccf4e21e6d
 Create Date: 2026-06-30 10:00:00.000000
 
 """

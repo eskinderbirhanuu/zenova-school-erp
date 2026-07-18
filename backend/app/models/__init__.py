@@ -7,6 +7,8 @@ from app.models.school import School
 from app.models.branch import Branch
 from app.models.license import License, LicenseType, LicenseStatus
 from app.models.audit_log import AuditLog
+from app.models.user_role import UserRole
+from app.models.role_permission import RolePermission
 from app.models.student import Student
 from app.models.parent import Parent
 from app.models.parent_student_link import ParentStudentLink

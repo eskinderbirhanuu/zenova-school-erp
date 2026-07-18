@@ -183,6 +183,8 @@ def webauthn_auth_verify(
         raise HTTPException(status_code=401, detail="User inactive")
 
     role_name = auth_service.get_user_role_name(user)
+    role_names = auth_service.get_user_role_names(user)
+    role_names_str = ",".join(role_names) if role_names else ""
     access_token = auth_service.create_access_token({"sub": user.id, "role": role_name})
     refresh_token_str = auth_service.create_refresh_token({"sub": user.id})
 
@@ -207,7 +209,16 @@ def webauthn_auth_verify(
     response.set_cookie(
         key="user_role",
         value=role_name,
-        httponly=True,
+        httponly=False,
+        secure=_COOKIE_SECURE,
+        samesite="strict",
+        path="/",
+        max_age=60 * 60 * 24 * 7,
+    )
+    response.set_cookie(
+        key="user_roles",
+        value=role_names_str,
+        httponly=False,
         secure=_COOKIE_SECURE,
         samesite="strict",
         path="/",

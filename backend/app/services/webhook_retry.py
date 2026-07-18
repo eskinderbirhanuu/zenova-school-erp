@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 from sqlalchemy.orm import Session
 from app.core.payment_gateway import PaymentGatewayFactory
-from app.core.constants import WEBHOOK_WEBHOOK_MAX_RETRIES, WEBHOOK_WEBHOOK_RETRY_DELAYS
+from app.core.constants import WEBHOOK_MAX_RETRIES, WEBHOOK_RETRY_DELAYS
 from app.models.payment_session import PaymentSession
 
 

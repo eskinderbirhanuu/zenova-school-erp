@@ -12,6 +12,7 @@ from app.api.v1.endpoints import communication
 from app.api.v1.endpoints import events
 from app.api.v1.endpoints import telegram
 from app.api.v1.endpoints import users, activate, branches, attendance, ws, schools, audit_logs, support_tickets, reports, settings, report_cards, student_portal, setup_wizard, scanner, announcements
+from app.api.v1.endpoints import roles
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(health.router, prefix="/health", tags=["health"])
@@ -65,4 +66,5 @@ router.include_router(webauthn.router, prefix="/auth", tags=["webauthn"])
 router.include_router(currencies.router, prefix="/finance", tags=["currencies"])
 router.include_router(features.router, prefix="", tags=["features"])
 router.include_router(password_recovery.router, prefix="", tags=["password-recovery"])
+router.include_router(roles.router, prefix="", tags=["roles"])
 

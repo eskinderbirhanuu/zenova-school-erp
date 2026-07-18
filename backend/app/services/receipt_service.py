@@ -18,7 +18,7 @@ from app.models.invoice import Invoice, InvoiceLine
 from app.models.student import Student
 from app.models.parent import Parent
 from app.models.school import School
-from app.services.parent_payment_service import _next_sequence_number
+from app.utils.sequence import next_sequence_number as _next_sequence_number
 from app.core.exceptions import NotFoundException, ConflictException
 from app.core.error_codes import ErrorCode
 

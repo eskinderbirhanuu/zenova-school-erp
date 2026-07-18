@@ -16,41 +16,13 @@ from app.models.budget import Budget, BudgetItem
 from app.models.procurement import PurchaseRequest, PurchaseOrder
 from app.core.audit import log_audit
 from app.services.sync_service import enqueue_sync
-from app.models.number_sequence import NumberSequence
+from app.utils.sequence import next_sequence_number as _next_sequence_number
 
 
 ACCOUNT_TYPE_MAP = {
     "asset": "debit", "liability": "credit",
     "equity": "credit", "revenue": "credit", "expense": "debit",
 }
-
-
-def _next_sequence_number(db: Session, prefix: str, school_id: str) -> str:
-    """Race-free document-number generator using the locked NumberSequence table.
-
-    Replaces the old count()-based generators that produced duplicate numbers
-    under concurrent inserts. Atomically reserves the next sequence value by
-    locking the per-(prefix, school, year) row.
-    """
-    year = datetime.now(timezone.utc).year
-    seq = db.query(NumberSequence).filter(
-        NumberSequence.prefix == prefix,
-        NumberSequence.school_id == school_id,
-        NumberSequence.year == year,
-    ).with_for_update().first()
-    if not seq:
-        seq = NumberSequence(prefix=prefix, school_id=school_id, year=year, last_number=0)
-        db.add(seq)
-        db.flush()
-        # Re-lock after create so a concurrent creator cannot share this slot.
-        seq = db.query(NumberSequence).filter(
-            NumberSequence.prefix == prefix,
-            NumberSequence.school_id == school_id,
-            NumberSequence.year == year,
-        ).with_for_update().first()
-    seq.last_number += 1
-    db.flush()
-    return f"{prefix}-{year}-{seq.last_number:05d}"
 
 
 def get_accounts(db: Session, school_id: str, include_deleted: bool = False):

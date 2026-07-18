@@ -10,14 +10,17 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.exceptions import AppException
+from app.core.error_codes import ErrorCode
 from app.utils.circuit_breaker import CircuitBreaker
 
 CHAPA_API_URL = settings.chapa_api_url
 _chapa_breaker = CircuitBreaker("chapa", failure_threshold=5, recovery_timeout=30)
 
 
-class ChapaError(Exception):
-    pass
+class ChapaError(AppException):
+    def __init__(self, detail: str = "Chapa payment error"):
+        super().__init__(detail, status_code=502, code=ErrorCode.SERVICE_UNAVAILABLE)
 
 
 def _default_chapa_keys() -> tuple[str, str]:

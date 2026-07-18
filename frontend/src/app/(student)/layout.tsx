@@ -1,15 +1,5 @@
 "use client"
-
-import { RoleLayout } from "@/components/layout/role-layout"
-import { STUDENT_NAV } from "@/config/navigation"
-import { RoleGuard } from "@/components/auth/role-guard"
-
+import { RouteGroupShell } from "@/components/layout/route-group-shell"
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <RoleGuard allowedRoles={["STUDENT"]}>
-      <RoleLayout role="STUDENT" navItems={STUDENT_NAV}>
-        {children}
-      </RoleLayout>
-    </RoleGuard>
-  )
+  return <RouteGroupShell groupKey="student">{children}</RouteGroupShell>
 }

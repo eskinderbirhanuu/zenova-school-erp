@@ -199,8 +199,10 @@ def login(
         _clear_brute_force(redis, ip, identifier)
 
     role_name = auth_service.get_user_role_name(user)
+    role_names = auth_service.get_user_role_names(user)
+    role_names_str = ",".join(role_names) if role_names else ""
 
-    if not user.mfa_enabled and mfa_service.mfa_required_for_role(role_name):
+    if not user.mfa_enabled and mfa_service.mfa_required_for_any_role(role_names):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="MFA is required for your role. Please enable MFA before logging in.",
@@ -253,7 +255,16 @@ def login(
     response.set_cookie(
         key="user_role",
         value=role_name,
-        httponly=True,
+        httponly=False,
+        secure=_COOKIE_SECURE,
+        samesite="strict",
+        path="/",
+        max_age=60 * 60 * 24 * 7,
+    )
+    response.set_cookie(
+        key="user_roles",
+        value=role_names_str,
+        httponly=False,
         secure=_COOKIE_SECURE,
         samesite="strict",
         path="/",
@@ -395,6 +406,8 @@ def refresh_token(request: Request, response: Response, data: RefreshRequest, db
         redis.setex(family_key, 60 * 60 * 24 * 7, new_jti)
 
     role_name = auth_service.get_user_role_name(user)
+    role_names = auth_service.get_user_role_names(user)
+    role_names_str = ",".join(role_names) if role_names else ""
     response.set_cookie(
         key="access_token",
         value=new_access,
@@ -416,7 +429,16 @@ def refresh_token(request: Request, response: Response, data: RefreshRequest, db
     response.set_cookie(
         key="user_role",
         value=role_name,
-        httponly=True,
+        httponly=False,
+        secure=_COOKIE_SECURE,
+        samesite="strict",
+        path="/",
+        max_age=60 * 60 * 24 * 7,
+    )
+    response.set_cookie(
+        key="user_roles",
+        value=role_names_str,
+        httponly=False,
         secure=_COOKIE_SECURE,
         samesite="strict",
         path="/",
@@ -460,6 +482,7 @@ def logout(
     response.set_cookie(key="access_token", value="", httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=0)
     response.set_cookie(key="refresh_token", value="", httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=0)
     response.set_cookie(key="user_role", value="", httponly=False, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=0)
+    response.set_cookie(key="user_roles", value="", httponly=False, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=0)
     return {"message": "Logged out successfully"}
 
 
@@ -548,6 +571,8 @@ def get_me(current_user: User = Depends(get_current_user)):
         is_view_only=current_user.is_view_only,
         role_id=current_user.role_id,
         role_name=auth_service.get_user_role_name(current_user),
+        roles=auth_service.get_user_role_names(current_user),
+        permissions=auth_service.get_user_permissions_list(current_user),
         school_id=current_user.school_id,
         branch_id=current_user.branch_id,
         created_at=current_user.created_at,
@@ -660,6 +685,8 @@ def mfa_login(
         )
 
     role_name = auth_service.get_user_role_name(user)
+    role_names = auth_service.get_user_role_names(user)
+    role_names_str = ",".join(role_names) if role_names else ""
     access_token = auth_service.create_access_token({"sub": user.id, "role": role_name})
     refresh_token_str = auth_service.create_refresh_token({"sub": user.id})
 
@@ -682,6 +709,11 @@ def mfa_login(
     )
     response.set_cookie(
         key="user_role", value=role_name,
+        httponly=False, secure=_COOKIE_SECURE, samesite="strict", path="/",
+        max_age=60 * 60 * 24 * 7,
+    )
+    response.set_cookie(
+        key="user_roles", value=role_names_str,
         httponly=False, secure=_COOKIE_SECURE, samesite="strict", path="/",
         max_age=60 * 60 * 24 * 7,
     )

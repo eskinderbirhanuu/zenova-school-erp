@@ -58,6 +58,9 @@ def get_user_role_name(user: User) -> str | None:
         return "SUPER_ADMIN"
     if user.role:
         return user.role.name.upper()
+    role_names = user.get_role_names()
+    if role_names:
+        return role_names[0]
     return None
 
 

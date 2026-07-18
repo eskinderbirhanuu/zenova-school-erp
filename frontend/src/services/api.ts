@@ -302,11 +302,6 @@ export const qrService = {
   validate: (uuid: string): ApiResponse<{ entity_type: string; entity_id: string }> => api.get(`/qr/${uuid}`),
 }
 
-export const nfcService = {
-  assign: (data: { card_uid: string; entity_type: string; entity_id: string }): ApiResponse<NfcAssignment> => api.post("/nfc/assign", data),
-  validate: (data: { card_uid: string }): ApiResponse<{ valid: boolean }> => api.post("/nfc/validate", data),
-}
-
 export const nfcV2Service = {
   assignStudent: (data: { card_uid: string; student_id: string }): ApiResponse<NfcAssignment> => api.post("/nfc/student/assign", data),
   assignStaff: (data: { card_uid: string; staff_id: string }): ApiResponse<NfcAssignment> => api.post("/nfc/staff/assign", data),

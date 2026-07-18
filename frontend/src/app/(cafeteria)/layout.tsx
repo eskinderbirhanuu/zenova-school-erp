@@ -1,15 +1,5 @@
 "use client"
-
-import { RoleLayout } from "@/components/layout/role-layout"
-import { CAFETERIA_NAV } from "@/config/navigation"
-import { RoleGuard } from "@/components/auth/role-guard"
-
+import { RouteGroupShell } from "@/components/layout/route-group-shell"
 export default function CafeteriaLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <RoleGuard allowedRoles={["SUPER_ADMIN", "ADMIN", "DIRECTOR", "CAFETERIA"]}>
-      <RoleLayout role="CAFETERIA" navItems={CAFETERIA_NAV}>
-        {children}
-      </RoleLayout>
-    </RoleGuard>
-  )
+  return <RouteGroupShell groupKey="cafeteria">{children}</RouteGroupShell>
 }

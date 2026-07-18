@@ -41,7 +41,7 @@ class TestGenerateId:
             None, seq, None, seq, None, seq,
         ]
         db.flush.side_effect = IntegrityError("stmt", "params", "orig")
-        with pytest.raises(RuntimeError, match="Could not generate unique ID after 3 attempts"):
+        with pytest.raises(RuntimeError, match="Could not generate sequence number"):
             generate_id(db, "student", "school-1")
 
     def test_unknown_entity_type_raises(self):

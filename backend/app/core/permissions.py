@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import Depends
 from app.core.auth_deps import get_current_user
 from app.models.user import User
@@ -110,15 +111,80 @@ ROLE_PERMISSIONS = {
     ],
 }
 
+# ─── Multi-Role Permission Engine ────────────────────────────────
+
+
+def get_role_permissions_from_db(role_name: str) -> Optional[list[str]]:
+    """Fetch permissions from role_permissions table.
+
+    Returns None if no DB-backed permissions exist for this role,
+    indicating the caller should fall back to ROLE_PERMISSIONS dict.
+    """
+    try:
+        from app.database import SessionLocal
+        from app.models.role import Role
+        from app.models.role_permission import RolePermission
+        db = SessionLocal()
+        try:
+            role = db.query(Role).filter(Role.name == role_name, Role.deleted_at.is_(None)).first()
+            if not role:
+                return None
+            rps = db.query(RolePermission).filter(
+                RolePermission.role_id == role.id,
+                RolePermission.is_granted == True,
+                RolePermission.deleted_at.is_(None),
+            ).all()
+            if not rps:
+                return None
+            return [rp.permission_key for rp in rps]
+        finally:
+            db.close()
+    except Exception:
+        return None
+
+
+def get_role_permissions(role_name: str) -> list[str]:
+    """Get permissions for a role.
+
+    Checks role_permissions DB table first; falls back to ROLE_PERMISSIONS dict.
+    """
+    db_perms = get_role_permissions_from_db(role_name)
+    if db_perms is not None:
+        return db_perms
+    return ROLE_PERMISSIONS.get(role_name, [])
+
+
+def get_user_permissions(user: User) -> set[str]:
+    """Get the union of all permissions from all roles assigned to a user."""
+    if user.is_superuser:
+        return set(_ROLE_PERMISSION_VALUES)
+
+    result = set()
+    for role_name in user.get_role_names():
+        perms = get_role_permissions(role_name)
+        result.update(perms)
+    return result
+
 
 def has_permission(user: User, permission: str) -> bool:
     if user.is_superuser:
         return True
     if user.is_view_only and permission not in ["students.view", "audit.view"]:
         return False
-    if not user.role:
-        return False
-    return permission in ROLE_PERMISSIONS.get(user.role.name, [])
+    user_perms = get_user_permissions(user)
+    return permission in user_perms
+
+
+def has_any_role(user: User, *role_names: str) -> bool:
+    """Check if user has any of the given roles."""
+    user_roles = set(user.get_role_names())
+    return bool(user_roles & set(role_names))
+
+
+def has_all_roles(user: User, *role_names: str) -> bool:
+    """Check if user has all of the given roles."""
+    user_roles = set(user.get_role_names())
+    return set(role_names).issubset(user_roles)
 
 
 def require_permission(*permissions: str):
@@ -137,7 +203,13 @@ def require_permission(*permissions: str):
     return Depends(_check)
 
 
-
+def require_role(*role_names: str):
+    """Require the current user to have at least one of the given roles."""
+    def _check(current_user: User = Depends(get_current_user)):
+        if has_any_role(current_user, *role_names):
+            return current_user
+        raise ForbiddenException(f"Requires one of roles: {', '.join(role_names)}")
+    return Depends(_check)
 
 
 def require_server_role(*allowed_roles: str):

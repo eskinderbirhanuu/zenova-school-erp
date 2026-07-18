@@ -53,13 +53,20 @@ CARD_WIDTH_MM = 85
 CARD_HEIGHT_MM = 54
 
 # ─── CSRF Exempt Paths ───────────────────────────────────────────────
-CSRF_EXEMPT_PATHS = [
+# Single source of truth — consumed by main.py CSRFMiddleware.
+# NEVER redefine in main.py; import from here.
+CSRF_EXEMPT_PATHS = frozenset({
     "/api/v1/auth/login",
+    "/api/v1/auth/register",
     "/api/v1/auth/refresh",
     "/api/v1/auth/reset-password",
     "/api/v1/auth/forgot-password",
     "/api/v1/auth/change-password",
     "/api/v1/auth/verify-reset-token",
+    "/api/v1/auth/recovery/initiate",
+    "/api/v1/auth/recovery/codes/verify",
+    "/api/v1/auth/recovery/apply",
+    "/api/v1/auth/recovery/emergency/apply",
     "/api/v1/chapa/webhook",
     "/api/v1/telebirr/notify",
     "/api/v1/setup/init",
@@ -70,4 +77,11 @@ CSRF_EXEMPT_PATHS = [
     "/api/v1/installer/status",
     "/api/v1/installer/connect-vps",
     "/api/v1/sync/pull",
-]
+    "/api/v1/activate/validate",
+    "/api/v1/activate/validate-type",
+    "/api/v1/activate/status",
+    "/api/v1/activate/recovery/issue",
+    "/api/v1/activate/recovery/reset",
+})
+
+CSRF_EXEMPT_PREFIXES = ("/api/v1/auth/verify-super-admin",)

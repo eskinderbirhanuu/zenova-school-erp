@@ -235,8 +235,33 @@ def authenticate_student_parent(db: Session, student_id_str: str, password: str)
 
 
 def get_user_role_name(user: User) -> str | None:
+    """Return the primary role name (backward-compatible single role).
+
+    Uses the original `role_id` FK if set, otherwise returns the first
+    role from the many-to-many `user_roles` table.
+    """
     if user.is_superuser:
         return "SUPER_ADMIN"
     if user.role:
         return user.role.name
+    role_names = user.get_role_names()
+    if role_names:
+        return role_names[0]
     return None
+
+
+def get_user_role_names(user: User) -> list[str]:
+    """Return ALL role names for a user (multi-role support)."""
+    if user.is_superuser:
+        return ["SUPER_ADMIN"]
+    from app.core.permissions import ROLE_PERMISSIONS
+    names = user.get_role_names()
+    if not names and user.role:
+        names = [user.role.name]
+    return names
+
+
+def get_user_permissions_list(user: User) -> list[str]:
+    """Return sorted list of all permissions for a user."""
+    from app.core.permissions import get_user_permissions
+    return sorted(get_user_permissions(user))
