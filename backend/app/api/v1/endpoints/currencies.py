@@ -36,7 +36,7 @@ class CurrencyListResponse(BaseModel):
 @router.get("", response_model=CurrencyListResponse)
 def list_currencies(
     db: Session = Depends(get_db),
-    _=Depends(require_permission(Permission.FINANCE_REPORTS)),
+    _=require_permission(Permission.FINANCE_REPORTS),
 ):
     seed_currencies(db)
     currencies = get_active_currencies(db)
@@ -60,7 +60,7 @@ def update_currency(
     code: str,
     data: CurrencyUpdateRequest,
     db: Session = Depends(get_db),
-    _=Depends(require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS)),
+    _=require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS),
 ):
     currency = get_currency(db, code)
     if not currency:
