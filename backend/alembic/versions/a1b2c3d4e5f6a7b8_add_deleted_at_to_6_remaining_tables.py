@@ -1,7 +1,7 @@
 """add deleted_at column to 3 remaining tables (archive_jobs, archived_records, password_history)
 
 Revision ID: a1b2c3d4e5f6a7b8
-Revises: fe06878765f8
+Revises: a0b1c2d3e4f5
 Create Date: 2026-07-17 10:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = 'a1b2c3d4e5f6a7b8'
-down_revision = 'fe06878765f8'
+down_revision = 'a0b1c2d3e4f5'
 branch_labels = None
 depends_on = None
 
