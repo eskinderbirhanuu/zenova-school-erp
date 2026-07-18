@@ -1,7 +1,7 @@
 """merge_multi_role_deleted_at_and_school_id
 
 Revision ID: m3rg3h45h0001
-Revises: a0b1c2d3e4f5, d1e2f3a4b5c6d7e8, a1b2c3d4e5f6a7b8
+Revises: a0b1c2d3e4f5, 9e8f7a6b5c4d3e2f, a1b2c3d4e5f6a7b8
 Create Date: 2026-07-18 08:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = 'm3rg3h45h0001'
-down_revision = ('a0b1c2d3e4f5', 'd1e2f3a4b5c6d7e8', 'a1b2c3d4e5f6a7b8')
+down_revision = ('a0b1c2d3e4f5', '9e8f7a6b5c4d3e2f', 'a1b2c3d4e5f6a7b8')
 branch_labels = None
 depends_on = None
 
