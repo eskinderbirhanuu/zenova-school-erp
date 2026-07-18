@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.api.v1.deps import get_current_user, require_permission
+from app.api.v1.deps import get_current_user
+from app.core.permissions import require_permission
 from app.models.user import User
 from app.models.currency import Currency
 from app.services.currency_service import get_active_currencies, get_currency, seed_currencies
