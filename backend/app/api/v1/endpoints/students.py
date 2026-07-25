@@ -408,13 +408,30 @@ def upload_student_document(
         raise HTTPException(status_code=404, detail="Student not found")
     import os
 
-    ext = file.filename.split(".")[-1] if "." in file.filename else ""
-    safe_name = f"{uuid.uuid4()}.{ext}" if ext else f"{uuid.uuid4()}"
+    ALLOWED_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "gif", "webp", "doc", "docx", "xls", "xlsx", "csv", "txt"}
+    ALLOWED_MIMETYPES = {
+        "application/pdf", "image/jpeg", "image/png", "image/gif", "image/webp",
+        "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/csv", "text/plain",
+    }
+
+    ext = file.filename.split(".")[-1].lower() if "." in file.filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"File extension '.{ext}' not allowed")
+    if file.content_type and file.content_type not in ALLOWED_MIMETYPES:
+        raise HTTPException(status_code=400, detail=f"File type '{file.content_type}' not allowed")
+
+    content = file.file.read()
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="File too large (max 10MB)")
+
+    safe_name = f"{uuid.uuid4()}.{ext}"
     upload_dir = f"uploads/students/{student_id}"
     os.makedirs(upload_dir, exist_ok=True)
     file_path = f"{upload_dir}/{safe_name}"
 
-    content = file.file.read()
     with open(file_path, "wb") as f:
         f.write(content)
 

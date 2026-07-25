@@ -1,3 +1,4 @@
+import hmac
 import os
 import threading
 from fastapi import FastAPI, HTTPException, Request, status
@@ -57,13 +58,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
             response.headers["Permissions-Policy"] = "accelerometer=(), camera=(), microphone=(), geolocation=()"
             script_policy = "'self'" if settings.is_production else "'self' 'unsafe-eval'"
+            origin = str(request.headers.get("origin", "")).rstrip("/")
+            connect_src = "'self'"
+            if origin and origin != "null":
+                connect_src += f" {origin} http://localhost:8000"
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
                 f"script-src {script_policy}; "
                 "style-src 'self' 'unsafe-inline'; "
                 "img-src 'self' data: https:; "
                 "font-src 'self' data:; "
-                "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 http://192.168.1.5:8000; "
+                f"connect-src {connect_src}; "
                 "frame-ancestors 'none';"
             )
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
@@ -91,7 +96,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         csrf_cookie = request.cookies.get("csrf_token")
         csrf_header = request.headers.get("X-CSRF-Token")
-        if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        if not csrf_cookie or not csrf_header or not hmac.compare_digest(csrf_cookie, csrf_header):
             return JSONResponse(
                 status_code=403,
                 content={
