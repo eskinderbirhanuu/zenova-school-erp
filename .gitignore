@@ -1,32 +1,47 @@
-node_modules/
-__pycache__/
-*.py[cod]
+# Environment
 .env
 .env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
 *.egg-info/
 dist/
-build/
 .venv/
 venv/
-*.db
-*.sqlite3
-.DS_Store
-Thumbs.db
-.agent/
-graphify-out/
+
+# Node
+node_modules/
 .next/
-*.log
-*.lic
-backend/keys/
-backend/app/data/
-backend/scripts/debug/debug_routes*.py
-backend/scripts/fixes/fix_enum*.py
-.pytest_cache/
-*.pyc
-.mypy_cache/
-.stestr/
+
+# IDE
+.vscode/
+.idea/
 *.swp
 *.swo
-*~
-.DS_Store?
-dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-data/
+
+# Control Center — private keys (NEVER commit)
+control-center/backend/keys/
+control-center/backend/updates/
+
+# Control Center — frontend build
+control-center/frontend/.next/
+control-center/frontend/node_modules/
+
+# Release artifacts
+zenova-*.zip
+zenova-*.tar.gz
+
+# Temp
+*.raw
+*.vdi
+temp/
+tmp/

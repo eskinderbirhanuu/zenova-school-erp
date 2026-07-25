@@ -1,56 +1,57 @@
 #!/usr/bin/env bash
-# Package ZENOVA release for customer deployment
-# Usage: ./package-release.sh v1.0.0
+# Package ZENOVA release for customer deployment.
+# Run from project root.
+# Usage: ./release/package-release.sh v1.0.0
 set -euo pipefail
 
 VERSION="${1:?Usage: $0 <version>}"
 RELEASE_DIR="zenova-${VERSION}"
 ARCHIVE="zenova-${VERSION}.zip"
 
-echo "==> Packaging ZENOVA ${VERSION}"
+echo "==> Packaging ZENOVA School ERP ${VERSION}"
+echo ""
 
-# 1. Build backend image
-echo "==> Building backend image..."
-docker build -t "zenova/backend:${VERSION}" ./backend
+# 1. Build images via school-erp builder
+echo "==> Building Docker images..."
+REGISTRY="zenova" ./school-erp/build.sh "${VERSION}"
 
-# 2. Build frontend image
-echo "==> Building frontend image..."
-docker build -t "zenova/frontend:${VERSION}" ./frontend
-
-# 3. Create release directory
+# 2. Create release directory
+rm -rf "${RELEASE_DIR}"
 mkdir -p "${RELEASE_DIR}"
 
-# 4. Export images
-echo "==> Exporting Docker images..."
+# 3. Export images
+echo "==> Exporting images..."
 docker save "zenova/backend:${VERSION}" | gzip > "${RELEASE_DIR}/zenova-backend-${VERSION}.tar.gz"
 docker save "zenova/frontend:${VERSION}" | gzip > "${RELEASE_DIR}/zenova-frontend-${VERSION}.tar.gz"
 
-# 5. Copy deployment files (NO SOURCE CODE)
-cp release/docker-compose.production.yml "${RELEASE_DIR}/docker-compose.yml"
-cp deploy/nginx/zenova.conf "${RELEASE_DIR}/nginx.conf"
-cp deploy/systemd/zenova.service "${RELEASE_DIR}/"
-cp deploy/setup-ubuntu.sh "${RELEASE_DIR}/"
-cp deploy/client-setup.md "${RELEASE_DIR}/"
-cp release/install.sh "${RELEASE_DIR}/"
-cp release/README.txt "${RELEASE_DIR}/"
+# 4. Copy deployment files (NO SOURCE CODE)
+echo "==> Copying deployment files..."
+cp school-erp/docker-compose.yml        "${RELEASE_DIR}/docker-compose.yml"
+cp school-erp/.env.example              "${RELEASE_DIR}/.env.example"
+cp school-erp/nginx.conf                "${RELEASE_DIR}/nginx.conf"
+cp -r school-erp/setup-wizard           "${RELEASE_DIR}/setup-wizard"
+cp release/README.txt                   "${RELEASE_DIR}/"
 
-# 6. Create checksums
+# 5. Create checksums
+echo "==> Creating checksums..."
 cd "${RELEASE_DIR}"
-sha256sum *.tar.gz *.yml *.sh > checksums.txt
+sha256sum *.tar.gz *.yml *.txt > checksums.txt
 cd ..
 
-# 7. Archive
+# 6. Archive
 echo "==> Creating ${ARCHIVE}..."
 zip -r "${ARCHIVE}" "${RELEASE_DIR}/"
+rm -rf "${RELEASE_DIR}"
 
+echo ""
 echo "==> Done: ${ARCHIVE}"
 echo "    Size: $(du -h "${ARCHIVE}" | cut -f1)"
 echo ""
-echo "    Deploy on server:"
-echo "    1. Upload ${ARCHIVE}"
-echo "    2. unzip ${ARCHIVE} -d zenova"
-echo "    3. cd zenova"
-echo "    4. docker load < zenova-backend-${VERSION}.tar.gz"
-echo "    5. docker load < zenova-frontend-${VERSION}.tar.gz"
-echo "    6. cp .env.example .env  # edit with real values"
-echo "    7. docker compose up -d"
+echo "=== Deployment Instructions ==="
+echo "1. Upload ${ARCHIVE} to server"
+echo "2. unzip ${ARCHIVE} -d zenova"
+echo "3. cd zenova"
+echo "4. docker load < zenova-backend-${VERSION}.tar.gz"
+echo "5. docker load < zenova-frontend-${VERSION}.tar.gz"
+echo "6. cp .env.example .env  # edit with license key"
+echo "7. docker compose up -d"

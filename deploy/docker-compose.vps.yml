@@ -1,3 +1,5 @@
+# ZENOVA School ERP — VPS Deployment (pre-built images)
+# Images built via school-erp/build.sh, loaded from tar.gz
 services:
   nginx:
     image: nginx:1.26-alpine
@@ -13,11 +15,6 @@ services:
         condition: service_healthy
       frontend:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
     restart: unless-stopped
 
   db:
@@ -49,9 +46,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
+    image: zenova/backend:${ZENOVA_VERSION:-latest}
     expose:
       - "8000"
     environment:
@@ -62,8 +57,9 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY required}
       ALLOWED_ORIGINS: "https://${DOMAIN},http://localhost:3000"
       CORS_ORIGINS: "https://${DOMAIN},http://localhost:3000"
-      SERVER_ID_FILE: /data/server_id.json
-      MASTER_SETUP_KEY: ${MASTER_SETUP_KEY:-}
+      ZENOVA_LICENSE_KEY: ${ZENOVA_LICENSE_KEY:-}
+      ZENOVA_LICENSE_SERVER: ${ZENOVA_LICENSE_SERVER:-https://superadmin.free.nf}
+      SCHOOL_ID: ${SCHOOL_ID:-}
     volumes:
       - server-data:/data
     healthcheck:
@@ -80,9 +76,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
+    image: zenova/frontend:${ZENOVA_VERSION:-latest}
     expose:
       - "3000"
     environment:
@@ -100,9 +94,7 @@ services:
     restart: unless-stopped
 
   sync-worker:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
+    image: zenova/backend:${ZENOVA_VERSION:-latest}
     entrypoint: ["python", "-m", "app.workers.sync_worker", "30"]
     environment:
       DATABASE_URL: "postgresql://${DB_USER:-zenova}:${DB_PASSWORD}@db:5432/${DB_NAME:-zenova_prod}"
@@ -116,20 +108,6 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
-
-  # license-server:
-  #   build:
-  #     context: ../license-server
-  #     dockerfile: Dockerfile
-  #   expose:
-  #     - "8001"
-  #   environment:
-  #     DATABASE_URL: "postgresql://${LICENSE_DB_USER:-zenova_license}:${LICENSE_DB_PASSWORD}@license-db:5432/${LICENSE_DB_NAME:-zenova_license}"
-  #     SECRET_KEY: ${LICENSE_SECRET_KEY}
-  #   depends_on:
-  #     license-db:
-  #       condition: service_healthy
-  #   restart: unless-stopped
 
   certbot:
     image: certbot/certbot

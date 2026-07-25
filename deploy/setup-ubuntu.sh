@@ -2,6 +2,7 @@
 # ZENOVA Ubuntu Server Auto-Setup
 # Run ONCE on the school's Ubuntu server.
 # This configures everything so ZENOVA starts automatically on boot.
+# Part of the three-part architecture — this deploys the School ERP.
 set -euo pipefail
 
 ZENOVA_USER="${ZENOVA_USER:-zenova}"
@@ -9,6 +10,7 @@ ZENOVA_HOME="/home/${ZENOVA_USER}"
 ZENOVA_DIR="${ZENOVA_DIR:-${ZENOVA_HOME}/zenova}"
 ZENOVA_STATIC_IP="${ZENOVA_STATIC_IP:-192.168.1.100}"
 ZENOVA_GATEWAY="${ZENOVA_GATEWAY:-192.168.1.1}"
+ZENOVA_VERSION="${ZENOVA_VERSION:-latest}"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -24,7 +26,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 echo "========================================"
-echo "  ZENOVA Ubuntu Server Setup"
+echo "  ZENOVA School ERP — Ubuntu Setup"
 echo "========================================"
 echo ""
 
@@ -41,7 +43,7 @@ if ! command -v docker &>/dev/null; then
     chmod a+r /etc/apt/keyrings/docker.asc
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     apt update
-    apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin php-cli
 fi
 info "Docker $(docker --version)"
 
@@ -63,21 +65,30 @@ if [ ! -d "${ZENOVA_DIR}" ]; then
     mkdir -p "${ZENOVA_DIR}"
 fi
 
-# If this script is running from the release package, copy files
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "${SCRIPT_DIR}/docker-compose.yml" ]; then
-    info "Copying deployment files from ${SCRIPT_DIR}..."
-    cp "${SCRIPT_DIR}/docker-compose.yml" "${ZENOVA_DIR}/"
-    cp "${SCRIPT_DIR}/.env" "${ZENOVA_DIR}/" 2>/dev/null || true
+    info "Copying deployment files..."
+    cp "${SCRIPT_DIR}/docker-compose.yml"  "${ZENOVA_DIR}/"
+    cp "${SCRIPT_DIR}/nginx.conf"          "${ZENOVA_DIR}/"
+    cp "${SCRIPT_DIR}/.env"               "${ZENOVA_DIR}/.env" 2>/dev/null || true
+    cp -r "${SCRIPT_DIR}/ssl"             "${ZENOVA_DIR}/" 2>/dev/null || true
+
+    # Load pre-built Docker images
+    for img in "${SCRIPT_DIR}"/zenova-backend-*.tar.gz "${SCRIPT_DIR}"/zenova-frontend-*.tar.gz; do
+        if [ -f "$img" ]; then
+            info "Loading Docker image: $(basename "$img")"
+            docker load < "$img"
+        fi
+    done
 fi
 
 chown -R "${ZENOVA_USER}:${ZENOVA_USER}" "${ZENOVA_DIR}"
 
 # ─── 6. Systemd service ─────────────────────────────────────
 info "Installing ZENOVA systemd service..."
-cat > /etc/systemd/system/zenova.service << 'SERVICE'
+cat > /etc/systemd/system/zenova.service << SERVICE
 [Unit]
-Description=ZENOVA ERP — School Management System
+Description=ZENOVA School ERP
 Requires=docker.service
 After=docker.service network.target
 
@@ -119,7 +130,6 @@ fi
 # ─── 8. Static IP (optional) ────────────────────────────────
 if [ "${ZENOVA_STATIC_IP}" != "dhcp" ]; then
     info "Configuring static IP ${ZENOVA_STATIC_IP}..."
-    # Find the main interface
     IFACE=$(ip -o -4 route show to default | awk '{print $5}' | head -1)
     if [ -n "${IFACE}" ]; then
         cat > /etc/netplan/01-zenova-static.yaml << NETPLAN
@@ -138,7 +148,7 @@ network:
           - 8.8.8.8
           - 1.1.1.1
 NETPLAN
-        netplan apply || warn "netplan apply failed — apply manually: sudo netplan apply"
+        netplan apply || warn "netplan apply failed — set static IP manually"
     else
         warn "Could not detect network interface — set static IP manually"
     fi
@@ -147,21 +157,22 @@ fi
 # ─── 9. Summary ─────────────────────────────────────────────
 echo ""
 echo "========================================"
-echo "  ZENOVA Ubuntu Setup Complete!"
+echo "  ZENOVA School ERP Setup Complete!"
 echo "========================================"
 echo ""
-echo "  ZENOVA directory: ${ZENOVA_DIR}"
-echo "  Auto-start:       enabled (systemd)"
-echo "  Docker:           enabled on boot"
-echo "  Static IP:        ${ZENOVA_STATIC_IP}"
+echo "  Directory:  ${ZENOVA_DIR}"
+echo "  Version:    ${ZENOVA_VERSION}"
+echo "  Auto-start: enabled (systemd)"
+echo "  Docker:     enabled on boot"
+echo "  Static IP:  ${ZENOVA_STATIC_IP}"
 echo ""
-echo "  To load Docker images and start:"
-echo "    cd ${ZENOVA_DIR}"
-echo "    docker compose up -d"
+echo "  To configure:"
+echo "    php -S 0.0.0.0:8080 -t ${ZENOVA_DIR}/setup-wizard"
 echo ""
-echo "  After setup, access at:"
-echo "    http://${ZENOVA_STATIC_IP}:3000"
-echo "    http://zenova.local:3000  (add to hosts file)"
+echo "  Then start:"
+echo "    cd ${ZENOVA_DIR} && docker compose up -d"
 echo ""
-echo "  Test auto-start:"
-echo "    sudo reboot"
+echo "  Access at:"
+echo "    http://${ZENOVA_STATIC_IP}"
+echo ""
+echo "  Test auto-start: sudo reboot"

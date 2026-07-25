@@ -1,0 +1,80 @@
+# ZENOVA Control Center — Admin VPS Deployment
+# Deployed on a separate private VPS for admin use only
+services:
+  nginx:
+    image: nginx:1.26-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.cc.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${CC_DB_USER:-cc_admin}
+      POSTGRES_PASSWORD: ${CC_DB_PASSWORD:?CC_DB_PASSWORD required}
+      POSTGRES_DB: ${CC_DB_NAME:-zenova_control}
+    volumes:
+      - cc-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CC_DB_USER:-cc_admin} -d ${CC_DB_NAME:-zenova_control}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../control-center/backend
+      dockerfile: Dockerfile
+    expose:
+      - "8001"
+    environment:
+      DATABASE_URL: "postgresql://${CC_DB_USER:-cc_admin}:${CC_DB_PASSWORD}@db:5432/${CC_DB_NAME:-zenova_control}"
+      ENVIRONMENT: "production"
+      SECRET_KEY: ${CC_SECRET_KEY:?CC_SECRET_KEY required}
+      UPLOAD_DIR: /data/updates
+      KEYS_DIR: /data/keys
+    volumes:
+      - cc-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../control-center/frontend
+      dockerfile: Dockerfile
+    expose:
+      - "3001"
+    environment:
+      NEXT_PUBLIC_API_URL: "https://${CC_DOMAIN}/api/v1"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  cc-pgdata:
+  cc-data:

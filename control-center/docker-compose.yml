@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zenova_cc
+      POSTGRES_PASSWORD: ${CC_DB_PASSWORD:-zenova_cc}
+      POSTGRES_DB: zenova_control
+    ports:
+      - "${CC_DB_PORT:-5433}:5432"
+    volumes:
+      - cc_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zenova_cc -d zenova_control"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "${CC_API_PORT:-8001}:8000"
+    environment:
+      DATABASE_URL: "postgresql://zenova_cc:${CC_DB_PASSWORD:-zenova_cc}@db:5432/zenova_control"
+      SECRET_KEY: "${CC_SECRET_KEY:?Set CC_SECRET_KEY}"
+      ENVIRONMENT: "${ENVIRONMENT:-development}"
+      SUPER_ADMIN_EMAIL: "${CC_ADMIN_EMAIL:-admin@zenova.app}"
+      SUPER_ADMIN_PASSWORD: "${CC_ADMIN_PASSWORD:?Set CC_ADMIN_PASSWORD}"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - cc_updates:/app/updates
+      - cc_keys:/app/keys
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${CC_UI_PORT:-3001}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:${CC_API_PORT:-8001}/api/v1"
+    depends_on:
+      - backend
+
+volumes:
+  cc_pgdata:
+  cc_updates:
+  cc_keys:
