@@ -24,7 +24,7 @@ def list_branches(
     current_user: User = Depends(get_current_user),
 ):
     q = db.query(Branch)
-    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+    if current_user.is_superuser or (current_user.can_include_deleted()):
         q = q.execution_options(include_deleted=True)
     if current_user.is_superuser and school_id:
         q = q.filter(Branch.school_id == school_id)
@@ -85,7 +85,7 @@ def get_branch(
     current_user: User = Depends(get_current_user),
 ):
     q = db.query(Branch).filter(Branch.id == branch_id, Branch.school_id == current_user.school_id)
-    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+    if current_user.is_superuser or (current_user.can_include_deleted()):
         q = q.execution_options(include_deleted=True)
     branch = q.first()
     if not branch:
@@ -101,7 +101,7 @@ def update_branch(
     current_user: User = require_permission(Permission.SCHOOL_MANAGE),
 ):
     q = db.query(Branch).filter(Branch.id == branch_id, Branch.school_id == current_user.school_id)
-    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+    if current_user.is_superuser or (current_user.can_include_deleted()):
         q = q.execution_options(include_deleted=True)
     branch = q.first()
     if not branch:

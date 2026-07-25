@@ -88,3 +88,17 @@ class User(Base):
     def get_permissions(self) -> set[str]:
         from app.core.permissions import get_user_permissions
         return get_user_permissions(self)
+
+    def can_include_deleted(self) -> bool:
+        """Whether this user is allowed to see soft-deleted records."""
+        if self.is_superuser:
+            return True
+        try:
+            for r in self.roles:
+                if r and r.name in ("ADMIN", "SUPER_ADMIN"):
+                    return True
+        except Exception:
+            pass
+        if self.role and self.role.name in ("ADMIN", "SUPER_ADMIN"):
+            return True
+        return False

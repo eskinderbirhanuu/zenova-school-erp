@@ -33,8 +33,6 @@ from app.utils.excel import parse_excel, excel_response
 router = APIRouter()
 
 FINANCE = [require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS)]
-FINANCE_DIRECTOR = [require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS)]
-FINANCE_ADMIN = [require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS)]
 VIEW_FINANCE = [require_permission(Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS, Permission.AUDIT_VIEW)]
 
 
@@ -48,7 +46,7 @@ def list_accounts(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(Account).filter(Account.school_id == current_user.school_id, Account.is_active == True)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -76,17 +74,17 @@ def list_journal_entries(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     return finance_service.get_journal_entries(db, current_user.school_id, limit, include_deleted=include_deleted, skip=skip)
 
 
 @router.get("/journal-entries/{entry_id}/lines", response_model=list[JournalLineResponse], dependencies=VIEW_FINANCE)
 def get_journal_lines(entry_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     return finance_service.get_journal_lines(db, entry_id, current_user.school_id, include_deleted=include_deleted)
 
 
-@router.post("/journal-entries/{entry_id}/reverse", dependencies=FINANCE_DIRECTOR)
+@router.post("/journal-entries/{entry_id}/reverse", dependencies=FINANCE)
 def reverse_entry(entry_id: str, reason: str = Query(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     finance_service.reverse_journal_entry(db, entry_id, reason, current_user.id, current_user.school_id)
     return {"message": "Entry reversed"}
@@ -102,7 +100,7 @@ def list_fee_types(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(FeeType).filter(FeeType.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -137,7 +135,7 @@ def list_fee_structures(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(FeeStructure).join(FeeType).filter(FeeType.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -163,7 +161,7 @@ def list_fee_assignments(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(FeeAssignment).join(FeeStructure, FeeAssignment.fee_structure_id == FeeStructure.id).join(FeeType).filter(FeeType.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -191,7 +189,7 @@ def list_invoices(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     return finance_service.get_invoices(db, current_user.school_id, student_id, status, include_deleted=include_deleted, skip=skip, limit=limit)
 
 
@@ -208,7 +206,7 @@ def list_payments(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     return finance_service.get_payments(db, current_user.school_id, invoice_id, student_id, include_deleted=include_deleted, skip=skip, limit=limit)
 
 
@@ -224,12 +222,12 @@ def wallet_transaction(student_id: str, data: WalletTransactionCreate, db: Sessi
 
 @router.get("/wallet/{student_id}/transactions", response_model=list[WalletTransactionResponse], dependencies=VIEW_FINANCE)
 def wallet_transactions(student_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     w = finance_service.get_wallet(db, student_id, current_user.school_id)
     return finance_service.get_wallet_transactions(db, w.id, current_user.school_id, include_deleted=include_deleted)
 
 
-@router.post("/scholarships", response_model=ScholarshipResponse, dependencies=FINANCE_DIRECTOR)
+@router.post("/scholarships", response_model=ScholarshipResponse, dependencies=FINANCE)
 def create_scholarship(data: ScholarshipCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return finance_service.create_scholarship(db, data, current_user.id, current_user.school_id)
 
@@ -240,7 +238,7 @@ def list_scholarships(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(Scholarship).filter(Scholarship.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -267,7 +265,7 @@ def list_periods(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(AccountingPeriod).filter(AccountingPeriod.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -302,7 +300,7 @@ def list_payroll_runs(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(PayrollRun).filter(PayrollRun.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -315,7 +313,7 @@ def list_payroll_runs(
     )
 
 
-@router.post("/payroll-runs/{run_id}/approve", dependencies=FINANCE_DIRECTOR)
+@router.post("/payroll-runs/{run_id}/approve", dependencies=FINANCE)
 def approve_payroll(run_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     finance_service.approve_payroll(db, run_id, current_user.id, current_user.school_id)
     return {"message": "Payroll approved"}
@@ -331,7 +329,7 @@ def list_budgets(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(Budget).filter(Budget.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -355,7 +353,7 @@ def list_budget_items(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(BudgetItem).join(Budget).filter(
         BudgetItem.budget_id == budget_id, Budget.school_id == current_user.school_id
     )
@@ -380,11 +378,11 @@ def list_purchase_requests(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     return finance_service.get_purchase_requests(db, current_user.school_id, include_deleted=include_deleted, skip=skip, limit=limit)
 
 
-@router.post("/purchase-requests/{pr_id}/approve", dependencies=FINANCE_DIRECTOR)
+@router.post("/purchase-requests/{pr_id}/approve", dependencies=FINANCE)
 def approve_purchase_request(pr_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     finance_service.approve_purchase_request(db, pr_id, current_user.id, current_user.school_id)
     return {"message": "Purchase request approved"}
@@ -400,7 +398,7 @@ def list_purchase_orders(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     return finance_service.get_purchase_orders(db, current_user.school_id, include_deleted=include_deleted, skip=skip, limit=limit)
 
 

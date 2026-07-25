@@ -1,5 +1,6 @@
 """Core authentication dependencies — safe for use from other core modules without circular imports."""
 import ipaddress
+import hmac
 from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -60,7 +61,7 @@ def require_csrf(request: Request, x_csrf_token: str = Header(None, alias="X-CSR
     csrf_cookie = request.cookies.get("csrf_token")
     if not x_csrf_token:
         raise ForbiddenException("Missing CSRF token")
-    if not csrf_cookie or x_csrf_token != csrf_cookie:
+    if not csrf_cookie or not hmac.compare_digest(x_csrf_token, csrf_cookie):
         raise ForbiddenException("Invalid CSRF token")
 
 

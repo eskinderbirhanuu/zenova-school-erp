@@ -1,0 +1,58 @@
+Always read docs before coding.
+Never violate documented rules.
+
+================================================================
+CORE RULES
+================================================================
+
+Teacher cannot register students.
+Only Registrar can register students.
+Parent Portal and Student Portal are cloud only.
+Finance must use Double Entry Accounting.
+No hard delete — soft delete only (deleted_at).
+Everything audited — every mutation logged.
+Outside school network: Admin, Director, Registrar, Teacher, Finance, HR, Inventory, Library, Cafeteria, Auditor become View Only.
+Super Admin exempt from network restrictions.
+Build only the requested phase.
+Do not generate future phases unless explicitly requested.
+
+================================================================
+COMPLETED PHASES
+================================================================
+
+Phase 1 (Foundation): Docker, FastAPI, PostgreSQL, Redis, SQLAlchemy, Alembic ✓
+Phase 2 (Auth): Login, register, JWT, refresh, logout, forgot/reset password, RBAC middleware ✓
+
+Phase 3 (License): ✅ seeds + verification logic in schema/models
+Phase 4 (Registration): ❌ Not started
+
+================================================================
+ARCHITECTURE
+================================================================
+
+Backend: FastAPI + SQLAlchemy + PostgreSQL + Redis
+Frontend: Next.js 15 + TypeScript + Tailwind + Shadcn
+Auth: JWT (access + refresh tokens), bcrypt passwords
+RBAC: 13 roles with permission matrix
+Audit: Every mutation logged with old/new values, user, IP, device
+
+================================================================
+DATABASE CONVENTION
+================================================================
+
+All models use UUID primary keys (String(36)).
+All models have created_at, updated_at, deleted_at (soft delete).
+Relationships use string FKs with ForeignKey("tablename.id").
+Use `from app.database import Base` for declarative base.
+
+================================================================
+SEED DATA
+================================================================
+
+13 roles: SUPER_ADMIN(100), ADMIN(80), DIRECTOR(60), REGISTRAR(50),
+TEACHER(45), FINANCE(50), HR(50), INVENTORY(50), LIBRARY(50),
+CAFETERIA(50), AUDITOR(40), PARENT(20), STUDENT(10)
+
+Default super admin: super@zenova.app / admin123
+Default school: DEFAULT
+Default branch: MAIN

@@ -39,7 +39,7 @@ def list_academic_years(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     result = academic_service.get_academic_years(db, current_user.school_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -67,7 +67,7 @@ def list_semesters(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     result = academic_service.get_semesters(db, current_user.school_id, academic_year_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -84,7 +84,7 @@ def list_classes(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     result = academic_service.get_classes(db, current_user.school_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -113,7 +113,7 @@ def list_sections(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     result = academic_service.get_sections(db, current_user.school_id, class_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -142,7 +142,7 @@ def list_subjects(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     result = academic_service.get_subjects(db, current_user.school_id, class_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -170,7 +170,7 @@ def list_classrooms(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     result = academic_service.get_classrooms(db, current_user.school_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -210,7 +210,7 @@ def get_timetable(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     result = academic_service.get_timetable(db, current_user.school_id, section_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -254,7 +254,7 @@ def list_exam_types(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     q = db.query(ExamType).filter(ExamType.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -283,7 +283,7 @@ def list_exams(
     semester_id: str = Query(None), db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     return academic_service.get_exams(db, current_user.school_id, class_id, subject_id, semester_id, include_deleted=include_deleted)
 
 
@@ -299,7 +299,7 @@ def update_exam_result(result_id: str, data: ExamResultUpdate, db: Session = Dep
 
 @router.get("/exam-results", response_model=list[ExamResultResponse])
 def list_exam_results(exam_id: str = Query(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN', 'DIRECTOR'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     return academic_service.get_exam_results(db, current_user.school_id, exam_id, include_deleted=include_deleted)
 
 

@@ -1,7 +1,10 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 from app.database import get_db
+
+logger = logging.getLogger("zenova.auth")
 from app.schemas.auth import (
     LoginRequest,
     RegisterRequest,
@@ -76,8 +79,8 @@ def _record_failed_login(db: Session, ip: str, identifier: str) -> None:
         redis.expire(ip_key, LOCKOUT_SECONDS)
         redis.incr(id_key)
         redis.expire(id_key, LOCKOUT_SECONDS)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to record failed login: %s", exc)
     auth_service.log_security_event(db, identifier, "LOGIN_FAILED", ip_address=ip)
 
 
@@ -85,8 +88,8 @@ def _clear_brute_force(redis, ip: str, identifier: str) -> None:
     try:
         redis.delete(f"bf:ip:{ip}")
         redis.delete(f"bf:id:{identifier}")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to clear brute force: %s", exc)
 
 
 MAX_CONCURRENT_SESSIONS = 5
@@ -119,16 +122,16 @@ def _unregister_session(redis, user_id: str, jti: str) -> None:
     """Remove a session when a user logs out or token is blacklisted."""
     try:
         redis.zrem(f"sessions:{user_id}", jti)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to unregister session: %s", exc)
 
 
 def _blacklist_token(redis, jti: str, exp: int) -> None:
     try:
         ttl = max(exp - int(datetime.now(timezone.utc).timestamp()), 1)
         redis.setex(f"token:bl:{jti}", ttl, "1")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to blacklist token: %s", exc)
 
 
 def _track_device(db: Session, user_id: str, fingerprint: str, ip: str, request: Request) -> None:

@@ -47,7 +47,7 @@ def search_parents(
     current_user: User = Depends(get_current_user),
 ):
     """Smart search parents (phone, ID, name)"""
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     parents = parent_service.smart_search_parents(db, data.query, current_user.school_id, include_deleted=include_deleted)
     return [
         ParentSearchResult(
@@ -68,7 +68,7 @@ def list_parents(
     q = db.query(type(parent_service.Parent)).filter(
         type(parent_service.Parent).school_id == current_user.school_id,
     )
-    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+    if current_user.is_superuser or (current_user.can_include_deleted()):
         q = q.execution_options(include_deleted=True)
     parents = q.offset(skip).limit(limit).all()
     return [ParentResponse.model_validate(p) for p in parents]
@@ -80,7 +80,7 @@ def get_parent(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     parent = parent_service.get_parent(db, parent_id, current_user.school_id, include_deleted=include_deleted)
     if not parent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")

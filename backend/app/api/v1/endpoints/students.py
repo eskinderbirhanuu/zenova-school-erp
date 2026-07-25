@@ -10,7 +10,9 @@ from app.schemas.student_document import StudentDocumentResponse, StudentDocumen
 from app.services import student_service, qr_service, nfc_service
 from app.api.v1.deps import get_current_user, require_licensed_feature
 from app.core.permissions import require_permission, Permission
+from app.core.pagination import paginate, build_paginated_response
 from app.models.user import User
+from app.models.student import Student
 from app.models.student_document import StudentDocument
 from app.models.report_card import PromotionRecord
 from app.utils.excel import parse_excel, excel_response
@@ -58,25 +60,43 @@ def create_student(
     return StudentResponse.model_validate(student)
 
 
-@router.get("/students", response_model=list[StudentResponse])
+@router.get("/students")
 def list_students(
     query: str | None = Query(None),
     grade_id: str | None = None,
     section_id: str | None = None,
     status: str | None = None,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List/search students"""
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
-    students = student_service.search_students(
-        db, query=query, grade_id=grade_id, section_id=section_id,
-        status=status, school_id=current_user.school_id,
-        skip=skip, limit=limit, include_deleted=include_deleted,
+    """List/search students with pagination"""
+    include_deleted = current_user.can_include_deleted()
+    q = db.query(Student).filter(Student.school_id == current_user.school_id)
+    if include_deleted:
+        q = q.execution_options(include_deleted=True)
+    if query:
+        like = f"%{query}%"
+        q = q.filter(db.or_(
+            Student.student_id.ilike(like),
+            Student.first_name.ilike(like),
+            Student.middle_name.ilike(like),
+            Student.last_name.ilike(like),
+        ))
+    if grade_id:
+        q = q.filter(Student.grade_id == grade_id)
+    if section_id:
+        q = q.filter(Student.section_id == section_id)
+    if status:
+        q = q.filter(Student.status == status)
+    q = q.order_by(Student.created_at.desc())
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    return build_paginated_response(
+        items=[StudentResponse.model_validate(s) for s in items],
+        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
     )
-    return [StudentResponse.model_validate(s) for s in students]
 
 
 @router.get("/students/{student_id}", response_model=StudentResponse)
@@ -85,7 +105,7 @@ def get_student(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.can_include_deleted()
     student = student_service.get_student(db, student_id, school_id=current_user.school_id, include_deleted=include_deleted)
     if not student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
@@ -221,7 +241,7 @@ def export_students_excel(
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.STUDENT_VIEW),
 ):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     students = student_service.search_students(db, school_id=current_user.school_id, limit=5000, include_deleted=include_deleted)
     headers = ["Student ID", "First Name", "Middle Name", "Last Name", "Gender", "Date of Birth",
                "Grade ID", "Section ID", "Status", "Address", "Nationality", "Blood Group",

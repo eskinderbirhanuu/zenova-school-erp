@@ -23,7 +23,7 @@ def create_category(data: BookCategoryCreate, db: Session = Depends(get_db), cur
 
 @router.get("/library/categories", response_model=list[BookCategoryResponse], dependencies=VIEW_LIBRARY)
 def list_categories(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN'))
+    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
     return library_service.get_categories(db, current_user.school_id, include_deleted=include_deleted)
 
 
@@ -93,7 +93,7 @@ def list_members(
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
     q = db.query(LibraryMember).filter(LibraryMember.school_id == current_user.school_id)
-    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+    if current_user.is_superuser or (current_user.can_include_deleted()):
         q = q.execution_options(include_deleted=True)
     q = q.order_by(LibraryMember.created_at.desc())
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
@@ -110,7 +110,7 @@ def list_fines(
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
     q = db.query(LibraryFine).filter(LibraryFine.school_id == current_user.school_id)
-    if current_user.is_superuser or (hasattr(current_user, 'role') and current_user.role and current_user.role.name in ('ADMIN', 'SUPER_ADMIN')):
+    if current_user.is_superuser or (current_user.can_include_deleted()):
         q = q.execution_options(include_deleted=True)
     q = q.order_by(LibraryFine.created_at.desc())
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
