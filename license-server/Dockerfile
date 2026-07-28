@@ -11,4 +11,4 @@ RUN mkdir -p /app/data && chmod 777 /app/data
 
 EXPOSE 8000
 
-CMD mkdir -p /app/data && uvicorn app.main:app --host 0.0.0.0 --port 8000
+CMD ["sh", "-c", "mkdir -p /app/data && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
