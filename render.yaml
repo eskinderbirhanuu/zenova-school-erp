@@ -2,7 +2,7 @@ services:
   - type: web
     name: zenova-license-server
     runtime: docker
-    repo: https://github.com/johntaf/zenova
+    repo: https://github.com/eskinderbirhanuu/zenova-school-erp.git
     rootDir: license-server
     dockerfilePath: Dockerfile
     envVars:
