@@ -498,10 +498,15 @@ def verify_license_file(
         license_data = json.loads(base64.b64decode(license_b64))
         payload = license_data["payload"]
         signature = base64.b64decode(license_data["signature"])
-        payload_json = json.dumps(payload, separators=(",", ":"))
+        # Use payload_b64 if available (v3 format) — this is the EXACT bytes that were signed
+        if "payload_b64" in license_data:
+            payload_bytes = base64.b64decode(license_data["payload_b64"])
+        else:
+            # Fallback for legacy v1/v2 format
+            payload_bytes = json.dumps(payload, separators=(",", ":")).encode()
         public_key.verify(
             signature,
-            payload_json.encode(),
+            payload_bytes,
             padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=32),
             hashes.SHA256(),
         )
@@ -550,7 +555,7 @@ def _verify_cloud_license(key: str, fingerprint: str, tpm_sealed: str | None = N
             "environment": environment or get_active_environment(),
         }
         resp = httpx.post(
-            f"{settings.license_server_url}/api/v1/license/verify",
+            f"{settings.license_server_url}/api/v1/license/school-verify",
             json=payload,
             timeout=10,
         )
@@ -607,7 +612,7 @@ def validate_license_at_startup(db: Session) -> dict:
                         school_id=license_record.school_id,
                     )
         except Exception:
-            pass
+            logger.warning("TPM unseal raised unexpected exception")
 
     # Check hardware binding — use 75% component-level matching when available
     if license_record.machine_fingerprint:
@@ -756,7 +761,7 @@ def get_cached_license_status() -> dict:
         if cached:
             return json.loads(cached)
     except Exception:
-        pass
+        logger.warning("Failed to read license status from Redis cache")
 
     db = SessionLocal()
     try:
@@ -766,7 +771,7 @@ def get_cached_license_status() -> dict:
             r = get_redis()
             r.setex("license:status", 1800, json.dumps(status))
         except Exception:
-            pass
+            logger.warning("Failed to write license status to Redis cache")
         return status
     finally:
         db.close()
@@ -777,7 +782,7 @@ def invalidate_license_cache():
         r = get_redis()
         r.delete("license:status")
     except Exception:
-        pass
+        logger.warning("Failed to invalidate license cache in Redis")
 
 
 def bind_license_to_hardware(db: Session, license_id: str):
@@ -801,6 +806,6 @@ def bind_license_to_hardware(db: Session, license_id: str):
             from app.services.tpm_service import seal_license_data
             lic.tpm_sealed_data = seal_license_data(fingerprint)
         except Exception:
-            pass
+            logger.debug("TPM seal unavailable during hardware binding (non-critical)")
         db.commit()
         invalidate_license_cache()

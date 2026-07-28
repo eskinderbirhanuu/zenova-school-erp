@@ -6,8 +6,7 @@ from app.schemas.library import BookCategoryCreate, BookCategoryResponse, BookCr
 from app.schemas.pagination import PaginatedResponse
 from app.core.pagination import paginate, build_paginated_response
 from app.services import library_service
-from app.models.library import Book
-
+from app.models.library import Book, BookBorrowing
 from app.models.library_member import LibraryMember
 from app.models.library_fine import LibraryFine
 
@@ -23,7 +22,7 @@ def create_category(data: BookCategoryCreate, db: Session = Depends(get_db), cur
 
 @router.get("/library/categories", response_model=list[BookCategoryResponse], dependencies=VIEW_LIBRARY)
 def list_categories(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     return library_service.get_categories(db, current_user.school_id, include_deleted=include_deleted)
 
 
@@ -74,7 +73,6 @@ def list_borrowings(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    from app.models.library import BookBorrowing
     q = db.query(BookBorrowing).filter(BookBorrowing.school_id == current_user.school_id)
     if status:
         q = q.filter(BookBorrowing.status == status)
@@ -93,7 +91,7 @@ def list_members(
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
     q = db.query(LibraryMember).filter(LibraryMember.school_id == current_user.school_id)
-    if current_user.is_superuser or (current_user.can_include_deleted()):
+    if current_user.can_include_deleted():
         q = q.execution_options(include_deleted=True)
     q = q.order_by(LibraryMember.created_at.desc())
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
@@ -110,7 +108,7 @@ def list_fines(
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
     q = db.query(LibraryFine).filter(LibraryFine.school_id == current_user.school_id)
-    if current_user.is_superuser or (current_user.can_include_deleted()):
+    if current_user.can_include_deleted():
         q = q.execution_options(include_deleted=True)
     q = q.order_by(LibraryFine.created_at.desc())
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)

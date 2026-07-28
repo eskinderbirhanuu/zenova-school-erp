@@ -562,7 +562,7 @@ class TestDeviceHistory:
         user = MagicMock()
         user.school_id = "school-1"
 
-        with patch("app.services.license_crypto.get_short_fingerprint", return_value="abc12345"):
+        with patch("app.api.v1.endpoints.licenses.get_short_fingerprint", return_value="abc12345"):
             result = get_device_change_history(db=db, current_user=user)
 
         assert result.device == "abc12345"

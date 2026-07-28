@@ -6,6 +6,7 @@ from app.core.permissions import require_permission, Permission
 from app.schemas.notification import TelegramBotConnectRequest, TelegramBotResponse
 from app.services import telegram_bot_service
 from app.models.user import User
+import json
 
 router = APIRouter(tags=["telegram"])
 ADMIN = [require_permission(Permission.SETTINGS_MANAGE, Permission.AUDIT_VIEW)]

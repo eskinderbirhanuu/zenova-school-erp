@@ -23,7 +23,7 @@ def list_events(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(Event).filter(Event.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)

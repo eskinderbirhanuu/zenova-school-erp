@@ -5,12 +5,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import School, SchoolLicense, LicenseStatus
 from app.services.school_service import get_school_stats, count_schools
+from app.api.v1.endpoints.auth import get_current_admin
 
 router = APIRouter()
 
 
 @router.get("/dashboard")
-def admin_dashboard(db: Session = Depends(get_db)):
+def admin_dashboard(db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
     stats = get_school_stats(db)
 
     # License stats
@@ -26,7 +27,7 @@ def admin_dashboard(db: Session = Depends(get_db)):
 
 
 @router.get("/schools")
-def admin_schools(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def admin_schools(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
     from app.services.school_service import list_schools, count_schools
     schools = list_schools(db, skip, limit)
     total = count_schools(db)

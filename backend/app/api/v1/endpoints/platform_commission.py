@@ -1,7 +1,7 @@
 """Platform Commission API Endpoints — director dashboard, super admin dashboard, invoice payment."""
 import logging
 from decimal import Decimal
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -74,16 +74,16 @@ def pay_platform_invoice(
 
     school = db.query(School).filter(School.id == current_user.school_id).first()
 
-    gateway = PaymentGatewayFactory.get_gateway("chapa", db=db, school_id=current_user.school_id)
+    gateway = PaymentGatewayFactory.get_gateway(settings.payment_gateway, db=db, school_id=current_user.school_id)
 
     try:
         result = gateway.initialize_payment(
             amount=inv.total_amount,
-            currency="ETB",
-            email=current_user.email or "platform@zenova.com",
+            currency=settings.payment_currency,
+            email=current_user.email or settings.payment_platform_email,
             first_name=school.name if school else "School",
             last_name="Platform Fee",
-            tx_ref=f"PINV-{inv.invoice_number}",
+            tx_ref=f"{settings.payment_invoice_prefix}{inv.invoice_number}",
             callback_url=f"{settings.base_url}/api/v1/platform/invoice/webhook",
             return_url=f"{settings.base_url}/platform/invoice/success?invoice={inv.invoice_number}",
             description=f"Platform fee invoice {inv.invoice_number}",
@@ -111,14 +111,15 @@ async def platform_invoice_webhook(
     tx_ref = data.get("tx_ref", "")
     status = data.get("status", "")
 
-    gateway = PaymentGatewayFactory.get_gateway("chapa", db=db)
+    gateway = PaymentGatewayFactory.get_gateway(settings.payment_gateway, db=db)
     signature = request.headers.get("X-Chapa-Signature", "")
     if not gateway.verify_webhook_signature(payload, signature):
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
     try:
-        if status == "success" and tx_ref.startswith("PINV-"):
-            invoice_number = tx_ref.replace("PINV-", "")
+        prefix = settings.payment_invoice_prefix
+        if status == "success" and tx_ref.startswith(prefix):
+            invoice_number = tx_ref.replace(prefix, "")
             inv = db.query(MonthlyPlatformInvoice).filter(
                 MonthlyPlatformInvoice.invoice_number == invoice_number,
             ).with_for_update().first()
@@ -135,7 +136,7 @@ async def platform_invoice_webhook(
 
 @router.get("/platform/reports/daily")
 def daily_revenue_report(
-    date_str: Optional[str] = None,
+    date_str: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -160,7 +161,7 @@ def daily_revenue_report(
 
 @router.get("/platform/reports/monthly")
 def monthly_revenue_report(
-    month: Optional[int] = None,
+    month: int | None = None,
     year: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

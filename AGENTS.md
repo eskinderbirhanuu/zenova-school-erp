@@ -1,6 +1,6 @@
 ## docs
 
-Consolidated documentation is in `docs/` (14 files). See `docs/README.md` for the index. Originals archived at `docs/archive/`.
+Consolidated documentation is in `docs/` (16 files). See `docs/README.md` for the index. Originals archived at `docs/archive/`.
 
 ## enterprise-architecture
 
@@ -73,3 +73,37 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## work-state
+
+### Completed
+- **Dashboard widget system**: 14 shared components in `frontend/src/components/dashboard/` (bar-chart, area-chart, feed, placeholder, health-radar, alert-center, activity-table, metric-badges, now-teaching, timeline, funnel, grades-list, child-selector, fees-list) + `dashboard-shell.tsx` + `widget-registry.ts` + `types.ts`
+- **All 15 dashboard pages migrated**: 14 use `DashboardShell` with shared widgets; root `/dashboard` converted from standalone to `DashboardShell`
+- **Backend code quality**: 35+ fixes across 29 endpoint files (silent exceptions → logged, inline imports → module level, N+1 queries → joinedload, large functions decomposed, kwargs → model_dump, hardcoded values → settings)
+- **457 backend tests passing** (up from 445) — zero failures
+- **Frontend build**: 230/230 pages generated, compiles in ~80s
+- **License server**: Reviewed and fixed 8 P0/P1 issues (DB init, missing heartbeat endpoint, missing __init__.py files, unauthenticated verify endpoint for school servers, CORS credentials bug, public admin endpoints, Python verifier payload_b64 bug, offset-naive/aware datetime comparison bug)
+- **License server E2E tested**: Full flow verified locally (register school → login → generate license → school-verify → valid:true → heartbeat received)
+- **License server deployment**: Dockerfile, docker-compose.yml, deploy.sh license mode, .env.license.example
+- **Documentation**: `docs/API.md` (285 lines), `docs/DEPLOYMENT.md` (276 lines), `docs/CUSTOMER.md` (145 lines), `docs/DRY_RUN_CHECKLIST.md` (90 lines), `docs/CODE_QUALITY.md` created/rewritten
+- **Frontend E2E tests**: 10 Playwright spec files (auth, login, dashboard, admin, payments, nfc, teacher, student, registrar)
+- **Frontend unit tests**: vitest.config.ts + DashboardShell.test.tsx
+- **Deployment scripts**: Fixed 5 minor issues (ZENOVA_DIR validation, DB port security comment, setup-wizard existence check, SSL_COUNTRY env var, date format)
+
+### Remaining for production readiness
+- Deploy license server to Render.com (free Docker): `deploy/deploy.sh license`
+- Run Playwright E2E tests (needs display/Linux): `npm run test:e2e`
+- Production dry-run on blank Ubuntu server (see `docs/DRY_RUN_CHECKLIST.md`)
+- Verify control-center deployment: `deploy/deploy.sh cc`
+
+### Key files
+- `AGENTS.md` — This file (project memory for AI agents)
+- `PROJECT_CONSTITUTION.md` — 24-article constitution for all engineering decisions
+- `backend/app/config.py` — Settings class with 60+ fields
+- `backend/app/database.py:6-30` — Soft-delete event listener
+- `backend/.env.example` — 109-line env template
+- `license-server/` — Cloud license validation API (FastAPI, SQLite)
+- `frontend/src/components/dashboard/` — 14 shared widget components + shell + registry
+- `frontend/e2e/` — 10 Playwright E2E test files
+- `deploy/deploy.sh` — Deployment script (school|cc|license modes)
+- `docs/` — 16 documentation files

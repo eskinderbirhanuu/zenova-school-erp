@@ -67,7 +67,7 @@ def list_staff(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     staff = staff_service.list_staff(db, current_user.school_id, role_name, include_deleted=include_deleted)
     return [StaffListResult(**s) for s in staff]
 
@@ -78,7 +78,7 @@ def get_staff(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     result = staff_service.get_staff_by_id(db, id, current_user.school_id, include_deleted=include_deleted)
     if not result:
         raise HTTPException(404, "Staff not found")

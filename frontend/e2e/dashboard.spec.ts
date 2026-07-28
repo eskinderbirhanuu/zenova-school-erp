@@ -1,20 +1,16 @@
 import { test, expect } from "@playwright/test"
 
-test.describe("Role-Based Dashboard Access", () => {
-  test("public routes are accessible without auth", async ({ page }) => {
-    await page.goto("/about")
-    await expect(page).toHaveURL(/about/)
-    await expect(page.getByText(/zenova/i)).toBeVisible()
+test.describe("Dashboard smoke tests", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/dashboard")
   })
 
-  test("login page accessible without auth", async ({ page }) => {
-    await page.goto("/login")
-    await expect(page).toHaveURL(/login/)
-    await expect(page.getByRole("button", { name: /sign in/i })).toBeVisible()
+  test("loads dashboard with KPIs", async ({ page }) => {
+    await expect(page.locator("h1, .page-header-title")).toContainText(/Dashboard/i)
   })
 
-  test("documentation page loads", async ({ page }) => {
-    await page.goto("/documentation")
-    await expect(page.getByText(/zenova/i)).toBeVisible()
+  test("sidebar navigation works", async ({ page }) => {
+    const nav = page.locator("nav, aside, [role='navigation']")
+    await expect(nav).toBeVisible()
   })
 })

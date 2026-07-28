@@ -46,7 +46,7 @@ def list_accounts(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(Account).filter(Account.school_id == current_user.school_id, Account.is_active == True)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -74,13 +74,13 @@ def list_journal_entries(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     return finance_service.get_journal_entries(db, current_user.school_id, limit, include_deleted=include_deleted, skip=skip)
 
 
 @router.get("/journal-entries/{entry_id}/lines", response_model=list[JournalLineResponse], dependencies=VIEW_FINANCE)
 def get_journal_lines(entry_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     return finance_service.get_journal_lines(db, entry_id, current_user.school_id, include_deleted=include_deleted)
 
 
@@ -100,7 +100,7 @@ def list_fee_types(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(FeeType).filter(FeeType.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -135,7 +135,7 @@ def list_fee_structures(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(FeeStructure).join(FeeType).filter(FeeType.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -161,7 +161,7 @@ def list_fee_assignments(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(FeeAssignment).join(FeeStructure, FeeAssignment.fee_structure_id == FeeStructure.id).join(FeeType).filter(FeeType.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -189,7 +189,7 @@ def list_invoices(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     return finance_service.get_invoices(db, current_user.school_id, student_id, status, include_deleted=include_deleted, skip=skip, limit=limit)
 
 
@@ -206,7 +206,7 @@ def list_payments(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     return finance_service.get_payments(db, current_user.school_id, invoice_id, student_id, include_deleted=include_deleted, skip=skip, limit=limit)
 
 
@@ -222,7 +222,7 @@ def wallet_transaction(student_id: str, data: WalletTransactionCreate, db: Sessi
 
 @router.get("/wallet/{student_id}/transactions", response_model=list[WalletTransactionResponse], dependencies=VIEW_FINANCE)
 def wallet_transactions(student_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     w = finance_service.get_wallet(db, student_id, current_user.school_id)
     return finance_service.get_wallet_transactions(db, w.id, current_user.school_id, include_deleted=include_deleted)
 
@@ -238,7 +238,7 @@ def list_scholarships(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(Scholarship).filter(Scholarship.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -265,7 +265,7 @@ def list_periods(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(AccountingPeriod).filter(AccountingPeriod.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -300,7 +300,7 @@ def list_payroll_runs(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(PayrollRun).filter(PayrollRun.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -329,7 +329,7 @@ def list_budgets(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(Budget).filter(Budget.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -353,7 +353,7 @@ def list_budget_items(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(BudgetItem).join(Budget).filter(
         BudgetItem.budget_id == budget_id, Budget.school_id == current_user.school_id
     )
@@ -378,7 +378,7 @@ def list_purchase_requests(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     return finance_service.get_purchase_requests(db, current_user.school_id, include_deleted=include_deleted, skip=skip, limit=limit)
 
 
@@ -398,7 +398,7 @@ def list_purchase_orders(
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     return finance_service.get_purchase_orders(db, current_user.school_id, include_deleted=include_deleted, skip=skip, limit=limit)
 
 

@@ -29,6 +29,10 @@ echo "==> Copying deployment files..."
 cp school-erp/docker-compose.yml        "${RELEASE_DIR}/docker-compose.yml"
 cp school-erp/.env.example              "${RELEASE_DIR}/.env.example"
 cp school-erp/nginx.conf                "${RELEASE_DIR}/nginx.conf"
+if [ ! -d "school-erp/setup-wizard" ]; then
+    echo "ERROR: setup-wizard directory not found at school-erp/setup-wizard"
+    exit 1
+fi
 cp -r school-erp/setup-wizard           "${RELEASE_DIR}/setup-wizard"
 cp release/README.txt                   "${RELEASE_DIR}/"
 

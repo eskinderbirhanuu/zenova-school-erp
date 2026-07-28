@@ -28,6 +28,8 @@ from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.license import License, LicenseStatus
 from app.models.device_change_request import DeviceChangeRequest
+from app.models.school import School
+from app.services.license_crypto import get_short_fingerprint
 
 router = APIRouter(tags=["licenses"])
 
@@ -65,10 +67,12 @@ def list_licenses(
     current_user: User = require_permission(Permission.LICENSE_MANAGE),
 ):
     """List all licenses (SUPER_ADMIN only)"""
-    licenses = db.query(License).execution_options(include_deleted=True).order_by(License.created_at.desc()).all()
+    base_q = db.query(License).execution_options(include_deleted=True)
+    total = base_q.count()
+    licenses = base_q.order_by(License.created_at.desc()).all()
     return LicenseListResponse(
         licenses=[LicenseResponse.model_validate(l) for l in licenses],
-        total=len(licenses),
+        total=total,
     )
 
 
@@ -160,9 +164,7 @@ def list_device_changes(
     current_user: User = require_permission(Permission.DEVICE_REVIEW),
 ):
     """List device change requests (SUPER_ADMIN / licensed admin only)."""
-    query = db.query(DeviceChangeRequest).filter(
-        DeviceChangeRequest.deleted_at.is_(None),
-    )
+    query = db.query(DeviceChangeRequest).execution_options(include_deleted=True)
     if status_filter:
         query = query.filter(DeviceChangeRequest.status == status_filter)
     requests = query.order_by(DeviceChangeRequest.created_at.desc()).all()
@@ -225,10 +227,8 @@ def get_device_change_history(
     school_id = current_user.school_id
     requests = db.query(DeviceChangeRequest).filter(
         DeviceChangeRequest.school_id == school_id,
-        DeviceChangeRequest.deleted_at.is_(None),
-    ).order_by(DeviceChangeRequest.created_at.desc()).limit(50).all()
+    ).execution_options(include_deleted=True).order_by(DeviceChangeRequest.created_at.desc()).limit(50).all()
 
-    from app.services.license_crypto import get_short_fingerprint
     return DeviceChangeHistoryResponse(
         device=get_short_fingerprint(),
         changes=[DeviceChangeRequestResponse.model_validate(r) for r in requests],
@@ -241,16 +241,13 @@ def get_all_device_change_history(
     current_user: User = require_permission(Permission.DEVICE_REVIEW),
 ):
     """Get device change history across all schools (SUPER_ADMIN only)."""
-    from app.models.school import School
-
-    schools = db.query(School).filter(School.deleted_at.is_(None)).all()
+    schools = db.query(School).execution_options(include_deleted=True).all()
     school_ids = [s.id for s in schools]
 
     # Batch-load device change requests to avoid N+1 queries
     all_requests = db.query(DeviceChangeRequest).filter(
         DeviceChangeRequest.school_id.in_(school_ids),
-        DeviceChangeRequest.deleted_at.is_(None),
-    ).order_by(DeviceChangeRequest.created_at.desc()).all() if school_ids else []
+    ).execution_options(include_deleted=True).order_by(DeviceChangeRequest.created_at.desc()).all() if school_ids else []
 
     # Group requests by school_id
     requests_by_school = {}
@@ -261,7 +258,6 @@ def get_all_device_change_history(
     for school in schools:
         requests = requests_by_school.get(school.id, [])[:20]
         if requests:
-            from app.services.license_crypto import get_short_fingerprint
             result.append(DeviceChangeHistoryResponse(
                 device=f"{school.name} ({get_short_fingerprint()})",
                 changes=[DeviceChangeRequestResponse.model_validate(r) for r in requests],

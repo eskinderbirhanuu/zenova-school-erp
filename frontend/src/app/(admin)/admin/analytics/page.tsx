@@ -10,6 +10,7 @@ import {
 import { Users, DollarSign, GraduationCap, Loader2, ScanLine } from "lucide-react"
 import api from "@/services/api"
 import { useDashboardOverview, useDashboardTrends } from "@/hooks/queries"
+import { formatCurrency } from "@/lib/currency"
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2, 210 80% 55%))", "hsl(var(--chart-3, 142 70% 50%))", "hsl(var(--chart-4, 30 90% 55%))"]
 
@@ -56,7 +57,7 @@ export default function AdminAnalytics() {
         <KPICard title="Total Students" value={String(totals.students || 0)} icon={GraduationCap} iconColor="text-blue-600" />
         <KPICard title="Teachers" value={String(totals.teachers || 0)} icon={Users} iconColor="text-green-600" />
         <KPICard title="Staff" value={String(totals.staff || 0)} icon={Users} iconColor="text-emerald-600" />
-        <KPICard title="Revenue" value={`$${Number(finance.revenue || 0).toLocaleString()}`} icon={DollarSign} iconColor="text-yellow-600" />
+        <KPICard title="Revenue" value={formatCurrency(finance.revenue || 0)} icon={DollarSign} iconColor="text-yellow-600" />
         <KPICard title="Attendance Today" value={String(todayAtt)} icon={ScanLine} iconColor="text-purple-600" />
       </div>
 

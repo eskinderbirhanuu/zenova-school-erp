@@ -10,11 +10,16 @@ from app.models.models import SchoolLicense, LicenseStatus
 from app.core.config import settings
 
 
+def _utcnow() -> datetime:
+    """Return naive UTC datetime (compatible with SQLite storage)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def generate_license_key(school_id: str, license_type: str = "main") -> str:
     """Generate a deterministic license key.
     Format: ZNV-{TYPE}-{BASE58_HASH}-{CRC32}
     """
-    raw = f"{school_id}:{license_type}:{uuid.uuid4().hex}:{datetime.now(timezone.utc).isoformat()}"
+    raw = f"{school_id}:{license_type}:{uuid.uuid4().hex}:{_utcnow().isoformat()}"
     hash_part = hashlib.sha256(raw.encode()).hexdigest()[:16].upper()
     crc = zlib_crc32(hash_part)
     type_code = license_type[0].upper() if license_type else "M"
@@ -34,17 +39,19 @@ def create_license(db: Session, school_id: str, license_type: str = "main",
     if valid_until:
         try:
             until = datetime.fromisoformat(valid_until)
+            if until.tzinfo is not None:
+                until = until.replace(tzinfo=None)
         except (ValueError, TypeError):
-            until = datetime.now(timezone.utc) + timedelta(days=365)
+            until = _utcnow() + timedelta(days=365)
     else:
-        until = datetime.now(timezone.utc) + timedelta(days=365)
+        until = _utcnow() + timedelta(days=365)
 
     lic = SchoolLicense(
         school_id=school_id,
         key=key,
         license_type=license_type,
         status=LicenseStatus.ACTIVE.value,
-        valid_from=datetime.now(timezone.utc),
+        valid_from=_utcnow(),
         valid_until=until,
         max_users=max_users,
         max_branches=max_branches,
@@ -69,13 +76,13 @@ def verify_license(db: Session, key: str, machine_fingerprint: Optional[str] = N
     if lic.status == LicenseStatus.EXPIRED.value:
         return {"valid": False, "message": "License has expired"}
 
-    if lic.valid_until and lic.valid_until < datetime.now(timezone.utc):
+    if lic.valid_until and lic.valid_until < _utcnow():
         lic.status = LicenseStatus.EXPIRED.value
         db.commit()
         return {"valid": False, "message": "License has expired"}
 
     # Update last verified timestamp
-    lic.last_verified_at = datetime.now(timezone.utc)
+    lic.last_verified_at = _utcnow()
     if machine_fingerprint:
         if lic.machine_fingerprint and lic.machine_fingerprint != machine_fingerprint:
             return {"valid": False, "message": "Hardware fingerprint mismatch"}
@@ -101,7 +108,7 @@ def activate_license(db: Session, key: str, machine_fingerprint: str) -> dict:
         return {"activated": False, "message": "Already bound to different hardware"}
 
     lic.machine_fingerprint = machine_fingerprint
-    lic.last_verified_at = datetime.now(timezone.utc)
+    lic.last_verified_at = _utcnow()
     db.commit()
     return {"activated": True, "message": "License activated successfully"}
 

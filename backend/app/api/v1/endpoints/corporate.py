@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.schemas.corporate import (
     CorporateDepartmentCreate, CorporateDepartmentUpdate, CorporateDepartmentResponse,
@@ -13,6 +13,11 @@ from app.api.v1.deps import get_current_user
 from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.corporate_employee import CorporateEmployee
+
+def _employee_to_response(emp: CorporateEmployee) -> CorporateEmployeeResponse:
+    dept = emp.department.name if emp.department else None
+    return CorporateEmployeeResponse(**emp.__dict__, department_name=dept)
+
 
 router = APIRouter(tags=["corporate"])
 
@@ -61,7 +66,7 @@ def list_employees(
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.CORPORATE_EMPLOYEE_VIEW),
 ):
-    q = db.query(CorporateEmployee)
+    q = db.query(CorporateEmployee).options(joinedload(CorporateEmployee.department))
     if department_id:
         q = q.filter(CorporateEmployee.department_id == department_id)
     if status:
@@ -69,10 +74,7 @@ def list_employees(
     q = q.order_by(CorporateEmployee.full_name)
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
     items = paginated_q.all()
-    result = []
-    for emp in items:
-        d = emp.department.name if emp.department else None
-        result.append(CorporateEmployeeResponse(**emp.__dict__, department_name=d))
+    result = [_employee_to_response(emp) for emp in items]
     return build_paginated_response(
         items=result,
         total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
@@ -86,21 +88,10 @@ def create_employee(
     current_user: User = require_permission(Permission.CORPORATE_EMPLOYEE_CREATE),
 ):
     emp = corporate_service.create_employee(
-        db=db,
-        full_name=data.full_name,
-        email=data.email,
-        user_id=data.user_id,
-        phone=data.phone,
-        department_id=data.department_id,
-        position=data.position,
-        photo_url=data.photo_url,
-        employment_date=data.employment_date,
-        employment_type=data.employment_type,
+        **data.model_dump(),
         created_by=current_user.id,
     )
-    dept = emp.department.name if emp.department else None
-    resp = CorporateEmployeeResponse(**emp.__dict__, department_name=dept)
-    return resp
+    return _employee_to_response(emp)
 
 
 @router.get("/corporate/employees/{emp_id}", response_model=CorporateEmployeeResponse)
@@ -112,8 +103,7 @@ def get_employee(
     emp = corporate_service.get_employee(db, emp_id)
     if not emp:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
-    dept = emp.department.name if emp.department else None
-    return CorporateEmployeeResponse(**emp.__dict__, department_name=dept)
+    return _employee_to_response(emp)
 
 
 @router.patch("/corporate/employees/{emp_id}", response_model=CorporateEmployeeResponse)
@@ -126,8 +116,7 @@ def update_employee(
     emp = corporate_service.update_employee(db, emp_id, data.model_dump(exclude_unset=True), current_user.id)
     if not emp:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
-    dept = emp.department.name if emp.department else None
-    return CorporateEmployeeResponse(**emp.__dict__, department_name=dept)
+    return _employee_to_response(emp)
 
 
 @router.delete("/corporate/employees/{emp_id}", status_code=status.HTTP_204_NO_CONTENT)

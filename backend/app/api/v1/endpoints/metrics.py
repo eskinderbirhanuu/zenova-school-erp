@@ -30,7 +30,7 @@ user_count = Gauge("zenova_users_total", "Total registered users")
 
 class MetricsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if request.url.path == "/api/v1/metrics":
+        if request.url.path.endswith("/metrics"):
             return await call_next(request)
         path = request.url.path
         method = request.method

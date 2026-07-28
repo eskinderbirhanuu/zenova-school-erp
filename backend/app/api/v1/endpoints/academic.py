@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
 from app.core.permissions import require_permission, Permission
 from app.models.assignment import Assignment
-from app.models.exam import Exam
+from app.models.exam import Exam, ExamResult
+from app.models.section import Section
 from app.models.student import Student
 from app.models.teacher_profile import TeacherProfile
 from app.schemas.academic import (
@@ -26,6 +27,9 @@ from app.core.pagination import paginate, build_paginated_response
 from app.services import academic_service
 from app.utils.excel import parse_excel, excel_response
 
+def _get_current_academic_year(db: Session) -> AcademicYear | None:
+    return db.query(AcademicYear).filter(AcademicYear.is_current == True).first()
+
 router = APIRouter()
 
 DIRECTOR_CREATE = [require_permission(Permission.STUDENT_CREATE)]
@@ -39,7 +43,7 @@ def list_academic_years(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     result = academic_service.get_academic_years(db, current_user.school_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -67,7 +71,7 @@ def list_semesters(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     result = academic_service.get_semesters(db, current_user.school_id, academic_year_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -84,7 +88,7 @@ def list_classes(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     result = academic_service.get_classes(db, current_user.school_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -113,7 +117,7 @@ def list_sections(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     result = academic_service.get_sections(db, current_user.school_id, class_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -142,7 +146,7 @@ def list_subjects(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     result = academic_service.get_subjects(db, current_user.school_id, class_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -170,7 +174,7 @@ def list_classrooms(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     result = academic_service.get_classrooms(db, current_user.school_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -210,7 +214,7 @@ def get_timetable(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     result = academic_service.get_timetable(db, current_user.school_id, section_id, include_deleted=include_deleted)
     return result[skip:skip + limit]
 
@@ -223,7 +227,7 @@ def get_teacher_timetable(db: Session = Depends(get_db), current_user=Depends(ge
         if current_user.role and current_user.role.name in ("ADMIN", "DIRECTOR"):
             teacher_id = current_user.id
         else:
-            raise HTTPException(status_code=400, detail="User is not a teacher")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User is not a teacher")
     return db.query(TimetableEntry).filter(
         TimetableEntry.school_id == current_user.school_id,
         TimetableEntry.teacher_id == teacher_id,
@@ -254,7 +258,7 @@ def list_exam_types(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     q = db.query(ExamType).filter(ExamType.school_id == current_user.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -283,7 +287,7 @@ def list_exams(
     semester_id: str = Query(None), db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     return academic_service.get_exams(db, current_user.school_id, class_id, subject_id, semester_id, include_deleted=include_deleted)
 
 
@@ -299,7 +303,7 @@ def update_exam_result(result_id: str, data: ExamResultUpdate, db: Session = Dep
 
 @router.get("/exam-results", response_model=list[ExamResultResponse])
 def list_exam_results(exam_id: str = Query(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     return academic_service.get_exam_results(db, current_user.school_id, exam_id, include_deleted=include_deleted)
 
 
@@ -308,9 +312,6 @@ def marksheet_view(
     subject_id: str = Query(...), section_id: str = Query(...),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    from app.models.section import Section
-    from app.models.exam import ExamResult
-
     section = db.query(Section).filter(Section.id == section_id, Section.school_id == current_user.school_id).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
@@ -319,7 +320,6 @@ def marksheet_view(
         Student.section_id == section_id, Student.school_id == current_user.school_id
     ).order_by(Student.first_name).all()
 
-    from app.models.exam import Exam
     exams = db.query(Exam).filter(
         Exam.subject_id == subject_id, Exam.school_id == current_user.school_id
     ).order_by(Exam.exam_date).all()
@@ -366,10 +366,7 @@ def marksheet_view(
 
 @router.post("/promotions", response_model=PromotionResponse, dependencies=DIRECTOR_CREATE)
 def promote_student(data: PromotionCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    year = db.query(AcademicYear).filter(
-        AcademicYear.school_id == current_user.school_id,
-        AcademicYear.is_current == True
-    ).first()
+    year = _get_current_academic_year(db)
     academic_year_id = year.id if year else None
     return academic_service.promote_student(db, current_user.school_id, data.student_id, data.to_class_id, academic_year_id, current_user.id)
 
@@ -387,10 +384,7 @@ def bulk_create_exam_results(data: BulkExamResultCreate, db: Session = Depends(g
 
 @router.post("/promotions/bulk", dependencies=DIRECTOR_CREATE)
 def bulk_promote_students(data: BulkPromotionCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    year = db.query(AcademicYear).filter(
-        AcademicYear.school_id == current_user.school_id,
-        AcademicYear.is_current == True
-    ).first()
+    year = _get_current_academic_year(db)
     academic_year_id = year.id if year else None
     promoted = academic_service.bulk_promote_students(db, data.student_ids, data.to_class_id, academic_year_id, current_user.id, current_user.school_id)
     return {"message": f"{len(promoted)} students promoted", "count": len(promoted)}
@@ -404,18 +398,24 @@ def import_exam_results_excel(
 ):
     data = parse_excel(file)
     results = []
+    exam_max_scores: dict[str, float] = {}
     for row in data:
         exam_id = row.get("exam_id")
         student_id = row.get("student_id")
         score = row.get("score")
         if not exam_id or not student_id:
             continue
+        if exam_id not in exam_max_scores:
+            exam = db.query(Exam).filter(Exam.id == exam_id).first()
+            exam_max_scores[exam_id] = float(exam.max_score) if exam and exam.max_score else 100
+        max_score = exam_max_scores[exam_id]
         try:
             score_val = float(score) if score else 0
         except ValueError:
             score_val = 0
-        from app.schemas.academic import ExamResultCreate as ERC
-        results.append(ERC(exam_id=exam_id, student_id=student_id, score=score_val, remarks=row.get("remarks")))
+        if score_val < 0 or score_val > max_score:
+            continue
+        results.append(ExamResultCreate(exam_id=exam_id, student_id=student_id, score=score_val, remarks=row.get("remarks")))
     created = academic_service.bulk_create_exam_results(db, current_user.school_id, results, current_user.id)
     return {"message": f"{len(created)} results imported", "count": len(created)}
 

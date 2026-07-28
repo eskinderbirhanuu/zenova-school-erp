@@ -18,15 +18,15 @@ from app.schemas.license import (
 from app.services import license_service
 from app.api.v1.deps import get_current_user, rate_limit as _rate_limit
 from app.core.permissions import require_permission, Permission
+from app.models.user import User
+from app.models.school import School
+from app.models.branch import Branch
+from app.models.license import License
 
 SETUP_STATUS_LIMIT = _rate_limit("setup_status", limit=60, window_seconds=60)
 SETUP_VALIDATE_LIMIT = _rate_limit("setup_validate", limit=20, window_seconds=300)
 SETUP_INIT_LIMIT = _rate_limit("setup_init", limit=3, window_seconds=3600)
 SETUP_MANAGE_LIMIT = _rate_limit("setup_manage", limit=10, window_seconds=60)
-from app.models.user import User
-from app.models.school import School
-from app.models.branch import Branch
-from app.models.license import License
 
 router = APIRouter(tags=["setup"])
 
@@ -96,25 +96,7 @@ def public_initialize_system(data: SetupInitializeRequest, db: Session = Depends
     if not main["valid"] or not branch["valid"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="License validation failed")
 
-    result = license_service.initialize_system(
-        db,
-        main_key=data.main_key,
-        branch_key=data.branch_key,
-        school_name=data.school_name,
-        school_code=data.school_code,
-        logo_url=data.logo_url,
-        country=data.country,
-        region=data.region,
-        city=data.city,
-        address=data.address,
-        phone=data.phone,
-        email=data.email,
-        timezone=data.timezone,
-        admin_full_name=data.admin_full_name,
-        admin_email=data.admin_email,
-        admin_phone=data.admin_phone,
-        admin_password=data.admin_password,
-    )
+    result = license_service.initialize_system(db, **data.model_dump())
     if not result["success"]:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result["message"])
     return SetupInitializeResponse(**result)
@@ -131,10 +113,7 @@ def setup_create_school(
 ):
     """Create an additional school (requires auth)"""
     try:
-        school = license_service.create_school(
-            db, name=data.name, code=data.code,
-            address=data.address, phone=data.phone, email=data.email,
-        )
+        school = license_service.create_school(db, **data.model_dump())
         return SchoolResponse.model_validate(school)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -150,10 +129,7 @@ def setup_create_branch(
 ):
     """Create an additional branch (requires auth)"""
     try:
-        branch = license_service.create_branch(
-            db, school_id=school_id, name=data.name, code=data.code,
-            address=data.address, phone=data.phone, email=data.email,
-        )
+        branch = license_service.create_branch(db, school_id=school_id, **data.model_dump())
         return BranchResponse.model_validate(branch)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -171,9 +147,7 @@ def setup_create_admin(
     """Create an admin user for an existing school (requires auth)"""
     try:
         admin = license_service.create_setup_admin(
-            db, school_id=school_id, branch_id=branch_id,
-            full_name=data.full_name, email=data.email,
-            password=data.password, phone=data.phone,
+            db, school_id=school_id, branch_id=branch_id, **data.model_dump()
         )
         return SetupAdminResponse(
             user_id=admin.id,

@@ -31,7 +31,7 @@ services:
       POSTGRES_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env}"
       POSTGRES_DB: zenova_db
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-5432}:5432"  # SECURITY: only expose if needed; remove for isolated setups
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

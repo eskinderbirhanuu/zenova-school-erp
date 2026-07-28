@@ -17,6 +17,22 @@ import uuid
 router = APIRouter(tags=["report-cards"])
 
 
+def _build_result_map(results, exams):
+    result_map = {}
+    for r in results:
+        exam = next((e for e in exams if e.id == r.exam_id), None)
+        if exam and exam.subject_id:
+            if exam.subject_id not in result_map:
+                result_map[exam.subject_id] = []
+            result_map[exam.subject_id].append({
+                "exam_name": exam.name,
+                "score": r.score,
+                "max_score": exam.max_score,
+                "grade": r.grade,
+            })
+    return result_map
+
+
 @router.get("/report-cards", response_model=list[ReportCardResponse])
 def list_report_cards(
     student_id: str = Query(None),
@@ -83,43 +99,14 @@ def generate_report_card(
         ExamResult.exam_id.in_(exam_ids),
     ).all() if exam_ids else []
 
-    result_map = {}
-    for r in results:
-        exam = next((e for e in exams if e.id == r.exam_id), None)
-        if exam and exam.subject_id:
-            if exam.subject_id not in result_map:
-                result_map[exam.subject_id] = []
-            result_map[exam.subject_id].append({
-                "exam_name": exam.name,
-                "score": r.score,
-                "max_score": exam.max_score,
-                "grade": r.grade,
-            })
+    result_map = _build_result_map(results, exams)
 
     subjects = db.query(Subject).filter(
         Subject.id.in_(list(result_map.keys())),
     ).all() if result_map else []
     subject_map = {s.id: s.name for s in subjects}
 
-    subject_grades = []
-    total_pct = 0
-    count = 0
-    for subj_id, scores in result_map.items():
-        avg = sum(s["score"] for s in scores) / len(scores)
-        max_avg = sum(s["max_score"] for s in scores) / len(scores) if scores else 1
-        pct = round((avg / max_avg) * 100, 1) if max_avg > 0 else 0
-        letter = compute_grade(pct)
-        subject_grades.append({
-            "subject": subject_map.get(subj_id, "Unknown"),
-            "average": round(avg, 1),
-            "max": round(max_avg, 1),
-            "percentage": pct,
-            "grade": letter,
-            "exams": scores,
-        })
-        total_pct += pct
-        count += 1
-
+    subject_grades, total_pct, count = compute_subject_grades(result_map, subject_map)
     overall = round(total_pct / count, 1) if count > 0 else 0
     overall_grade = compute_grade(overall)
 
@@ -176,18 +163,7 @@ def get_report_card(
         ExamResult.exam_id.in_(exam_ids),
     ).all() if exam_ids else []
 
-    result_map = {}
-    for r in results:
-        exam = next((e for e in exams if e.id == r.exam_id), None)
-        if exam and exam.subject_id:
-            if exam.subject_id not in result_map:
-                result_map[exam.subject_id] = []
-            result_map[exam.subject_id].append({
-                "exam_name": exam.name,
-                "score": r.score,
-                "max_score": exam.max_score,
-                "grade": r.grade,
-            })
+    result_map = _build_result_map(results, exams)
 
     subjects = db.query(Subject).filter(
         Subject.id.in_(list(result_map.keys())),

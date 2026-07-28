@@ -15,7 +15,7 @@ from app.models.notification_preference import NotificationPreference
 
 router = APIRouter()
 ADMIN = [require_permission(Permission.SETTINGS_MANAGE)]
-ALL = [
+_ALL_PERMS = [
     require_permission(
         Permission.STUDENT_VIEW,
         Permission.FINANCE_ENTRY,
@@ -25,16 +25,18 @@ ALL = [
         Permission.CAFETERIA_POS,
     ),
 ]
-MESSAGING = [
-    require_permission(
-        Permission.STUDENT_VIEW,
-        Permission.FINANCE_ENTRY,
-        Permission.HR_MANAGE,
-        Permission.INVENTORY_MANAGE,
-        Permission.LIBRARY_MANAGE,
-        Permission.CAFETERIA_POS,
-    ),
-]
+ALL = _ALL_PERMS
+MESSAGING = _ALL_PERMS
+
+
+def _ensure_notification_prefs(db: Session, user_id: str) -> NotificationPreference:
+    pref = db.query(NotificationPreference).filter(NotificationPreference.user_id == user_id).first()
+    if not pref:
+        pref = NotificationPreference(user_id=user_id)
+        db.add(pref)
+        db.commit()
+        db.refresh(pref)
+    return pref
 
 
 @router.post("/announcements", response_model=AnnouncementResponse, dependencies=ADMIN)
@@ -109,9 +111,10 @@ def list_messages(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db), current_user=Depends(get_current_user),
 ):
-    q = db.query(Message).filter(
-        (Message.recipient_id == current_user.id) | (Message.sender_id == current_user.id) if include_sent else (Message.recipient_id == current_user.id)
-    ).order_by(Message.created_at.desc())
+    q = db.query(Message).filter(Message.recipient_id == current_user.id)
+    if include_sent:
+        q = q.filter((Message.recipient_id == current_user.id) | (Message.sender_id == current_user.id))
+    q = q.order_by(Message.created_at.desc())
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
     messages = paginated_q.all()
     sender_ids = {m.sender_id for m in messages}
@@ -141,21 +144,12 @@ def mark_message_read(message_id: str, db: Session = Depends(get_db), current_us
 
 @router.get("/notifications/preferences", response_model=NotificationPreferenceResponse)
 def get_notification_preferences(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    pref = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
-    if not pref:
-        pref = NotificationPreference(user_id=current_user.id)
-        db.add(pref)
-        db.commit()
-        db.refresh(pref)
-    return pref
+    return _ensure_notification_prefs(db, current_user.id)
 
 
 @router.put("/notifications/preferences", response_model=NotificationPreferenceResponse)
 def update_notification_preferences(data: NotificationPreferenceUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    pref = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
-    if not pref:
-        pref = NotificationPreference(user_id=current_user.id)
-        db.add(pref)
+    pref = _ensure_notification_prefs(db, current_user.id)
     if data.email_on is not None:
         pref.email_on = data.email_on
     if data.telegram_on is not None:

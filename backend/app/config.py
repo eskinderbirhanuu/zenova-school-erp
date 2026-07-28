@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     master_setup_key: str = ""
     trusted_networks: str = ""  # Comma-separated CIDR: "192.168.0.0/16,10.0.0.0/8"
     sync_secret: str = ""  # Shared secret for HMAC sync auth
+    sync_clock_skew: int = 60  # Allowed clock skew in seconds for sync HMAC verification
 
     smtp_host: str = ""
     smtp_port: int = 587
@@ -51,6 +52,7 @@ class Settings(BaseSettings):
     email_from_address: str = "noreply@zenova.com"
 
     telegram_webhook_base_url: str = ""
+    password_recovery_code_ttl: int = 600
     archive_retention_attendance_days: int = 730
     archive_retention_notifications_days: int = 180
     archive_retention_audit_logs_days: int = 365
@@ -73,6 +75,15 @@ class Settings(BaseSettings):
     license_offline_grace_days: int = 45
     chapa_api_url: str = "https://api.chapa.co/v1"
     feature_chapa: bool = False
+
+    payment_gateway: str = "chapa"
+    payment_currency: str = "ETB"
+    payment_platform_email: str = "platform@zenova.com"
+    payment_invoice_prefix: str = "PINV-"
+    attendance_utc_offset: int = 3
+    attendance_window_start: str = "08:00"
+    attendance_window_end: str = "10:00"
+    db_password: str = ""
 
     @property
     def is_production(self) -> bool:

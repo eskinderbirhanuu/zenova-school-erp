@@ -33,6 +33,8 @@ class LicenseKeyGenerate(BaseModel):
 class LicenseVerifyRequest(BaseModel):
     key: str
     machine_fingerprint: Optional[str] = None
+    tpm_sealed: Optional[str] = None
+    environment: Optional[str] = None
 
 
 class LicenseVerifyResponse(BaseModel):

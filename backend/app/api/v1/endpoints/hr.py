@@ -21,10 +21,6 @@ from app.services import hr_service
 router = APIRouter(tags=["hr"])
 
 
-def _include_deleted(ctx: AuthContext) -> bool:
-    return ctx.is_superuser or ctx.role in ("ADMIN", "SUPER_ADMIN")
-
-
 @router.post("/contracts", response_model=ContractResponse)
 def create_contract(data: ContractCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
     ctx.require_permission(Permission.HR_MANAGE)
@@ -38,7 +34,7 @@ def list_contracts(
     db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context),
 ):
     ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
-    include_deleted = _include_deleted(ctx)
+    include_deleted = ctx.can_include_deleted
     q = db.query(EmployeeContract).filter(EmployeeContract.school_id == ctx.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -70,7 +66,7 @@ def create_leave_type(data: LeaveTypeCreate, db: Session = Depends(get_db), ctx:
 @router.get("/leave-types", response_model=list[LeaveTypeResponse])
 def list_leave_types(db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
     ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
-    include_deleted = _include_deleted(ctx)
+    include_deleted = ctx.can_include_deleted
     return hr_service.get_leave_types(db, ctx.school_id, include_deleted=include_deleted)
 
 
@@ -87,7 +83,7 @@ def list_leave_requests(
     db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)
 ):
     ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
-    include_deleted = _include_deleted(ctx)
+    include_deleted = ctx.can_include_deleted
     from app.models.staff_profile import StaffProfile
     q = db.query(LeaveRequest).join(
         StaffProfile, LeaveRequest.staff_profile_id == StaffProfile.id
@@ -127,7 +123,7 @@ def get_leave_balances(
     db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)
 ):
     ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
-    include_deleted = _include_deleted(ctx)
+    include_deleted = ctx.can_include_deleted
     return hr_service.get_leave_balances(db, ctx.school_id, staff_profile_id, year, include_deleted=include_deleted)
 
 
@@ -144,7 +140,7 @@ def list_reviews(
     db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context),
 ):
     ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
-    include_deleted = _include_deleted(ctx)
+    include_deleted = ctx.can_include_deleted
     q = db.query(PerformanceReview).filter(PerformanceReview.school_id == ctx.school_id)
     if include_deleted:
         q = q.execution_options(include_deleted=True)
@@ -164,6 +160,6 @@ def list_jobs(skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
               db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
     ctx.require_permission(Permission.HR_MANAGE, Permission.STAFF_CREATE)
     q = db.query(JobPosting).filter(JobPosting.school_id == ctx.school_id)
-    if _include_deleted(ctx):
+    if ctx.can_include_deleted:
         q = q.execution_options(include_deleted=True)
     return q.order_by(JobPosting.created_at.desc()).offset(skip).limit(limit).all()

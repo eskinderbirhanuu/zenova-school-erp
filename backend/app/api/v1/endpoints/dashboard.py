@@ -38,60 +38,97 @@ def dashboard_overview(
     )
 
 
+def _count_students(db: Session, school_id: int | None, is_super: bool) -> int:
+    q = db.query(func.count(Student.id)).filter(Student.deleted_at.is_(None))
+    if not is_super:
+        q = q.filter(Student.school_id == school_id)
+    return q.scalar() or 0
+
+
+def _count_teachers(db: Session, school_id: int | None, is_super: bool) -> int:
+    q = db.query(func.count(TeacherProfile.id))
+    if not is_super:
+        q = q.filter(TeacherProfile.school_id == school_id)
+    return q.scalar() or 0
+
+
+def _count_staff(db: Session, school_id: int | None, is_super: bool) -> int:
+    q = db.query(func.count(StaffProfile.id))
+    if not is_super:
+        q = q.filter(StaffProfile.school_id == school_id)
+    return q.scalar() or 0
+
+
+def _count_parents(db: Session, school_id: int | None, is_super: bool) -> int:
+    q = db.query(func.count(Parent.id))
+    if not is_super:
+        q = q.filter(Parent.school_id == school_id)
+    return q.scalar() or 0
+
+
+def _count_branches(db: Session, school_id: int | None, is_super: bool) -> int:
+    q = db.query(func.count(Branch.id)).filter(Branch.deleted_at.is_(None))
+    if not is_super:
+        q = q.filter(Branch.school_id == school_id)
+    return q.scalar() or 0
+
+
+def _count_events(db: Session, school_id: int | None, is_super: bool) -> int:
+    now = datetime.now(timezone.utc)
+    q = db.query(func.count(Event.id)).filter(Event.start_date >= now)
+    if not is_super:
+        q = q.filter(Event.school_id == school_id)
+    return q.scalar() or 0
+
+
+def _compute_revenue(db: Session, school_id: int | None, is_super: bool) -> float:
+    q = db.query(func.coalesce(func.sum(Payment.amount), 0))
+    if not is_super:
+        q = q.filter(Payment.school_id == school_id)
+    return q.scalar() or 0
+
+
+def _count_pending_invoices(db: Session, school_id: int | None, is_super: bool) -> int:
+    q = db.query(func.count(Invoice.id)).filter(Invoice.status == "pending")
+    if not is_super:
+        q = q.filter(Invoice.school_id == school_id)
+    return q.scalar() or 0
+
+
+def _get_recent_activity(db: Session, school_id: int | None, is_super: bool):
+    q = db.query(AuditLog)
+    if not is_super:
+        q = q.filter(AuditLog.school_id == school_id)
+    return q.order_by(AuditLog.created_at.desc()).limit(10).all()
+
+
 def _compute_dashboard_overview(db: Session, current_user: User):
     school_id = current_user.school_id
     is_super = school_id is None
 
+    students = _count_students(db, school_id, is_super)
+    teachers = _count_teachers(db, school_id, is_super)
+    staff = _count_staff(db, school_id, is_super)
+    parents = _count_parents(db, school_id, is_super)
+    branches = _count_branches(db, school_id, is_super)
+    events = _count_events(db, school_id, is_super)
+    revenue = _compute_revenue(db, school_id, is_super)
+    pending_invoices = _count_pending_invoices(db, school_id, is_super)
+    recent_activity = _get_recent_activity(db, school_id, is_super)
+
     if is_super:
-        students = db.query(func.count(Student.id)).filter(Student.deleted_at.is_(None)).scalar() or 0
-        teachers = db.query(func.count(TeacherProfile.id)).scalar() or 0
-        staff = db.query(func.count(StaffProfile.id)).scalar() or 0
-        parents = db.query(func.count(Parent.id)).scalar() or 0
-        branches = db.query(func.count(Branch.id)).filter(Branch.deleted_at.is_(None)).scalar() or 0
-        events = db.query(func.count(Event.id)).filter(Event.start_date >= datetime.now(timezone.utc)).scalar() or 0
-        revenue = db.query(func.coalesce(func.sum(Payment.amount), 0)).scalar() or 0
-        pending_invoices = db.query(func.count(Invoice.id)).filter(Invoice.status == "pending").scalar() or 0
         all_schools = db.query(func.count(School.id)).filter(School.deleted_at.is_(None)).scalar() or 0
         active_licenses = db.query(func.count(License.id)).filter(License.status == "active").scalar() or 0
         servers = db.query(ServerIdentity.server_role, func.count(ServerIdentity.id)).group_by(ServerIdentity.server_role).all()
         server_counts = {r: c for r, c in servers}
-        recent_activity = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(10).all()
         academic_year = None
     else:
-        students = db.query(func.count(Student.id)).filter(
-            Student.school_id == school_id, Student.deleted_at.is_(None)
-        ).scalar() or 0
-        teachers = db.query(func.count(TeacherProfile.id)).filter(
-            TeacherProfile.school_id == school_id
-        ).scalar() or 0
-        staff = db.query(func.count(StaffProfile.id)).filter(
-            StaffProfile.school_id == school_id
-        ).scalar() or 0
-        parents = db.query(func.count(Parent.id)).filter(
-            Parent.school_id == school_id
-        ).scalar() or 0
-        branches = db.query(func.count(Branch.id)).filter(
-            Branch.school_id == school_id, Branch.deleted_at.is_(None)
-        ).scalar() or 0
-        academic_year = db.query(AcademicYear).filter(
-            AcademicYear.school_id == school_id, AcademicYear.is_current == True
-        ).first()
-        now = datetime.now(timezone.utc)
-        events = db.query(func.count(Event.id)).filter(
-            Event.school_id == school_id, Event.start_date >= now
-        ).scalar() or 0
-        revenue = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
-            Payment.school_id == school_id
-        ).scalar() or 0
-        pending_invoices = db.query(func.count(Invoice.id)).filter(
-            Invoice.school_id == school_id, Invoice.status == "pending"
-        ).scalar() or 0
-        recent_activity = db.query(AuditLog).filter(
-            AuditLog.school_id == school_id
-        ).order_by(AuditLog.created_at.desc()).limit(10).all()
         all_schools = 0
         active_licenses = 0
         server_counts = {}
+        academic_year = db.query(AcademicYear).filter(
+            AcademicYear.school_id == school_id, AcademicYear.is_current == True
+        ).first()
 
     alerts = []
     now_utc = datetime.now(timezone.utc)
@@ -154,6 +191,21 @@ def _compute_dashboard_overview(db: Session, current_user: User):
     }
 
 
+def _rows_to_month_map(rows, value_extractor):
+    for r in rows:
+        key = f"{int(r.year)}-{int(r.month):02d}"
+        yield key, value_extractor(r)
+
+
+def _fill_month_trend(data_map, key_name, months, now, month_labels):
+    trend = []
+    for i in range(months):
+        d = now - relativedelta(months=months - 1 - i)
+        key = d.strftime("%Y-%m")
+        trend.append({"month": month_labels[i], key_name: data_map.get(key, 0)})
+    return trend
+
+
 @router.get("/dashboard/trends")
 def dashboard_trends(
     months: int = 12,
@@ -202,28 +254,13 @@ def dashboard_trends(
         func.count(Student.id).label("cnt"),
     ).filter(*stu_filter).group_by("year", "month").order_by("year", "month").all()
 
-    school_map = {}
-    rev_map = {}
-    enroll_map = {}
-    for r in school_rows:
-        key = f"{int(r.year)}-{int(r.month):02d}"
-        school_map[key] = r.cnt
-    for r in revenue_rows:
-        key = f"{int(r.year)}-{int(r.month):02d}"
-        rev_map[key] = float(r.total)
-    for r in enrollment_rows:
-        key = f"{int(r.year)}-{int(r.month):02d}"
-        enroll_map[key] = r.cnt
+    school_map = dict(_rows_to_month_map(school_rows, lambda r: r.cnt))
+    rev_map = dict(_rows_to_month_map(revenue_rows, lambda r: float(r.total)))
+    enroll_map = dict(_rows_to_month_map(enrollment_rows, lambda r: r.cnt))
 
-    school_trend = []
-    rev_trend = []
-    enrollment_trend = []
-    for i in range(months):
-        d = now - relativedelta(months=months - 1 - i)
-        key = d.strftime("%Y-%m")
-        school_trend.append({"month": month_labels[i], "schools": school_map.get(key, 0)})
-        rev_trend.append({"month": month_labels[i], "revenue": rev_map.get(key, 0)})
-        enrollment_trend.append({"month": month_labels[i], "students": enroll_map.get(key, 0)})
+    school_trend = _fill_month_trend(school_map, "schools", months, now, month_labels)
+    rev_trend = _fill_month_trend(rev_map, "revenue", months, now, month_labels)
+    enrollment_trend = _fill_month_trend(enroll_map, "students", months, now, month_labels)
 
     return {
         "school_growth": school_trend,

@@ -2,7 +2,7 @@ import hmac
 import hashlib
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -12,10 +12,12 @@ from app.models.user import User
 from app.models.sync_queue import SyncQueue, SyncStatus
 from app.services import sync_service
 from app.core.server_identity import get_server_identity
+from app.config import settings
 
 router = APIRouter(tags=["sync"])
 
-ALLOWED_CLOCK_SKEW = 60
+# Allowed clock skew for sync HMAC expiry — sourced from config for deploy-time override
+ALLOWED_CLOCK_SKEW = settings.sync_clock_skew
 
 
 @router.get("/sync/status")
@@ -83,7 +85,6 @@ def purge_old_sync(
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
-    from datetime import datetime, timedelta
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     deleted = db.query(SyncQueue).filter(
         SyncQueue.synced_at.isnot(None),
@@ -91,6 +92,20 @@ def purge_old_sync(
     ).delete(synchronize_session=False)
     db.commit()
     return {"purged": deleted}
+
+
+def _verify_sync_signature(payload: dict, signature: str, secret: str, server_id: str, sync_ts: str) -> bool:
+    body_str = json.dumps(payload, sort_keys=True, default=str)
+    body_hash = hashlib.sha256(body_str.encode()).hexdigest()
+    # New format: {server_id}.{ts}.{body_hash}
+    msg_new = f"{server_id}.{sync_ts}.{body_hash}".encode()
+    expected_new = hmac.new(secret.encode(), msg_new, hashlib.sha256).hexdigest()
+    if hmac.compare_digest(expected_new, signature):
+        return True
+    # Fallback to old format for backward compatibility: {server_id}.{ts}
+    msg_old = f"{server_id}.{sync_ts}".encode()
+    expected_old = hmac.new(secret.encode(), msg_old, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected_old, signature)
 
 
 @router.post("/sync/receive")
@@ -111,19 +126,7 @@ def receive_sync(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Bad timestamp")
     if abs(int(time.time()) - ts) > ALLOWED_CLOCK_SKEW:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Stale sync payload")
-    # Compute body hash for full-payload HMAC (critical: prevents replay with payload swap)
-    body_str = json.dumps(payload, sort_keys=True, default=str)
-    body_hash = hashlib.sha256(body_str.encode()).hexdigest()
-    
-    # New signature format: {server_id}.{ts}.{body_hash}
-    # Fallback to old format for backward compatibility
-    msg_new = f"{x_zenova_server_id}.{x_zenova_sync_ts}.{body_hash}".encode()
-    expected_new = hmac.new(secret.encode(), msg_new, hashlib.sha256).hexdigest()
-    
-    msg_old = f"{x_zenova_server_id}.{x_zenova_sync_ts}".encode()
-    expected_old = hmac.new(secret.encode(), msg_old, hashlib.sha256).hexdigest()
-    
-    if not hmac.compare_digest(expected_new, x_zenova_sync_sig) and not hmac.compare_digest(expected_old, x_zenova_sync_sig):
+    if not _verify_sync_signature(payload, x_zenova_sync_sig, secret, x_zenova_server_id, x_zenova_sync_ts):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
 
     table = payload.get("table")

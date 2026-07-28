@@ -1,0 +1,27 @@
+services:
+  license-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zenova/license-server:latest
+    container_name: zenova-license-server
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - license_data:/app/data
+    environment:
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL:-super@zenova.app}
+      - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD:?SUPER_ADMIN_PASSWORD is required}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/zenova_cloud.db}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["*"]}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/license/ping').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  license_data:

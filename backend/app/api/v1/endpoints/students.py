@@ -241,7 +241,7 @@ def export_students_excel(
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.STUDENT_VIEW),
 ):
-    include_deleted = current_user.is_superuser or (current_user.can_include_deleted())
+    include_deleted = current_user.can_include_deleted()
     students = student_service.search_students(db, school_id=current_user.school_id, limit=5000, include_deleted=include_deleted)
     headers = ["Student ID", "First Name", "Middle Name", "Last Name", "Gender", "Date of Birth",
                "Grade ID", "Section ID", "Status", "Address", "Nationality", "Blood Group",

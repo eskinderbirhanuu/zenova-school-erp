@@ -1,5 +1,6 @@
 import uuid
 import secrets
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -14,6 +15,8 @@ from app.services import license_service
 from app.services.license_crypto import bind_license_to_hardware, invalidate_license_cache
 from app.core import server_identity
 from app.api.v1.deps import rate_limit as _rate_limit
+
+logger = logging.getLogger(__name__)
 
 INSTALLER_STATUS_LIMIT = _rate_limit("installer_status", limit=60, window_seconds=60)
 INSTALLER_INIT_LIMIT = _rate_limit("installer_init", limit=3, window_seconds=3600)
@@ -75,6 +78,7 @@ def _validate_vps_url(url: str) -> bool:
         
         return True
     except Exception:
+        logger.warning("Hostname reachability check failed", exc_info=True)
         return False
 
 

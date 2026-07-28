@@ -8,13 +8,33 @@ const CURRENCY_MAP: Record<string, { symbol: string; name: string }> = {
   KES: { symbol: "KSh", name: "Kenyan Shilling" },
   UGX: { symbol: "USh", name: "Ugandan Shilling" },
   TZS: { symbol: "TSh", name: "Tanzanian Shilling" },
+  RWF: { symbol: "FRw", name: "Rwandan Franc" },
+  ZAR: { symbol: "R", name: "South African Rand" },
+  NGN: { symbol: "₦", name: "Nigerian Naira" },
+  GHS: { symbol: "GH₵", name: "Ghanaian Cedi" },
 }
 
-export function formatCurrency(amount: number | string, currencyCode = "ETB"): string {
+function getLocale(): string {
+  if (typeof navigator !== "undefined") return navigator.language
+  return "en-US"
+}
+
+export function formatCurrency(amount: number | string, currencyCode = "ETB", decimals?: number): string {
   const info = CURRENCY_MAP[currencyCode]
   const symbol = info?.symbol || currencyCode
-  const formatted = Number(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const minDec = decimals ?? 2
+  const maxDec = decimals ?? 2
+  const formatted = Number(amount).toLocaleString(getLocale(), { minimumFractionDigits: minDec, maximumFractionDigits: maxDec })
   return `${symbol} ${formatted}`
+}
+
+export function formatCurrencyShort(amount: number | string, currencyCode = "ETB"): string {
+  const n = Number(amount)
+  const info = CURRENCY_MAP[currencyCode]
+  const symbol = info?.symbol || currencyCode
+  if (n >= 1_000_000) return `${symbol} ${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${symbol} ${(n / 1_000).toFixed(1)}K`
+  return formatCurrency(amount, currencyCode)
 }
 
 export function getCurrencySymbol(code: string): string {

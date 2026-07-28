@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.student_card import StudentCard
@@ -6,6 +8,8 @@ from app.models.parent_card import ParentCard
 from app.models.employee_card import EmployeeCard
 from app.models.nfc_scan_log import NfcScanLog
 from app.models.card_print_request import CardPrintRequest
+from app.models.corporate_employee import CorporateEmployee
+from app.models.school import School
 from app.models.student import Student
 from app.models.staff_profile import StaffProfile
 from app.models.parent import Parent
@@ -13,7 +17,10 @@ from app.models.user import User
 from app.core.audit import log_audit
 from app.core.exceptions import ConflictException
 from app.core.error_codes import ErrorCode
+from app.services.scan_event_manager import scan_event_manager
 from app.utils.uid_hash import hash_card_uid
+
+logger = logging.getLogger(__name__)
 
 _ALL_CARD_MODELS = [StudentCard, StaffCard, ParentCard, EmployeeCard]
 
@@ -184,7 +191,6 @@ def scan_nfc(
             person_name = p.full_name
             photo_url = p.photo_url
     elif ref_type == "employee":
-        from app.models.corporate_employee import CorporateEmployee
         ce = db.query(CorporateEmployee).filter(CorporateEmployee.id == ref_id).first()
         if ce:
             person_name = ce.full_name
@@ -203,8 +209,6 @@ def scan_nfc(
 
     # Broadcast scan event (safe for both sync and async contexts)
     try:
-        from app.services.scan_event_manager import scan_event_manager
-        import asyncio
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(scan_event_manager.broadcast("nfc-scans", {
@@ -221,7 +225,7 @@ def scan_nfc(
             # No running event loop (sync context) — skip broadcast
             pass
     except Exception:
-        pass
+        logger.warning("WebSocket broadcast failed during NFC scan")
 
     return {
         "success": True,
@@ -411,7 +415,6 @@ def bulk_assign_cards(
 
 def _school_lookup(db: Session, card_uid: str) -> str | None:
     """Trace card → person → school. Returns school name + contact message, or None."""
-    from app.models.school import School
     uid_hash = hash_card_uid(card_uid)
 
     card = db.query(StudentCard).filter(StudentCard.card_uid == uid_hash).first()

@@ -95,3 +95,15 @@ class MonitoringEvent(Base):
     payload = Column(Text, nullable=True)
     reported_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class HeartbeatEvent(Base):
+    __tablename__ = "heartbeat_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    school_code = Column(String(255), nullable=False, index=True)
+    server_id = Column(String(255), nullable=False)
+    version = Column(String(50), nullable=True)
+    license_key = Column(String(255), nullable=True)
+    reported_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

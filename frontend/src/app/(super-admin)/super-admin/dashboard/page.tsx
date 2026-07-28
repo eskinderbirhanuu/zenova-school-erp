@@ -1,26 +1,26 @@
 "use client"
 
 import { KPICard } from "@/components/ui/kpi-card"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MappedStatusBadge } from "@/components/ui/status-badge"
 import { PageHeader } from "@/components/ui/page-header"
+import { formatCurrency } from "@/lib/currency"
 import { useState } from "react"
 import { usePlatformAdminDashboard } from "@/hooks/queries"
 import {
   Building2, Users, Key, Activity, Cloud, DollarSign,
-  Plus, BarChart3, LineChart, Shield, Zap, Loader2, Server,
-  AlertTriangle, CheckCircle2, XCircle, Info, Bell, Cpu,
-  HardDrive, ArrowUp
+  Plus, Cpu, Zap, HardDrive, ArrowUp
 } from "lucide-react"
 import Link from "next/link"
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area
-} from "recharts"
 
-import { DynamicAnimatedBackground } from "@/components/3d/dynamic"
+import DashboardShell from "@/components/dashboard/dashboard-shell"
 import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
+import BarChartCard from "@/components/dashboard/bar-chart-card"
+import AreaChartCard from "@/components/dashboard/area-chart-card"
+import ChartsGrid from "@/components/dashboard/charts-grid"
+import MetricBadgesRow from "@/components/dashboard/metric-badges-row"
+import HealthRadarCard from "@/components/dashboard/health-radar-card"
+import AlertCenterCard from "@/components/dashboard/alert-center-card"
+import ActivityTableCard from "@/components/dashboard/activity-table-card"
 
 const monthlySchools = [
   { month: "Jan", schools: 4 },
@@ -68,36 +68,25 @@ const serviceAlerts = [
   { message: "New school registration pending approval", severity: "info" as const, time: "1h ago" },
 ]
 
-const statusBorderColors: Record<string, string> = {
-  operational: "border-l-emerald-500",
-  degraded: "border-l-amber-500",
-  down: "border-l-red-500",
-}
+const metricBadges = [
+  { label: "Active Users Today", value: "1,847", icon: Cpu },
+  { label: "API Calls Today", value: "284K", icon: Zap },
+  { label: "Storage Used", value: "2.4 GB", icon: HardDrive },
+  { label: "Uptime", value: "99.98%", icon: ArrowUp, color: "bg-emerald-500/10" },
+]
 
-const alertIcons: Record<string, typeof AlertTriangle> = {
-  warning: AlertTriangle,
-  success: CheckCircle2,
-  destructive: XCircle,
-  info: Info,
-}
-
-const alertColorMap: Record<string, string> = {
-  warning: "text-amber-500",
-  success: "text-emerald-500",
-  destructive: "text-red-500",
-  info: "text-blue-500",
-}
-
-const formatCurrency = (n: number) =>
-  "$" + new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n)
+const activityColumns = [
+  { key: "action", label: "Action" },
+  { key: "table_name", label: "Table" },
+  { key: "created_at", label: "Time" },
+  { key: "user_id", label: "User" },
+]
 
 const formatNumber = (n: number) =>
   new Intl.NumberFormat("en-US").format(n)
 
 export default function SuperAdminDashboard() {
   const { data: dashboard, isLoading } = usePlatformAdminDashboard()
-  const [healthChecks] = useState<Record<string, any>>({})
-  const [alerts] = useState<any[]>([])
   const [activity] = useState<any[]>([])
 
   const stats = {
@@ -111,291 +100,83 @@ export default function SuperAdminDashboard() {
     dbSize: "—",
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-<DynamicAnimatedBackground />
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-8 animate-fade-in">
-      <DynamicAnimatedBackground />
-
-      <FadeInUp>
-        <PageHeader
-          title="Mission Control"
-          description="Platform-wide overview, system health, and key performance indicators at a glance."
-          actions={
-            <>
-              <Link href="/super-admin/schools/new">
-                <Button variant="outline"><Plus className="h-4 w-4 mr-2" /> Add School</Button>
-              </Link>
-              <Link href="/super-admin/licenses/new">
-                <Button><Key className="h-4 w-4 mr-2" /> New License</Button>
-              </Link>
-            </>
-          }
-        />
-      </FadeInUp>
-
-      <StaggerContainer>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <StaggerItem>
-            <KPICard
-              title="Total Schools"
-              value={stats.schools}
-              icon={Building2}
-              trend={{ value: "+6 this month", positive: true }}
-              sparklineData={[4, 7, 5, 12, 9, 15, 11, 8, 14, 18, 6, 10]}
-            />
-          </StaggerItem>
-          <StaggerItem>
-            <KPICard
-              title="Active Schools"
-              value={42}
-              icon={Activity}
-              trend={{ value: "+2.4%", positive: true }}
-              sparklineData={[30, 32, 33, 35, 36, 38, 39, 40, 41, 42]}
-            />
-          </StaggerItem>
-          <StaggerItem>
-            <KPICard
-              title="Total Licenses"
-              value={stats.licenses}
-              icon={Key}
-              trend={{ value: "+12", positive: true }}
-              sparklineData={[50, 55, 60, 64, 68, 72, 78, 82, 86, 90]}
-            />
-          </StaggerItem>
-          <StaggerItem>
-            <KPICard
-              title="Total Users"
-              value={stats.activeUsers}
-              icon={Users}
-              trend={{ value: "+342", positive: true }}
-              sparklineData={[800, 920, 1050, 1100, 1200, 1340, 1420, 1500, 1620, 1780]}
-            />
-          </StaggerItem>
-          <StaggerItem>
-            <KPICard
+    <DashboardShell
+      isLoading={isLoading}
+      header={
+        <FadeInUp>
+          <PageHeader
+            title="Mission Control"
+            description="Platform-wide overview, system health, and key performance indicators at a glance."
+            actions={
+              <>
+                <Link href="/super-admin/schools/new">
+                  <Button variant="outline"><Plus className="h-4 w-4 mr-2" /> Add School</Button>
+                </Link>
+                <Link href="/super-admin/licenses/new">
+                  <Button><Key className="h-4 w-4 mr-2" /> New License</Button>
+                </Link>
+              </>
+            }
+          />
+        </FadeInUp>
+      }
+      widgets={[
+        <StaggerContainer key="kpi">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <StaggerItem><KPICard title="Total Schools" value={stats.schools} icon={Building2} trend={{ value: "+6 this month", positive: true }} sparklineData={[4, 7, 5, 12, 9, 15, 11, 8, 14, 18, 6, 10]} /></StaggerItem>
+            <StaggerItem><KPICard title="Active Schools" value={42} icon={Activity} trend={{ value: "+2.4%", positive: true }} sparklineData={[30, 32, 33, 35, 36, 38, 39, 40, 41, 42]} /></StaggerItem>
+            <StaggerItem><KPICard title="Total Licenses" value={stats.licenses} icon={Key} trend={{ value: "+12", positive: true }} sparklineData={[50, 55, 60, 64, 68, 72, 78, 82, 86, 90]} /></StaggerItem>
+            <StaggerItem><KPICard title="Total Users" value={stats.activeUsers} icon={Users} trend={{ value: "+342", positive: true }} sparklineData={[800, 920, 1050, 1100, 1200, 1340, 1420, 1500, 1620, 1780]} /></StaggerItem>
+            <StaggerItem><KPICard title="System Health" value={stats.uptime} icon={Cloud} trend={{ value: "+0.2%", positive: true }} sparklineData={[99.1, 99.3, 99.2, 99.5, 99.4, 99.6, 99.7, 99.8, 99.8, 99.9]} /></StaggerItem>
+            <StaggerItem><KPICard title="Revenue MTD" value={stats.revenue} icon={DollarSign} trend={{ value: "+18%", positive: true }} accentColor="bg-emerald-500" sparklineData={[12, 18, 15, 22, 19, 28, 24, 21, 30, 35, 26, 42]} /></StaggerItem>
+          </div>
+        </StaggerContainer>,
+        <MetricBadgesRow key="badges" metrics={metricBadges} />,
+        <ChartsGrid key="charts">
+          <BarChartCard
+            title="School Growth"
+            description="Registered schools per month"
+            data={monthlySchools}
+            xKey="month"
+            dataKey="schools"
+            name="Schools"
+            icon={Building2}
+            delay={0.2}
+            height={300}
+          />
+          <AreaChartCard
+            title="Revenue Trend"
+            description="Monthly revenue over the year"
+            data={revenueTrendMock}
+            xKey="month"
+            series={[{ dataKey: "revenue", name: "Revenue", color: "hsl(var(--primary))" }]}
+            delay={0.3}
+            height={300}
+          />
+        </ChartsGrid>,
+        <div className="grid gap-6 lg:grid-cols-7" key="health">
+          <div className="lg:col-span-4">
+            <HealthRadarCard
               title="System Health"
-              value={stats.uptime}
-              icon={Cloud}
-              trend={{ value: "+0.2%", positive: true }}
-              sparklineData={[99.1, 99.3, 99.2, 99.5, 99.4, 99.6, 99.7, 99.8, 99.8, 99.9]}
+              services={systemServices.map(s => ({ name: s.service, status: s.status, latency: s.latency }))}
             />
-          </StaggerItem>
-          <StaggerItem>
-            <KPICard
-              title="Revenue MTD"
-              value={stats.revenue}
-              icon={DollarSign}
-              trend={{ value: "+18%", positive: true }}
-              accentColor="bg-emerald-500"
-              sparklineData={[12, 18, 15, 22, 19, 28, 24, 21, 30, 35, 26, 42]}
+          </div>
+          <div className="lg:col-span-3">
+            <AlertCenterCard
+              title="Alert Center"
+              alerts={serviceAlerts}
             />
-          </StaggerItem>
-        </div>
-      </StaggerContainer>
-
-      <FadeInUp delay={0.15}>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-xs font-medium">
-            <Cpu className="h-3.5 w-3.5 text-primary" />
-            <span className="text-muted-foreground">Active Users Today</span>
-            <span className="font-bold text-foreground">1,847</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-xs font-medium">
-            <Zap className="h-3.5 w-3.5 text-primary" />
-            <span className="text-muted-foreground">API Calls Today</span>
-            <span className="font-bold text-foreground">284K</span>
-          </div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-xs font-medium">
-            <HardDrive className="h-3.5 w-3.5 text-primary" />
-            <span className="text-muted-foreground">Storage Used</span>
-            <span className="font-bold text-foreground">2.4 GB</span>
-          </div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border bg-emerald-500/10 px-3 py-1.5 text-xs font-medium">
-            <ArrowUp className="h-3.5 w-3.5 text-emerald-500" />
-            <span className="text-muted-foreground">Uptime</span>
-            <span className="font-bold text-emerald-600">99.98%</span>
-          </div>
-        </div>
-      </FadeInUp>
-
-      <div className="grid gap-6 lg:grid-cols-7">
-        <FadeInUp delay={0.2} className="lg:col-span-4">
-          <Card shadow="colored">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <BarChart3 className="h-4 w-4 text-primary" /> School Growth
-              </CardTitle>
-              <CardDescription>Registered schools per month</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={monthlySchools}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="schools" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </FadeInUp>
-
-        <FadeInUp delay={0.3} className="lg:col-span-3">
-          <Card shadow="colored">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <LineChart className="h-4 w-4 text-primary" /> Revenue Trend
-              </CardTitle>
-              <CardDescription>Monthly revenue over the year</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={revenueTrendMock}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" fill="url(#colorRevenue)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </FadeInUp>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-7">
-        <FadeInUp delay={0.35} className="lg:col-span-4">
-          <Card shadow="default">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Server className="h-4 w-4 text-primary" /> System Health Radar
-              </CardTitle>
-              <CardDescription>Real-time service status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {Object.entries(healthChecks).length === 0 && systemServices.map((s: any) => (
-                  <div
-                    key={s.service}
-                    className={`rounded-xl border border-l-4 ${statusBorderColors[s.status]} bg-card/80 p-4 flex flex-col gap-2`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground truncate">{s.service}</span>
-                      <MappedStatusBadge status={s.status} />
-                    </div>
-                    <span className="text-xs text-muted-foreground font-mono">Latency: {s.latency}</span>
-                  </div>
-                ))}
-                {Object.entries(healthChecks).length > 0 && Object.entries(healthChecks).map(([name, check]) => {
-                  const s = check.status || "unknown"
-                  const borderKey = s === "operational" ? "operational" : s === "degraded" ? "degraded" : "down"
-                  return (
-                    <div
-                      key={name}
-                      className={`rounded-xl border border-l-4 ${statusBorderColors[borderKey]} bg-card/80 p-4 flex flex-col gap-2`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground truncate capitalize">{name.replace(/_/g, " ")}</span>
-                        <MappedStatusBadge status={s as any} />
-                      </div>
-                      <span className="text-xs text-muted-foreground font-mono">
-                        {check.role ? `Role: ${check.role}` : check.latency ? `Latency: ${check.latency}` : "—"}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </FadeInUp>
-
-        <FadeInUp delay={0.4} className="lg:col-span-3">
-          <Card shadow="default">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Bell className="h-4 w-4 text-primary" /> Alert Center
-              </CardTitle>
-              <CardDescription>Actionable platform alerts</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {alerts.length === 0 && (
-                <div className="flex items-center gap-3 rounded-xl border bg-card/80 p-4">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                  <p className="text-sm text-muted-foreground">No alerts — all systems clear</p>
-                </div>
-              )}
-              {(alerts.length > 0 ? alerts : serviceAlerts).map((alert: any, i: number) => {
-                const Icon = alertIcons[alert.severity as keyof typeof alertIcons] || Info
-                return (
-                  <div
-                    key={i}
-                    className="flex items-start gap-3 rounded-xl border bg-card/80 p-3 hover:bg-muted/20 transition-colors"
-                  >
-                    <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${alertColorMap[alert.severity] || "text-blue-500"}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground leading-snug">{alert.message}</p>
-                      <span className="text-xs text-muted-foreground">{alert.time}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </CardContent>
-          </Card>
-        </FadeInUp>
-      </div>
-
-      <FadeInUp delay={0.5}>
-        <Card shadow="default">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Shield className="h-4 w-4 text-primary" /> Activity Feed
-            </CardTitle>
-            <CardDescription>Recent platform events</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="p-4 font-medium">Action</th>
-                    <th className="p-4 font-medium">Table</th>
-                    <th className="p-4 font-medium">Time</th>
-                    <th className="p-4 font-medium">User</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activity.length === 0 && (
-                    <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">No recent activity</td></tr>
-                  )}
-                  {activity.map((a: any, i: number) => (
-                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="p-4 font-medium">{a.action || "—"}</td>
-                      <td className="p-4 font-mono text-xs">{a.table_name || "—"}</td>
-                      <td className="p-4 text-muted-foreground">
-                        {a.created_at ? new Date(a.created_at).toLocaleString() : "—"}
-                      </td>
-                      <td className="p-4 text-muted-foreground">{a.user_id || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-          </CardContent>
-        </Card>
-      </FadeInUp>
-    </div>
+        </div>,
+        <ActivityTableCard
+          key="activity"
+          title="Recent Activity"
+          description="Recent platform events"
+          columns={activityColumns}
+          data={activity}
+        />,
+      ]}
+    />
   )
 }

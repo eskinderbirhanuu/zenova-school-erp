@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { DollarSign, TrendingUp, Key, AlertCircle } from "lucide-react"
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend } from "recharts"
 import { usePlatformAdminDashboard, useDashboardTrends, usePlatformSchoolReport } from "@/hooks/queries"
+import { formatCurrency } from "@/lib/currency"
 
 export default function SuperAdminRevenue() {
   const { data: dashboardData, isLoading: dashLoading } = usePlatformAdminDashboard()
@@ -26,10 +27,10 @@ export default function SuperAdminRevenue() {
     <div className="space-y-6">
       <PageHeader title="Financial Control" description="Revenue monitoring and financial oversight" />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard title="Monthly Revenue" value={`$${(monthly).toLocaleString()}`} icon={DollarSign} iconColor="text-emerald-600" />
-        <KPICard title="Paid Fees" value={`$${paid.toLocaleString()}`} icon={TrendingUp} iconColor="text-blue-600" />
-        <KPICard title="Invoiced Fees" value={`$${invoiced.toLocaleString()}`} icon={Key} iconColor="text-purple-600" />
-        <KPICard title="Pending Fees" value={`$${pending.toLocaleString()}`} icon={AlertCircle} iconColor="text-orange-600" />
+        <KPICard title="Monthly Revenue" value={formatCurrency(monthly)} icon={DollarSign} iconColor="text-emerald-600" />
+        <KPICard title="Paid Fees" value={formatCurrency(paid)} icon={TrendingUp} iconColor="text-blue-600" />
+        <KPICard title="Invoiced Fees" value={formatCurrency(invoiced)} icon={Key} iconColor="text-purple-600" />
+        <KPICard title="Pending Fees" value={formatCurrency(pending)} icon={AlertCircle} iconColor="text-orange-600" />
       </div>
       <Card>
         <CardHeader><CardTitle className="text-lg">Revenue Overview</CardTitle><CardDescription>Monthly revenue trend</CardDescription></CardHeader>

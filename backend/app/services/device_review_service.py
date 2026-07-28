@@ -171,7 +171,7 @@ def approve_device_change(
             from app.services.tpm_service import seal_license_data
             license_record.tpm_sealed_data = seal_license_data(new_fingerprint)
         except Exception:
-            pass
+            logger.warning("TPM seal failed during device change approval")
 
         change_request.new_hardware_id = license_record.hardware_id
 
@@ -256,7 +256,7 @@ def auto_approve_expired_requests(db: Session):
                 from app.services.tpm_service import seal_license_data
                 lic.tpm_sealed_data = seal_license_data(new_fingerprint)
             except Exception:
-                pass
+                logger.warning("TPM seal failed during auto device change approval")
 
             req.new_hardware_id = lic.hardware_id
 

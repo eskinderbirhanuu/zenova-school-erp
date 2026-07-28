@@ -182,6 +182,11 @@ class AuthContext:
         return sorted(get_user_permissions(self.user))
 
 
+    @property
+    def can_include_deleted(self) -> bool:
+        return self.is_superuser or self.role in ("ADMIN", "SUPER_ADMIN")
+
+
 def get_auth_context(user: User = Depends(get_current_user)) -> AuthContext:
     """Consolidated auth dependency — returns an ``AuthContext`` with user + permission helpers.
     

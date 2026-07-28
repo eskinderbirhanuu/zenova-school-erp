@@ -7,6 +7,12 @@ from app.models.user import User
 from app.models.webauthn_credential import WebAuthnCredential
 from app.services import webauthn_service
 from app.config import settings as _settings
+from app.core.redis_client import get_redis
+from datetime import datetime, timezone
+import logging
+
+logger = logging.getLogger(__name__)
+_CHALLENGE_TTL = 300  # 5 minutes
 
 _COOKIE_SECURE = _settings.cookie_secure
 
@@ -72,7 +78,73 @@ class CredentialDeleteResponse(BaseModel):
     success: bool
 
 
-_CHALLENGES: dict[str, str] = {}  # nonce -> challenge (in-memory, ok for single-process)
+_CHALLENGES_PREFIX = "webauthn:challenge:"
+
+
+def _store_challenge(nonce: str, challenge: str) -> None:
+    r = get_redis()
+    if r:
+        r.setex(f"{_CHALLENGES_PREFIX}{challenge}", _CHALLENGE_TTL, challenge)
+    else:
+        logger.warning("Redis unavailable for WebAuthn challenge storage")
+
+
+def _pop_challenge(challenge: str) -> str:
+    r = get_redis()
+    if r:
+        val = r.getdel(f"{_CHALLENGES_PREFIX}{challenge}")
+        return val.decode() if val else ""
+    return ""
+
+
+def _verify_assertion(body: AuthVerifyRequest, db: Session) -> WebAuthnCredential:
+    cred = db.query(WebAuthnCredential).filter(
+        WebAuthnCredential.credential_id == body.credential_id,
+        WebAuthnCredential.is_active == True,
+    ).first()
+    if not cred:
+        raise HTTPException(status_code=404, detail="Credential not found")
+    import json
+    cd = json.loads(body.client_data_json)
+    challenge = cd.get("challenge", "")
+    if not _pop_challenge(challenge):
+        raise HTTPException(status_code=400, detail="Challenge expired or not found")
+    valid = webauthn_service.verify_assertion(
+        credential_id=body.credential_id,
+        client_data_json=body.client_data_json,
+        authenticator_data=body.authenticator_data,
+        signature=body.signature,
+        public_key_hex=cred.public_key_cbor,
+        challenge=challenge,
+        origin=body.origin,
+    )
+    if not valid:
+        raise HTTPException(status_code=401, detail="Assertion verification failed")
+    return cred
+
+
+def _generate_tokens(user: User) -> tuple[str, str, str, str]:
+    from app.services import auth_service
+
+    role_name = auth_service.get_user_role_name(user)
+    role_names = auth_service.get_user_role_names(user)
+    role_names_str = ",".join(role_names) if role_names else ""
+    access_token = auth_service.create_access_token({"sub": user.id, "role": role_name})
+    refresh_token_str = auth_service.create_refresh_token({"sub": user.id})
+    return role_name, role_names_str, access_token, refresh_token_str
+
+
+def _set_auth_cookies(
+    response: Response,
+    access_token: str,
+    refresh_token: str,
+    role_name: str,
+    role_names_str: str,
+) -> None:
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=60 * 30)
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
+    response.set_cookie(key="user_role", value=role_name, httponly=False, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
+    response.set_cookie(key="user_roles", value=role_names_str, httponly=False, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
 
 
 @router.post("/webauthn/register/challenge", response_model=RegistrationChallengeResponse)
@@ -81,8 +153,7 @@ def webauthn_register_challenge(
     current_user: User = Depends(get_current_user),
 ):
     challenge = webauthn_service.generate_challenge()
-    nonce = webauthn_service.generate_challenge()
-    _CHALLENGES[nonce] = challenge
+    _store_challenge(challenge, challenge)
 
     return RegistrationChallengeResponse(
         challenge=challenge,
@@ -105,13 +176,17 @@ def webauthn_register_verify(
     if existing:
         raise HTTPException(status_code=409, detail="Credential already registered")
 
-    challenge = _CHALLENGES.pop(next(iter(_CHALLENGES), None), "")
+    import json
+    cd = json.loads(data.client_data_json)
+    challenge_from_client = cd.get("challenge", "")
+    if not _pop_challenge(challenge_from_client):
+        raise HTTPException(status_code=400, detail="Challenge expired or not found")
 
     cose_key_hex = webauthn_service.verify_attestation(
         credential_id=data.credential_id,
         client_data_json=data.client_data_json,
         attestation_object=data.attestation_object,
-        challenge=challenge,
+        challenge=challenge_from_client,
         origin=data.origin,
     )
     if not cose_key_hex:
@@ -135,8 +210,7 @@ def webauthn_auth_challenge(
     db: Session = Depends(get_db),
 ):
     challenge = webauthn_service.generate_challenge()
-    nonce = webauthn_service.generate_challenge()
-    _CHALLENGES[nonce] = challenge
+    _store_challenge(challenge, challenge)
 
     q = db.query(WebAuthnCredential).filter(WebAuthnCredential.is_active == True)
     if data.credential_id:
@@ -156,76 +230,15 @@ def webauthn_auth_verify(
     response: Response,
     db: Session = Depends(get_db),
 ):
-    cred = db.query(WebAuthnCredential).filter(
-        WebAuthnCredential.credential_id == body.credential_id,
-        WebAuthnCredential.is_active == True,
-    ).first()
-    if not cred:
-        raise HTTPException(status_code=404, detail="Credential not found")
-
-    challenge = _CHALLENGES.pop(next(iter(_CHALLENGES), None), "")
-
-    valid = webauthn_service.verify_assertion(
-        credential_id=body.credential_id,
-        client_data_json=body.client_data_json,
-        authenticator_data=body.authenticator_data,
-        signature=body.signature,
-        public_key_hex=cred.public_key_cbor,
-        challenge=challenge,
-        origin=body.origin,
-    )
-    if not valid:
-        raise HTTPException(status_code=401, detail="Assertion verification failed")
-
-    from app.services import auth_service
+    cred = _verify_assertion(body, db)
     user = db.query(User).filter(User.id == cred.user_id).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User inactive")
 
-    role_name = auth_service.get_user_role_name(user)
-    role_names = auth_service.get_user_role_names(user)
-    role_names_str = ",".join(role_names) if role_names else ""
-    access_token = auth_service.create_access_token({"sub": user.id, "role": role_name})
-    refresh_token_str = auth_service.create_refresh_token({"sub": user.id})
+    role_name, role_names_str, access_token, refresh_token_str = _generate_tokens(user)
+    _set_auth_cookies(response, access_token, refresh_token_str, role_name, role_names_str)
 
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite="strict",
-        path="/",
-        max_age=60 * 30,
-    )
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token_str,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite="strict",
-        path="/",
-        max_age=60 * 60 * 24 * 7,
-    )
-    response.set_cookie(
-        key="user_role",
-        value=role_name,
-        httponly=False,
-        secure=_COOKIE_SECURE,
-        samesite="strict",
-        path="/",
-        max_age=60 * 60 * 24 * 7,
-    )
-    response.set_cookie(
-        key="user_roles",
-        value=role_names_str,
-        httponly=False,
-        secure=_COOKIE_SECURE,
-        samesite="strict",
-        path="/",
-        max_age=60 * 60 * 24 * 7,
-    )
-
-    cred.last_used_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+    cred.last_used_at = datetime.now(timezone.utc)
     db.commit()
 
     return AuthVerifyResponse(

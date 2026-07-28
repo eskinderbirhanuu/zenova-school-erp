@@ -1,16 +1,21 @@
 "use client"
 
 import { useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   useStudents, useJournalEntries, useTrialBalance,
   useAttendance, useContracts, useInventoryItems,
   useBooks, useCafeteriaOrders,
 } from "@/hooks/queries"
+import { formatCurrency } from "@/lib/currency"
 import { Users, DollarSign, GraduationCap, BookOpen, TrendingUp, Activity, ShoppingCart, UserCheck } from "lucide-react"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
+import DashboardShell from "@/components/dashboard/dashboard-shell"
+import { PageHeader } from "@/components/ui/page-header"
+import { KPICard } from "@/components/ui/kpi-card"
+import ChartsGrid from "@/components/dashboard/charts-grid"
+import BarChartCard from "@/components/dashboard/bar-chart-card"
+import AreaChartCard from "@/components/dashboard/area-chart-card"
+import { FadeInUp, StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
 
 export default function DashboardPage() {
   const { data: students } = useStudents()
@@ -43,72 +48,60 @@ export default function DashboardPage() {
     return Object.values(grouped).slice(-6)
   }, [journalEntries])
 
-  const kpis = [
-    { title: "Students", value: stats.students, icon: Users, color: "text-blue-600", bg: "bg-blue-100" },
-    { title: "Revenue", value: `$${stats.revenue.toLocaleString()}`, icon: DollarSign, color: "text-green-600", bg: "bg-green-100" },
-    { title: "Teachers", value: stats.teachers, icon: GraduationCap, color: "text-purple-600", bg: "bg-purple-100" },
-    { title: "Attendance", value: stats.attendance, icon: UserCheck, color: "text-cyan-600", bg: "bg-cyan-100" },
-    { title: "Inventory", value: stats.inventory, icon: ShoppingCart, color: "text-orange-600", bg: "bg-orange-100" },
-    { title: "Books", value: stats.books, icon: BookOpen, color: "text-indigo-600", bg: "bg-indigo-100" },
-    { title: "Orders", value: stats.orders, icon: Activity, color: "text-pink-600", bg: "bg-pink-100" },
-  ]
+  const moduleData = useMemo(() => [
+    { name: "Students", value: Math.max(stats.students, 1) },
+    { name: "Teachers", value: Math.max(stats.teachers, 1) },
+    { name: "Inventory", value: Math.max(stats.inventory, 1) },
+    { name: "Books", value: Math.max(stats.books, 1) },
+    { name: "Orders", value: Math.max(stats.orders, 1) },
+  ], [stats])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((kpi: any) => (
-          <Card key={kpi.title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
-              <div className={`rounded-lg ${kpi.bg} p-2`}><kpi.icon className={`h-4 w-4 ${kpi.color}`} /></div>
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{kpi.value}</div></CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Financial Trend</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={journalData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="debits" fill="#3b82f6" name="Debits" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="credits" fill="#10b981" name="Credits" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" /> Module Distribution</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={[
-                  { name: "Students", value: Math.max(stats.students, 1) },
-                  { name: "Teachers", value: Math.max(stats.teachers, 1) },
-                  { name: "Inventory", value: Math.max(stats.inventory, 1) },
-                  { name: "Books", value: Math.max(stats.books, 1) },
-                  { name: "Orders", value: Math.max(stats.orders, 1) },
-                ]} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={({ name }) => name}>
-                  {COLORS.slice(0, 5).map((c, i) => <Cell key={i} fill={c} />)}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <DashboardShell
+      header={
+        <FadeInUp>
+          <PageHeader
+            title="Dashboard"
+            description={new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          />
+        </FadeInUp>
+      }
+      widgets={[
+        <StaggerContainer key="kpi">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StaggerItem><KPICard title="Students" value={stats.students} icon={Users} /></StaggerItem>
+            <StaggerItem><KPICard title="Revenue" value={formatCurrency(stats.revenue)} icon={DollarSign} /></StaggerItem>
+            <StaggerItem><KPICard title="Teachers" value={stats.teachers} icon={GraduationCap} /></StaggerItem>
+            <StaggerItem><KPICard title="Attendance" value={stats.attendance} icon={UserCheck} /></StaggerItem>
+            <StaggerItem><KPICard title="Inventory" value={stats.inventory} icon={ShoppingCart} /></StaggerItem>
+            <StaggerItem><KPICard title="Books" value={stats.books} icon={BookOpen} /></StaggerItem>
+            <StaggerItem><KPICard title="Orders" value={stats.orders} icon={Activity} /></StaggerItem>
+          </div>
+        </StaggerContainer>,
+        <ChartsGrid key="charts">
+          <AreaChartCard
+            title="Financial Trend"
+            description="Monthly debits and credits"
+            data={journalData}
+            xKey="month"
+            series={[
+              { dataKey: "debits", name: "Debits", color: "#3b82f6" },
+              { dataKey: "credits", name: "Credits", color: "#10b981" },
+            ]}
+            icon={TrendingUp}
+            height={300}
+          />
+          <BarChartCard
+            title="Module Distribution"
+            description="Entity counts across modules"
+            data={moduleData}
+            xKey="name"
+            dataKey="value"
+            icon={Activity}
+            height={300}
+          />
+        </ChartsGrid>,
+      ]}
+    />
   )
 }

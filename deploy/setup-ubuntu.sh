@@ -107,6 +107,10 @@ WantedBy=multi-user.target
 SERVICE
 
 sed -i "s|ZENOVA_DIR_PLACEHOLDER|${ZENOVA_DIR}|g" /etc/systemd/system/zenova.service
+if grep -q "ZENOVA_DIR_PLACEHOLDER" /etc/systemd/system/zenova.service; then
+    echo "ERROR: Failed to substitute ZENOVA_DIR in systemd unit"
+    exit 1
+fi
 
 systemctl daemon-reload
 systemctl enable zenova

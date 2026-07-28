@@ -212,7 +212,7 @@ def get_receipts(
         Receipt.school_id == current_user.school_id,
     ).order_by(Receipt.created_at.desc()).all()
 
-        return [
+    return [
         {
             "id": r.id,
             "receipt_number": r.receipt_number,

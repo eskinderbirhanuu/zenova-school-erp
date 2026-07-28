@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Loader2, Cloud, Database, Gauge, Timer, Server, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
 import { useIgaMetrics, useIgaHealthSummary } from "@/hooks/queries"
+import { formatCurrency } from "@/lib/currency"
 
 export default function SuperAdminMonitoring() {
   const { data: metrics, isLoading: metricsLoading } = useIgaMetrics()
@@ -43,7 +44,7 @@ export default function SuperAdminMonitoring() {
         <KPICard title="Server Status" value={health?.status === "healthy" ? "Healthy" : "Degraded"} icon={Server} iconColor={health?.status === "healthy" ? "text-green-600" : "text-yellow-600"} />
         <KPICard title="Database" value={health?.checks?.database === "healthy" ? "Connected" : "Unhealthy"} icon={Database} iconColor="text-purple-600" />
         <KPICard title="Server ID" value={health?.checks?.server_identity === "healthy" ? "Registered" : "Missing"} icon={Cloud} iconColor="text-sky-600" />
-        <KPICard title="Revenue MTD" value={`$${(f.revenue_last_30d || 0).toLocaleString()}`} icon={Gauge} iconColor="text-orange-600" />
+        <KPICard title="Revenue MTD" value={formatCurrency(f.revenue_last_30d || 0)} icon={Gauge} iconColor="text-orange-600" />
         <KPICard title="Uptime" value={formatUptime(uptime)} icon={Timer} iconColor="text-blue-600" />
       </div>
       <div className="grid gap-6 md:grid-cols-2">
@@ -92,7 +93,7 @@ export default function SuperAdminMonitoring() {
                   { name: "Total Schools", value: String(s.total_schools || 0) },
                   { name: "Active Licenses", value: String(s.active_licenses || 0) },
                   { name: "Expiring (30d)", value: String(s.expiring_within_30d || 0), warn: (s.expiring_within_30d || 0) > 0 },
-                  { name: "Total Revenue", value: `$${(f.total_revenue || 0).toLocaleString()}` },
+                  { name: "Total Revenue", value: formatCurrency(f.total_revenue || 0) },
                   { name: "Students", value: String(u.students || 0) },
                   { name: "Teachers", value: String(u.teachers || 0) },
                   { name: "Staff", value: String(u.staff || 0) },

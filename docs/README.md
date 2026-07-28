@@ -68,22 +68,24 @@ Run `python scripts/seed_demo.py` to create all demo accounts (dynamic per-role 
 
 ## Documentation Index
 
-| Doc | Description |
-|-----|-------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture, project structure, patterns |
-| [DATABASE.md](DATABASE.md) | Schema, models, relationships, migrations |
-| [API.md](API.md) | Endpoint reference, integration guide |
-| [SECURITY.md](SECURITY.md) | Auth, RBAC, network security, hardening |
-| [FINANCE.md](FINANCE.md) | Double-entry accounting, GL, billing, payroll |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Docker, Ubuntu server, PWA, scripts |
-| [LICENSE.md](LICENSE.md) | License system, key generation, anti-piracy |
-| [REGISTRATION.md](REGISTRATION.md) | Registration rules, parent linking, QR/NFC |
-| [ROADMAP.md](ROADMAP.md) | Phases, milestones, completed/remaining |
-| [REVIEWS.md](REVIEWS.md) | Code review findings, contradictions, fixes |
-| [DESIGN.md](DESIGN.md) | Design system, components, subpage patterns |
-| [MODULES.md](MODULES.md) | Per-module documentation |
-| [CHANGELOG.md](CHANGELOG.md) | Agent decisions, changes, migrations |
-| [COMPLETED_WORK.md](COMPLETED_WORK.md) | Full output of AI implementation session |
+| Doc | Audience | Description |
+|-----|----------|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Developers | System architecture, project structure, patterns |
+| [DATABASE.md](DATABASE.md) | Developers | Schema, models, relationships, migrations |
+| [API.md](API.md) | Developers | Endpoint reference, integration guide |
+| [SECURITY.md](SECURITY.md) | Developers | Auth, RBAC, network security, hardening |
+| [FINANCE.md](FINANCE.md) | Developers | Double-entry accounting, GL, billing, payroll |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | IT Admins | Docker, Ubuntu server, VPS/on-prem, scripts |
+| [LICENSE.md](LICENSE.md) | Developers | License system, key generation, anti-piracy |
+| [REGISTRATION.md](REGISTRATION.md) | Developers | Registration rules, parent linking, QR/NFC |
+| [ROADMAP.md](ROADMAP.md) | Developers | Phases, milestones, completed/remaining |
+| [REVIEWS.md](REVIEWS.md) | Developers | Code review findings, contradictions, fixes |
+| [DESIGN.md](DESIGN.md) | Developers | Design system, components, subpage patterns |
+| [MODULES.md](MODULES.md) | Developers | Per-module documentation |
+| [CHANGELOG.md](CHANGELOG.md) | Developers | Agent decisions, changes, migrations |
+| [COMPLETED_WORK.md](COMPLETED_WORK.md) | Developers | Full output of AI implementation session |
+| [CUSTOMER.md](CUSTOMER.md) | School Staff | Customer-facing: features, setup, backup, FAQ |
+| [DRY_RUN_CHECKLIST.md](DRY_RUN_CHECKLIST.md) | IT Admins | Production dry-run checklist for deployment verification |
 
 ## AI Audit Series (GLM-5.2, 2026-06-30)
 

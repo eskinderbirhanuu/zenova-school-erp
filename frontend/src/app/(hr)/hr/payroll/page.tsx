@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useContracts } from "@/hooks/queries"
 import { DollarSign } from "lucide-react"
+import { formatCurrency } from "@/lib/currency"
 
 export default function HrPayrollPage() {
   const { data: contracts, isLoading } = useContracts({ limit: 100 } as any)
@@ -25,13 +26,13 @@ export default function HrPayrollPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Monthly Payroll</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">{isLoading ? "\u2014" : `$${totalSalary.toLocaleString()}`}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold">{isLoading ? "\u2014" : formatCurrency(totalSalary)}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Average Salary</CardTitle></CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading || activeContracts.length === 0 ? "\u2014" : `$${(totalSalary / activeContracts.length).toLocaleString()}`}
+              {isLoading || activeContracts.length === 0 ? "\u2014" : formatCurrency(totalSalary / activeContracts.length)}
             </div>
           </CardContent>
         </Card>
@@ -56,7 +57,7 @@ export default function HrPayrollPage() {
                 <tr key={c.id} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-4 font-medium">{c.employee_name || c.employee_id || "\u2014"}</td>
                   <td className="p-4">{c.position || c.job_title || "\u2014"}</td>
-                  <td className="p-4 font-mono">${Number(c.salary || c.monthly_salary || 0).toLocaleString()}</td>
+                  <td className="p-4 font-mono">{formatCurrency(Number(c.salary || c.monthly_salary || 0))}</td>
                   <td className="p-4">
                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Active</span>
                   </td>

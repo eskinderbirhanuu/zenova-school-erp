@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { useDashboardOverview, useClasses, useAuditLogs } from "@/hooks/queries"
 import { BarChart3, Users, GraduationCap, DollarSign, ClipboardList } from "lucide-react"
+import { formatCurrency } from "@/lib/currency"
 
 interface ReportItem {
   title: string
@@ -66,7 +67,7 @@ export default function DirectorReports() {
       title: "Financial Summary",
       description: "Revenue, fees, and payment status",
       icon: DollarSign,
-      value: `$${Number(data.finance?.revenue ?? 0).toLocaleString()}`,
+      value: formatCurrency(data.finance?.revenue ?? 0),
       detail: `${audits} financial transactions`,
       onView: () => router.push("/director/finance"),
     },

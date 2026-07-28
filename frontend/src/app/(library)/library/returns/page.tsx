@@ -4,6 +4,7 @@ import { useState } from "react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { useBorrowings } from "@/hooks/queries"
+import { formatCurrency } from "@/lib/currency"
 
 export default function LibraryReturnsPage() {
   const [search, setSearch] = useState("")
@@ -30,7 +31,7 @@ export default function LibraryReturnsPage() {
         { key: "book", header: "Book", render: (r) => <span className="text-muted-foreground">{r.book}</span> },
         { key: "borrowed", header: "Borrowed", render: (r) => <span className="text-muted-foreground">{r.borrowed}</span> },
         { key: "returned", header: "Returned", render: (r) => <span className="text-muted-foreground">{r.returned}</span> },
-        { key: "fine", header: "Fine", render: (r) => <span className="font-mono text-red-600">{r.fine ? `$${(r.fine).toFixed(2)}` : "-"}</span> },
+        { key: "fine", header: "Fine", render: (r) => <span className="font-mono text-red-600">{r.fine ? formatCurrency(r.fine) : "-"}</span> },
         { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status === "overdue" ? "warning" : "success"} /> },
       ]}
       data={filtered} keyExtractor={(r) => r.id}

@@ -12,20 +12,26 @@ from app.schemas.hr import AttendanceBulkItem, AttendanceBulkResponse, Attendanc
 from app.services.hr_service import get_attendance as hr_get_attendance
 from app.services.notification_service import notify_parents_of_absence
 from app.utils.excel import excel_response
-
-
-ETHIOPIA_UTC_OFFSET = timedelta(hours=3)  # UTC+3
+from app.config import settings
 
 
 def _now_ethiopia() -> datetime:
     """Return current time in Ethiopian timezone (UTC+3)."""
-    return datetime.now(timezone.utc) + ETHIOPIA_UTC_OFFSET
+    return datetime.now(timezone.utc) + timedelta(hours=settings.attendance_utc_offset)
 
 
 def _attendance_window_open() -> bool:
-    """Check if current Ethiopian time is within the attendance window (2 ጠዋት–4 ጠዋት / 08:00–10:00)."""
+    """Check if current Ethiopian time is within the attendance window."""
+    start = time.fromisoformat(settings.attendance_window_start)
+    end = time.fromisoformat(settings.attendance_window_end)
     now = _now_ethiopia()
-    return time(8, 0) <= now.time() <= time(10, 0)
+    return start <= now.time() <= end
+
+
+def _notify_absence(db: Session, student_id: str, date_str: str, school_id: str) -> None:
+    school = db.query(School).filter(School.id == school_id).first()
+    school_name = school.name if school else "School"
+    notify_parents_of_absence(db, student_id, date_str, school_id, school_name)
 
 router = APIRouter(tags=["attendance"])
 
@@ -94,14 +100,9 @@ def mark_attendance_bulk(
 
     db.commit()
 
-    absent_students = [r for r in records if r.status == "absent" and r.student_id]
-    if absent_students:
-        school = db.query(School).filter(School.id == school_id).first()
-        school_name = school.name if school else "School"
-        for item in absent_students:
-            notify_parents_of_absence(
-                db, item.student_id, str(item.date), school_id, school_name,
-            )
+    for item in records:
+        if item.status == "absent" and item.student_id:
+            _notify_absence(db, item.student_id, str(item.date), school_id)
 
     return AttendanceBulkResponse(created=created, errors=errors)
 
@@ -185,15 +186,11 @@ def patch_attendance(
     if "check_out" in update_data:
         att.check_out = update_data["check_out"]
 
-    was_absent = att.status == "absent" and att.student_id
-
     db.commit()
     db.refresh(att)
 
-    if was_absent:
-        school = db.query(School).filter(School.id == current_user.school_id).first()
-        school_name = school.name if school else "School"
-        notify_parents_of_absence(db, att.student_id, str(att.date), current_user.school_id, school_name)
+    if att.status == "absent" and att.student_id:
+        _notify_absence(db, att.student_id, str(att.date), current_user.school_id)
 
     return AttendanceResponse(
         id=att.id, staff_profile_id=att.staff_profile_id, student_id=att.student_id,

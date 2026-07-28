@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import MonitoringEvent, School
 from app.schemas import MonitoringReport
+from app.api.v1.endpoints.auth import get_current_admin
 
 router = APIRouter()
 
@@ -27,7 +28,7 @@ def report_monitoring(data: MonitoringReport, db: Session = Depends(get_db)):
 
 
 @router.get("/dashboard")
-def monitoring_dashboard(db: Session = Depends(get_db)):
+def monitoring_dashboard(db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
     total_schools = db.query(School).count()
     active_schools = db.query(School).filter(School.is_active == True).count()
     recent_events = db.query(MonitoringEvent).order_by(
@@ -49,7 +50,7 @@ def monitoring_dashboard(db: Session = Depends(get_db)):
 
 
 @router.get("/school/{school_id}")
-def school_monitoring(school_id: str, db: Session = Depends(get_db)):
+def school_monitoring(school_id: str, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
     events = db.query(MonitoringEvent).filter(
         MonitoringEvent.school_id == school_id
     ).order_by(MonitoringEvent.reported_at.desc()).limit(20).all()

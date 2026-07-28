@@ -1,12 +1,15 @@
 import os
 import time
 import shutil
+import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
 from app.core import server_identity
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -63,6 +66,7 @@ def _sync_status(db: Session) -> dict:
             "last_synced_at": last_sync.updated_at.isoformat() if last_sync else None,
         }
     except Exception:
+        logger.warning("Sync status check failed", exc_info=True)
         return {"pending": -1, "last_synced_at": None}
 
 
@@ -76,6 +80,7 @@ def _backup_status() -> dict:
             "last_backup_at": last_backup.get("created_at") if last_backup else None,
         }
     except Exception:
+        logger.warning("Backup status check failed", exc_info=True)
         return {"total_backups": -1, "last_backup_at": None}
 
 
@@ -140,6 +145,7 @@ def readyz(db: Session = Depends(get_db)):
             status_code=status.HTTP_200_OK,
         )
     except Exception:
+        logger.warning("Readyz DB check failed", exc_info=True)
         return Response(
             content='{"status":"not ready"}',
             media_type="application/json",

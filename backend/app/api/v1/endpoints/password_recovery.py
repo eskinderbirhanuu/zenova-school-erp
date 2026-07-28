@@ -4,10 +4,12 @@ Offline-safe enterprise password recovery with hierarchy-based approval chain.
 Supports future Email, SMS, and 2FA providers via Protocol interfaces.
 """
 import logging
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.deps import get_current_user, get_client_ip, get_user_agent
+from app.core.permissions import Permission, has_permission
 from app.models.user import User
 from app.schemas.password_recovery import (
     InitiateOfflineRecoveryRequest,
@@ -51,6 +53,7 @@ def initiate_offline_recovery(
         )
         return result
     except Exception as e:
+        logger.warning("Recovery initiation failed", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -75,6 +78,7 @@ def admin_generate_temp_password(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.warning("Admin temp password generation failed", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -93,10 +97,8 @@ def generate_recovery_codes(
             message="Save these recovery codes securely. Each code can be used only once.",
         )
     except Exception as e:
+        logger.warning("Recovery code generation failed", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.get("/auth/recovery/codes", response_model=ListRecoveryCodesResponse)
 def list_recovery_codes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -152,6 +154,7 @@ def approve_recovery(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.warning("Recovery approval failed", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -173,6 +176,7 @@ def apply_recovery(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.warning("Recovery password apply failed", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -184,11 +188,9 @@ def generate_emergency_token(
     current_user: User = Depends(get_current_user),
 ):
     """Generate an emergency recovery token (requires SUPER_ADMIN or SCHOOL_OWNER)."""
-    from app.core.permissions import Permission, has_permission
     if not current_user.is_superuser and not has_permission(current_user, Permission.LICENSE_MANAGE):
         raise HTTPException(status_code=403, detail="Only Super Admin can generate emergency tokens")
 
-    from datetime import datetime, timezone, timedelta
     token = prs.generate_emergency_token(data.target_user_id, ttl_seconds=data.ttl_seconds)
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=data.ttl_seconds)
 
@@ -216,6 +218,7 @@ def emergency_apply(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.warning("Emergency apply failed", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -229,7 +232,6 @@ def list_audit(
     current_user: User = Depends(get_current_user),
 ):
     """List password recovery audit log (requires audit or admin permission)."""
-    from app.core.permissions import Permission, has_permission
     if not current_user.is_superuser and not has_permission(current_user, Permission.AUDIT_VIEW):
         raise HTTPException(status_code=403, detail="Audit view permission required")
     result = prs.list_audit_log(db, target_user_id=target_user_id, action=action, limit=limit, offset=offset)

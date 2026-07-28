@@ -182,7 +182,7 @@ def validate_lic_file() -> LicenseValidationResult:
                         message="Hardware fingerprint mismatch — license bound to different machine",
                     )
         except Exception:
-            pass
+            logger.warning("Exception during license hardware validation")
         finally:
             db.close()
 

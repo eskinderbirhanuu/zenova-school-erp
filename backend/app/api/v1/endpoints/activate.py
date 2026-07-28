@@ -20,6 +20,7 @@ from app.services.license_crypto import bind_license_to_hardware, invalidate_lic
 from app.core.security import (
     get_password_hash,
     issue_password_recovery_code,
+    verify_password,
     verify_password_recovery_code,
     validate_password_strength,
 )
@@ -27,6 +28,7 @@ from app.config import settings
 from app.api.v1.deps import rate_limit, get_current_user
 from app.services.watermark import watermark_seed_data, set_school_watermark
 from app.core.permissions import require_permission, Permission
+from app.core.audit import log_audit
 from app.models.school import School
 from app.models.branch import Branch
 from app.models.user import User
@@ -96,12 +98,9 @@ def activate_initialize(data: ActivateInitializeRequest, db: Session = Depends(g
     main = license_service.verify_license(db, data.key)
     if not main["valid"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="License validation failed")
-    result = license_service.activate_system(
-        db, main_key=data.key, school_name=data.school_name,
-        school_code=data.school_code, admin_full_name=data.admin_full_name,
-        admin_email=data.admin_email, admin_password=data.admin_password,
-        admin_phone=data.admin_phone, logo_url=data.logo_url,
-    )
+    payload = data.model_dump()
+    payload["main_key"] = payload.pop("key")
+    result = license_service.activate_system(db, **payload)
     if not result["success"]:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result["message"])
     return ActivateInitializeResponse(**result)
@@ -258,6 +257,8 @@ def create_employee(
     if not current_user.school_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No school assigned")
 
+    if not data.role_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Role name required")
     role = db.query(Role).filter(Role.name == data.role_name).first()
     if not role:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Role '{data.role_name}' not found")
@@ -307,9 +308,9 @@ def issue_recovery_code(
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="User is not in your school")
     if user.is_superuser:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Cannot issue recovery code for super admin")
-    code = issue_password_recovery_code(user.id, ttl_seconds=600)
+    code = issue_password_recovery_code(user.id, ttl_seconds=settings.password_recovery_code_ttl)
     return IssueRecoveryCodeResponse(
-        success=True, recovery_code=code, expires_in_seconds=600,
+        success=True, recovery_code=code, expires_in_seconds=settings.password_recovery_code_ttl,
         message="Recovery code issued. Share it with the user — it expires in 10 minutes.",
     )
 
@@ -331,7 +332,6 @@ def reset_with_recovery_code(
     valid, msg = validate_password_strength(data.new_password)
     if not valid:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=msg)
-    from app.core.security import verify_password
     if verify_password(data.new_password, user.hashed_password):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="New password must be different from the current password")
     user.hashed_password = get_password_hash(data.new_password)
@@ -361,7 +361,6 @@ def verify_super_admin_contact(data: VerifyContactRequest, db: Session = Depends
         if is_match:
             # Trigger an internal alert (audit) without revealing the result to the caller.
             try:
-                from app.core.audit import log_audit
                 log_audit(db, "system", "SUPER_ADMIN_CONTACT_MATCH", "users", "super_admin",
                           "Super Admin contact verified from welcome page")
                 db.commit()

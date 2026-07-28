@@ -21,10 +21,6 @@ _INVENTORY = [Permission.INVENTORY_MANAGE]
 _VIEW_INVENTORY = [Permission.INVENTORY_MANAGE, Permission.FINANCE_ENTRY, Permission.FINANCE_REPORTS]
 
 
-def _include_deleted(ctx: AuthContext) -> bool:
-    return ctx.is_superuser or ctx.role in ("ADMIN", "SUPER_ADMIN")
-
-
 @router.post("/inventory/categories", response_model=InventoryCategoryResponse)
 def create_category(data: InventoryCategoryCreate, db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
     ctx.require_permission(*_INVENTORY)
@@ -34,7 +30,7 @@ def create_category(data: InventoryCategoryCreate, db: Session = Depends(get_db)
 @router.get("/inventory/categories", response_model=list[InventoryCategoryResponse])
 def list_categories(db: Session = Depends(get_db), ctx: AuthContext = Depends(get_auth_context)):
     ctx.require_permission(*_VIEW_INVENTORY)
-    include_deleted = _include_deleted(ctx)
+    include_deleted = ctx.can_include_deleted
     return inventory_service.get_categories(db, ctx.school_id, include_deleted=include_deleted)
 
 
@@ -142,7 +138,7 @@ def list_assets(
 ):
     ctx.require_permission(*_VIEW_INVENTORY)
     q = db.query(InventoryAsset).filter(InventoryAsset.school_id == ctx.school_id)
-    if _include_deleted(ctx):
+    if ctx.can_include_deleted:
         q = q.execution_options(include_deleted=True)
     q = q.order_by(InventoryAsset.created_at.desc())
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)

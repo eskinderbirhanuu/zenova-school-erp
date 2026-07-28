@@ -4,7 +4,6 @@ from app.api.v1.deps import get_db, get_current_user
 from app.core.permissions import require_permission, Permission
 from app.schemas.support_ticket import SupportTicketCreate, SupportTicketUpdate, SupportTicketResponse
 from app.services import support_ticket_service
-from app.models.user import User
 
 router = APIRouter()
 SUPER_ADMIN = [require_permission(Permission.LICENSE_MANAGE)]
@@ -13,11 +12,7 @@ SUPER_ADMIN = [require_permission(Permission.LICENSE_MANAGE)]
 @router.post("/support/tickets", response_model=SupportTicketResponse, status_code=status.HTTP_201_CREATED)
 def create_ticket(data: SupportTicketCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     ticket = support_ticket_service.create_ticket(db, data, current_user.id, current_user.school_id)
-    assigned_name = None
-    if ticket.assigned_to:
-        u = db.query(User).filter(User.id == ticket.assigned_to).first()
-        if u:
-            assigned_name = u.full_name
+    assigned_name = ticket.assigned_to if ticket.assigned_to else None
     return SupportTicketResponse(
         id=ticket.id, ticket_number=ticket.ticket_number,
         school_id=ticket.school_id, school_name=ticket.school_name,

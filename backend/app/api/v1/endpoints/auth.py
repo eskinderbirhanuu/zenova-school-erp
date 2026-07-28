@@ -480,7 +480,7 @@ def logout(
         try:
             redis.delete(f"session:{current_user.id}")
         except Exception:
-            pass
+            logger.warning("Failed to delete Redis session on logout")
 
     response.set_cookie(key="access_token", value="", httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=0)
     response.set_cookie(key="refresh_token", value="", httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/", max_age=0)

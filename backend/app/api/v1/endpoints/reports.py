@@ -17,7 +17,7 @@ from app.models.audit_log import AuditLog
 from app.models.license import License
 from app.models.staff_profile import StaffProfile
 from app.models.teacher_profile import TeacherProfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from sqlalchemy import func
 
 router = APIRouter()
@@ -76,107 +76,183 @@ REPORT_DEFINITIONS = {
 }
 
 
+def _global_usage_report(db: Session, school_id: str | None) -> dict:
+    return {
+        "total_users": db.query(User).count(),
+        "total_schools": db.query(func.distinct(User.school_id)).scalar() or 0,
+        "total_students": db.query(Student).count(),
+    }
+
+
+def _license_compliance_report(db: Session, school_id: str | None) -> dict:
+    active = db.query(License).filter(License.status == "ACTIVE").count()
+    expired = db.query(License).filter(License.status == "EXPIRED").count()
+    return {"active_licenses": active, "expired_licenses": expired}
+
+
+def _error_log_summary(db: Session, school_id: str | None) -> dict:
+    return {"total_audit_entries": db.query(AuditLog).count()}
+
+
+def _enrollment_summary(db: Session, school_id: str | None) -> dict:
+    total = db.query(Student).filter(Student.school_id == school_id).count()
+    active = db.query(Student).filter(Student.school_id == school_id, Student.status == "active").count()
+    return {"total_students": total, "active_students": active}
+
+
+def _staff_overview(db: Session, school_id: str | None) -> dict:
+    staff_count = db.query(StaffProfile).filter(StaffProfile.school_id == school_id).count()
+    teacher_count = db.query(TeacherProfile).filter(TeacherProfile.school_id == school_id).count()
+    return {"staff": staff_count, "teachers": teacher_count}
+
+
+def _financial_summary(db: Session, school_id: str | None) -> dict:
+    total_invoiced = db.query(func.sum(Invoice.total_amount)).filter(Invoice.school_id == school_id).scalar() or 0
+    total_collected = db.query(func.sum(Payment.amount)).filter(Payment.school_id == school_id).scalar() or 0
+    return {"total_invoiced": float(total_invoiced), "total_collected": float(total_collected)}
+
+
+def _revenue_vs_expenses(db: Session, school_id: str | None) -> dict:
+    total_payments = db.query(func.sum(Payment.amount)).filter(Payment.school_id == school_id).scalar() or 0
+    return {"revenue": float(total_payments)}
+
+
+def _outstanding_invoices(db: Session, school_id: str | None) -> dict:
+    total = db.query(func.sum(Invoice.total_amount - Invoice.paid_amount)).filter(
+        Invoice.school_id == school_id, Invoice.status.in_(["draft", "sent"])).scalar() or 0
+    count = db.query(Invoice).filter(Invoice.school_id == school_id, Invoice.status.in_(["draft", "sent"])).count()
+    return {"outstanding_amount": float(total), "outstanding_count": count}
+
+
+def _fee_collection_rate(db: Session, school_id: str | None) -> dict:
+    total = db.query(func.sum(Invoice.total_amount)).filter(Invoice.school_id == school_id).scalar() or 0
+    collected = db.query(func.sum(Payment.amount)).filter(Payment.school_id == school_id).scalar() or 0
+    rate = (collected / total * 100) if total > 0 else 0
+    return {"total_invoiced": float(total), "collected": float(collected), "rate_pct": round(float(rate), 1)}
+
+
+def _staff_attendance_summary(db: Session, school_id: str | None) -> dict:
+    present = db.query(Attendance).filter(Attendance.school_id == school_id, Attendance.status == "present").count()
+    absent = db.query(Attendance).filter(Attendance.school_id == school_id, Attendance.status == "absent").count()
+    late = db.query(Attendance).filter(Attendance.school_id == school_id, Attendance.status == "late").count()
+    return {"present": present, "absent": absent, "late": late}
+
+
+def _payroll_summary(db: Session, school_id: str | None) -> dict:
+    return {"note": "See payroll module for detailed payroll reports"}
+
+
+def _leave_balance_report(db: Session, school_id: str | None) -> dict:
+    total = db.query(func.sum(LeaveBalance.total_days)).filter(LeaveBalance.school_id == school_id).scalar() or 0
+    used = db.query(func.sum(LeaveBalance.used_days)).filter(LeaveBalance.school_id == school_id).scalar() or 0
+    return {"total_leave_days": int(total), "used_days": int(used)}
+
+
+def _borrowing_statistics(db: Session, school_id: str | None) -> dict:
+    total = db.query(BookBorrowing).filter(BookBorrowing.school_id == school_id).count()
+    active = db.query(BookBorrowing).filter(BookBorrowing.school_id == school_id, BookBorrowing.status == "borrowed").count()
+    return {"total_borrowings": total, "active_borrowings": active}
+
+
+def _overdue_books(db: Session, school_id: str | None) -> dict:
+    overdue = db.query(BookBorrowing).filter(
+        BookBorrowing.school_id == school_id,
+        BookBorrowing.status == "borrowed",
+        BookBorrowing.due_date < date.today()
+    ).count()
+    total_fines = db.query(func.sum(LibraryFine.amount)).filter(LibraryFine.school_id == school_id).scalar() or 0
+    return {"overdue_count": overdue, "total_fines": float(total_fines)}
+
+
+def _popular_books(db: Session, school_id: str | None) -> dict:
+    return {"note": "See library module for most borrowed books"}
+
+
+def _sales_summary(db: Session, school_id: str | None) -> dict:
+    total = db.query(func.sum(CafeteriaOrder.total)).filter(CafeteriaOrder.school_id == school_id).scalar() or 0
+    count = db.query(CafeteriaOrder).filter(CafeteriaOrder.school_id == school_id).count()
+    return {"total_sales": float(total), "order_count": count}
+
+
+def _popular_items(db: Session, school_id: str | None) -> dict:
+    products = db.query(CafeteriaProduct).filter(CafeteriaProduct.school_id == school_id).count()
+    return {"total_products": products}
+
+
+def _cafeteria_inventory_usage(db: Session, school_id: str | None) -> dict:
+    products = db.query(CafeteriaProduct).filter(CafeteriaProduct.school_id == school_id).count()
+    low_stock = db.query(CafeteriaProduct).filter(CafeteriaProduct.school_id == school_id, CafeteriaProduct.stock < 5).count()
+    return {"total_products": products, "low_stock_items": low_stock}
+
+
+def _stock_value_report(db: Session, school_id: str | None) -> dict:
+    items = db.query(InventoryItem).filter(InventoryItem.school_id == school_id).count()
+    return {"total_items": items}
+
+
+def _low_stock_alert(db: Session, school_id: str | None) -> dict:
+    low = db.query(InventoryItem).filter(
+        InventoryItem.school_id == school_id,
+        InventoryItem.quantity < InventoryItem.min_quantity
+    ).count()
+    return {"items_below_minimum": low}
+
+
+def _supplier_performance(db: Session, school_id: str | None) -> dict:
+    count = db.query(Supplier).filter(Supplier.school_id == school_id).count()
+    return {"total_suppliers": count}
+
+
+def _audit_trail_summary(db: Session, school_id: str | None) -> dict:
+    total = db.query(AuditLog).filter(AuditLog.school_id == school_id).count()
+    return {"total_audit_entries": total}
+
+
+def _security_events(db: Session, school_id: str | None) -> dict:
+    total = db.query(AuditLog).filter(
+        AuditLog.school_id == school_id,
+        AuditLog.action.like("SECURITY_%"),
+    ).count()
+    return {"total_events": total}
+
+
+def _compliance_report(db: Session, school_id: str | None) -> dict:
+    return {"status": "All systems operational"}
+
+
+_REPORT_HANDLERS = {
+    ("system", "Global Usage Report"): _global_usage_report,
+    ("system", "License Compliance Report"): _license_compliance_report,
+    ("system", "Error Log Summary"): _error_log_summary,
+    ("admin", "Enrollment Summary"): _enrollment_summary,
+    ("admin", "Staff Overview"): _staff_overview,
+    ("admin", "Financial Summary"): _financial_summary,
+    ("finance", "Revenue vs Expenses"): _revenue_vs_expenses,
+    ("finance", "Outstanding Invoices"): _outstanding_invoices,
+    ("finance", "Fee Collection Rate"): _fee_collection_rate,
+    ("hr", "Staff Attendance Summary"): _staff_attendance_summary,
+    ("hr", "Payroll Summary"): _payroll_summary,
+    ("hr", "Leave Balance Report"): _leave_balance_report,
+    ("library", "Borrowing Statistics"): _borrowing_statistics,
+    ("library", "Overdue Books"): _overdue_books,
+    ("library", "Popular Books"): _popular_books,
+    ("cafeteria", "Sales Summary"): _sales_summary,
+    ("cafeteria", "Popular Items"): _popular_items,
+    ("cafeteria", "Inventory Usage"): _cafeteria_inventory_usage,
+    ("inventory", "Stock Value Report"): _stock_value_report,
+    ("inventory", "Low Stock Alert"): _low_stock_alert,
+    ("inventory", "Supplier Performance"): _supplier_performance,
+    ("auditor", "Audit Trail Summary"): _audit_trail_summary,
+    ("auditor", "Security Events"): _security_events,
+    ("auditor", "Compliance Report"): _compliance_report,
+}
+
+
 def generate_report_data(db: Session, module: str, name: str, school_id: str | None) -> dict:
-    data = {}
-    if module == "system" and name == "Global Usage Report":
-        data = {
-            "total_users": db.query(User).count(),
-            "total_schools": db.query(func.distinct(User.school_id)).scalar() or 0,
-            "total_students": db.query(Student).count(),
-        }
-    elif module == "system" and name == "License Compliance Report":
-        active = db.query(License).filter(License.status == "ACTIVE").count()
-        expired = db.query(License).filter(License.status == "EXPIRED").count()
-        data = {"active_licenses": active, "expired_licenses": expired}
-    elif module == "system" and name == "Error Log Summary":
-        data = {"total_audit_entries": db.query(AuditLog).count()}
-    elif module == "admin" and name == "Enrollment Summary":
-        total = db.query(Student).filter(Student.school_id == school_id).count()
-        active = db.query(Student).filter(Student.school_id == school_id, Student.status == "active").count()
-        data = {"total_students": total, "active_students": active}
-    elif module == "admin" and name == "Staff Overview":
-        staff_count = db.query(StaffProfile).filter(StaffProfile.school_id == school_id).count()
-        teacher_count = db.query(TeacherProfile).filter(TeacherProfile.school_id == school_id).count()
-        data = {"staff": staff_count, "teachers": teacher_count}
-    elif module == "admin" and name == "Financial Summary":
-        total_invoiced = db.query(func.sum(Invoice.total_amount)).filter(Invoice.school_id == school_id).scalar() or 0
-        total_collected = db.query(func.sum(Payment.amount)).filter(Payment.school_id == school_id).scalar() or 0
-        data = {"total_invoiced": float(total_invoiced), "total_collected": float(total_collected)}
-    elif module == "finance" and name == "Revenue vs Expenses":
-        total_payments = db.query(func.sum(Payment.amount)).filter(Payment.school_id == school_id).scalar() or 0
-        data = {"revenue": float(total_payments)}
-    elif module == "finance" and name == "Outstanding Invoices":
-        total = db.query(func.sum(Invoice.total_amount - Invoice.paid_amount)).filter(
-            Invoice.school_id == school_id, Invoice.status.in_(["draft", "sent"])).scalar() or 0
-        count = db.query(Invoice).filter(Invoice.school_id == school_id, Invoice.status.in_(["draft", "sent"])).count()
-        data = {"outstanding_amount": float(total), "outstanding_count": count}
-    elif module == "finance" and name == "Fee Collection Rate":
-        total = db.query(func.sum(Invoice.total_amount)).filter(Invoice.school_id == school_id).scalar() or 0
-        collected = db.query(func.sum(Payment.amount)).filter(Payment.school_id == school_id).scalar() or 0
-        rate = (collected / total * 100) if total > 0 else 0
-        data = {"total_invoiced": float(total), "collected": float(collected), "rate_pct": round(float(rate), 1)}
-    elif module == "hr" and name == "Staff Attendance Summary":
-        present = db.query(Attendance).filter(Attendance.school_id == school_id, Attendance.status == "present").count()
-        absent = db.query(Attendance).filter(Attendance.school_id == school_id, Attendance.status == "absent").count()
-        late = db.query(Attendance).filter(Attendance.school_id == school_id, Attendance.status == "late").count()
-        data = {"present": present, "absent": absent, "late": late}
-    elif module == "hr" and name == "Payroll Summary":
-        data = {"note": "See payroll module for detailed payroll reports"}
-    elif module == "hr" and name == "Leave Balance Report":
-        total = db.query(func.sum(LeaveBalance.total_days)).filter(LeaveBalance.school_id == school_id).scalar() or 0
-        used = db.query(func.sum(LeaveBalance.used_days)).filter(LeaveBalance.school_id == school_id).scalar() or 0
-        data = {"total_leave_days": int(total), "used_days": int(used)}
-    elif module == "library" and name == "Borrowing Statistics":
-        total = db.query(BookBorrowing).filter(BookBorrowing.school_id == school_id).count()
-        active = db.query(BookBorrowing).filter(BookBorrowing.school_id == school_id, BookBorrowing.status == "borrowed").count()
-        data = {"total_borrowings": total, "active_borrowings": active}
-    elif module == "library" and name == "Overdue Books":
-        from datetime import date
-        overdue = db.query(BookBorrowing).filter(
-            BookBorrowing.school_id == school_id,
-            BookBorrowing.status == "borrowed",
-            BookBorrowing.due_date < date.today()
-        ).count()
-        total_fines = db.query(func.sum(LibraryFine.amount)).filter(LibraryFine.school_id == school_id).scalar() or 0
-        data = {"overdue_count": overdue, "total_fines": float(total_fines)}
-    elif module == "library" and name == "Popular Books":
-        data = {"note": "See library module for most borrowed books"}
-    elif module == "cafeteria" and name == "Sales Summary":
-        total = db.query(func.sum(CafeteriaOrder.total)).filter(CafeteriaOrder.school_id == school_id).scalar() or 0
-        count = db.query(CafeteriaOrder).filter(CafeteriaOrder.school_id == school_id).count()
-        data = {"total_sales": float(total), "order_count": count}
-    elif module == "cafeteria" and name == "Popular Items":
-        products = db.query(CafeteriaProduct).filter(CafeteriaProduct.school_id == school_id).count()
-        data = {"total_products": products}
-    elif module == "cafeteria" and name == "Inventory Usage":
-        products = db.query(CafeteriaProduct).filter(CafeteriaProduct.school_id == school_id).count()
-        low_stock = db.query(CafeteriaProduct).filter(CafeteriaProduct.school_id == school_id, CafeteriaProduct.stock < 5).count()
-        data = {"total_products": products, "low_stock_items": low_stock}
-    elif module == "inventory" and name == "Stock Value Report":
-        items = db.query(InventoryItem).filter(InventoryItem.school_id == school_id).count()
-        data = {"total_items": items}
-    elif module == "inventory" and name == "Low Stock Alert":
-        low = db.query(InventoryItem).filter(
-            InventoryItem.school_id == school_id,
-            InventoryItem.quantity < InventoryItem.min_quantity
-        ).count()
-        data = {"items_below_minimum": low}
-    elif module == "inventory" and name == "Supplier Performance":
-        count = db.query(Supplier).filter(Supplier.school_id == school_id).count()
-        data = {"total_suppliers": count}
-    elif module == "auditor" and name == "Audit Trail Summary":
-        total = db.query(AuditLog).filter(AuditLog.school_id == school_id).count()
-        data = {"total_audit_entries": total}
-    elif module == "auditor" and name == "Security Events":
-        # SECURITY_* events for this tenant only; superuser sees all via the system module.
-        total = db.query(AuditLog).filter(
-            AuditLog.school_id == school_id,
-            AuditLog.action.like("SECURITY_%"),
-        ).count()
-        data = {"total_events": total}
-    elif module == "auditor" and name == "Compliance Report":
-        data = {"status": "All systems operational"}
-    return data
+    handler = _REPORT_HANDLERS.get((module, name))
+    if handler is None:
+        return {}
+    return handler(db, school_id)
 
 
 @router.get("/reports/{module}", dependencies=ALL_ROLES)
