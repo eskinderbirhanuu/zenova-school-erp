@@ -1,10 +1,10 @@
 """ZENOVA License Server — Cloud License Management API
 
-Deployed at: https://superadmin.free.nf
 Manages school registration, license keys, subscriptions.
 """
 import logging
 from datetime import datetime, timezone
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import FastAPI, Depends, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +14,18 @@ from app.database import engine, Base, get_db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
 
 app = FastAPI(
     title="ZENOVA License Server",
@@ -29,6 +41,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 @app.exception_handler(Exception)
@@ -36,7 +49,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Internal server error: {type(exc).__name__}: {str(exc)}"},
+        content={"detail": "Internal server error"},
     )
 
 
@@ -71,15 +84,18 @@ def ping():
 def heartbeat(data: dict, db=Depends(get_db)):
     """Receive heartbeat from school servers."""
     from app.models.models import HeartbeatEvent, School
+    school_code = data.get("school_code", "")
+    if not school_code:
+        return JSONResponse(status_code=400, content={"detail": "school_code is required"})
     event = HeartbeatEvent(
-        school_code=data.get("school_code", ""),
+        school_code=school_code,
         server_id=data.get("server_id", ""),
         version=data.get("version", ""),
         license_key=data.get("license_key", ""),
         reported_at=datetime.now(timezone.utc),
     )
     db.add(event)
-    db.query(School).filter(School.id == data.get("school_code")).update(
+    db.query(School).filter(School.id == school_code).update(
         {"last_sync_at": datetime.now(timezone.utc)}
     )
     db.commit()

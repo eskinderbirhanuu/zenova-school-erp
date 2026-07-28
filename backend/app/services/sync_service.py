@@ -78,7 +78,7 @@ def process_queue(db: Session, limit: int = 50) -> dict:
         except Exception as e:
             entry.status = SyncStatus.FAILED
             entry.error_message = str(e)
-            entry.retry_count = str(int(entry.retry_count or "0") + 1)
+            entry.retry_count = (entry.retry_count or 0) + 1
             failed_count += 1
             errors.append({"id": entry.id, "error": str(e)})
 

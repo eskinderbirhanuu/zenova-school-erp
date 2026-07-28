@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, Text, Enum as SAEnum
+from sqlalchemy import Column, String, Boolean, DateTime, Text, Enum as SAEnum, Integer
 from app.database import Base
 import enum
 
@@ -27,8 +27,8 @@ class SyncQueue(Base):
     status = Column(SAEnum(SyncStatus), default=SyncStatus.PENDING, index=True)
     payload = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
-    retry_count = Column(String(10), default="0")
-    priority = Column(String(10), default="5", index=True)
+    retry_count = Column(Integer, default=0)
+    priority = Column(Integer, default=5, index=True)
     source_version = Column(String(20), nullable=True)
     school_id = Column(String(36), nullable=True, index=True)
     branch_id = Column(String(36), nullable=True, index=True)

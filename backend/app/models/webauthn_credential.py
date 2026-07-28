@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Integer
 from app.database import Base
 
 
@@ -11,7 +11,7 @@ class WebAuthnCredential(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     credential_id = Column(String(500), nullable=False, unique=True)
     public_key_cbor = Column(Text, nullable=False)
-    sign_count = Column(String(20), nullable=False, default="0")
+    sign_count = Column(Integer, nullable=False, default=0)
     device_name = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
