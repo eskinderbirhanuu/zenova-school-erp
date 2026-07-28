@@ -14,7 +14,16 @@ from app.core.exceptions import UnauthorizedException, ForbiddenException
 def get_client_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        ips = [ip.strip() for ip in forwarded.split(",")]
+        trusted_raw = settings.trusted_proxies
+        if trusted_raw:
+            trusted = {t.strip() for t in trusted_raw.split(",") if t.strip()}
+            if trusted:
+                for ip in reversed(ips):
+                    if ip not in trusted:
+                        return ip
+                return ips[-1]
+        return ips[0].strip()
     return request.client.host if request.client else "unknown"
 
 

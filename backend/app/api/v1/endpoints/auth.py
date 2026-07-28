@@ -40,6 +40,22 @@ LOCKOUT_SECONDS = _settings.brute_force_lockout_seconds
 BRUTE_FORCE_KEY = "bruteforce"
 
 
+@router.get("/csrf-token")
+def get_csrf_token(response: Response):
+    import secrets
+    token = secrets.token_hex(32)
+    response.set_cookie(
+        key="csrf_token",
+        value=token,
+        httponly=True,
+        secure=_COOKIE_SECURE,
+        samesite="strict",
+        path="/",
+        max_age=3600,
+    )
+    return {"csrf_token": token}
+
+
 def _check_brute_force(db: Session, ip: str, identifier: str) -> None:
     from app.core.redis_client import get_redis
     redis = get_redis()
@@ -258,7 +274,7 @@ def login(
     response.set_cookie(
         key="user_role",
         value=role_name,
-        httponly=False,
+        httponly=True,
         secure=_COOKIE_SECURE,
         samesite="strict",
         path="/",
@@ -267,7 +283,7 @@ def login(
     response.set_cookie(
         key="user_roles",
         value=role_names_str,
-        httponly=False,
+        httponly=True,
         secure=_COOKIE_SECURE,
         samesite="strict",
         path="/",
@@ -521,8 +537,11 @@ def forgot_password(
 
 
 def _get_base_url() -> str:
-    import os
-    return os.getenv("FRONTEND_URL", "http://localhost:3000")
+    raw = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    allowed = settings.cors_origins if hasattr(settings, "cors_origins") else ["http://localhost:3000"]
+    if raw.rstrip("/") in [o.rstrip("/") for o in allowed]:
+        return raw.rstrip("/")
+    return "http://localhost:3000"
 
 
 @router.post("/reset-password")

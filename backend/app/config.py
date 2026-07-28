@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     super_admin_email: str = ""
     master_setup_key: str = ""
     trusted_networks: str = ""  # Comma-separated CIDR: "192.168.0.0/16,10.0.0.0/8"
+    trusted_proxies: str = ""  # Comma-separated IPs trusted for X-Forwarded-For
+    rp_id: str = "localhost"   # WebAuthn Relying Party ID
     sync_secret: str = ""  # Shared secret for HMAC sync auth
     sync_clock_skew: int = 60  # Allowed clock skew in seconds for sync HMAC verification
 

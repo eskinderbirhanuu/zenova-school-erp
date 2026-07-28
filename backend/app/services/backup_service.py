@@ -121,8 +121,20 @@ def create_backup(encrypt: Optional[bool] = None) -> dict:
 
     if pg_dump_path:
         db_url = settings.database_url
-        cmd = [pg_dump_path, "--no-owner", "--no-acl", "-f", filepath, db_url]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        pgpassword = None
+        cmd_parts = [pg_dump_path, "--no-owner", "--no-acl", "-f", filepath]
+        if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
+            from urllib.parse import urlparse
+            parsed = urlparse(db_url)
+            pgpassword = parsed.password
+            clean_url = f"{parsed.scheme}://{parsed.username}@{parsed.hostname}:{parsed.port}{parsed.path}?{parsed.query}" if parsed.query else f"{parsed.scheme}://{parsed.username}@{parsed.hostname}:{parsed.port}{parsed.path}"
+            cmd = cmd_parts + [clean_url]
+        else:
+            cmd = cmd_parts + [db_url]
+        env = os.environ.copy()
+        if pgpassword:
+            env["PGPASSWORD"] = pgpassword
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
         if result.returncode != 0:
             raise RuntimeError(f"pg_dump failed: {result.stderr}")
         size = os.path.getsize(filepath)

@@ -9,7 +9,10 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.exceptions import InvalidSignature
 
-from app.core.constants import CHALLENGE_LENGTH, RP_ID, RP_NAME
+from app.core.constants import CHALLENGE_LENGTH, RP_NAME
+from app.config import settings
+
+RP_ID = settings.rp_id
 
 logger = logging.getLogger(__name__)
 

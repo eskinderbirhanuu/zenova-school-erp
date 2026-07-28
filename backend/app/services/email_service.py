@@ -1,3 +1,4 @@
+import ssl
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -5,6 +6,7 @@ from app.config import settings
 from app.utils.circuit_breaker import CircuitBreaker
 
 _smtp_breaker = CircuitBreaker("smtp_email", failure_threshold=3, recovery_timeout=120)
+_ssl_ctx = ssl.create_default_context()
 
 
 def send_email(
@@ -27,7 +29,7 @@ def send_email(
 
     def _do_send():
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
-            server.starttls()
+            server.starttls(context=_ssl_ctx)
             if settings.smtp_username:
                 server.login(settings.smtp_username, settings.smtp_password)
             server.sendmail(settings.email_from_address, to_email, msg.as_string())

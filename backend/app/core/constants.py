@@ -21,7 +21,6 @@ BACKUP_CODE_COUNT = 10
 
 # ─── WebAuthn ─────────────────────────────────────────────────────────
 CHALLENGE_LENGTH = 32
-RP_ID = "zenova.local"
 RP_NAME = "Zenova School"
 
 # ─── MFA ──────────────────────────────────────────────────────────────
@@ -59,6 +58,7 @@ CSRF_EXEMPT_PATHS = frozenset({
     "/api/v1/auth/login",
     "/api/v1/auth/register",
     "/api/v1/auth/refresh",
+    "/api/v1/auth/csrf-token",
     "/api/v1/auth/reset-password",
     "/api/v1/auth/forgot-password",
     "/api/v1/auth/change-password",

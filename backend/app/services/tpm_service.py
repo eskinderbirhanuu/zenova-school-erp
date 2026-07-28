@@ -84,8 +84,8 @@ def _tpm_seal(data: bytes) -> Optional[bytes]:
                 capture_output=True, text=True, timeout=30,
             )
             result = subprocess.run(
-                ["sh", "-c", f"echo '{b64_data}' | tpm2_create --policy-file /tmp/zenova_policy.dat -i- -u /tmp/zenova_key.pub -r /tmp/zenova_key.priv -C o"],
-                capture_output=True, text=True, timeout=30,
+                ["tpm2_create", "--policy-file", "/tmp/zenova_policy.dat", "-i-", "-u", "/tmp/zenova_key.pub", "-r", "/tmp/zenova_key.priv", "-C", "o"],
+                input=b64_data.encode(), capture_output=True, text=True, timeout=30,
             )
             if result.returncode != 0:
                 return None
