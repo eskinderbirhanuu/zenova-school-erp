@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas import SchoolRegister, SchoolResponse
 from app.services import school_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -11,21 +14,30 @@ router = APIRouter()
 @router.post("/register", response_model=SchoolResponse)
 def register(data: SchoolRegister, db: Session = Depends(get_db)):
     from app.services.license_service import create_license
-    school = school_service.register_school(
-        db, data.name, data.email, data.password,
-        data.phone, data.address, data.city, data.country,
-    )
-    # Auto-generate trial license
-    create_license(db, school.id, license_type="trial", max_users=30, max_branches=1)
+    try:
+        school = school_service.register_school(
+            db, data.name, data.email, data.password,
+            data.phone, data.address, data.city, data.country,
+        )
+        create_license(db, school.id, license_type="trial", max_users=30, max_branches=1)
 
-    return SchoolResponse(
-        id=school.id,
-        name=school.name,
-        email=school.email,
-        tier=school.tier,
-        is_active=school.is_active,
-        registered_at=school.registered_at.isoformat(),
-    )
+        registered_at = school.registered_at
+        if hasattr(registered_at, 'isoformat'):
+            registered_at_str = registered_at.isoformat()
+        else:
+            registered_at_str = str(registered_at)
+
+        return SchoolResponse(
+            id=school.id,
+            name=school.name,
+            email=school.email,
+            tier=school.tier,
+            is_active=school.is_active,
+            registered_at=registered_at_str,
+        )
+    except Exception as e:
+        logger.exception("School registration failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{school_id}")
