@@ -28,9 +28,21 @@ Thumbs.db
 # Docker
 docker-data/
 
+# Deploy artifacts (self-signed certs, env files)
+deploy/ssl/
+deploy/.env.vps
+deploy/.env.cc
+deploy/.env.license
+
+# Playwright auth state
+frontend/.auth/
+frontend/test-results/
+frontend/playwright-report/
+
 # Control Center — private keys (NEVER commit)
 control-center/backend/keys/
 control-center/backend/updates/
+control-center/backend/_smoke.db
 
 # Control Center — frontend build
 control-center/frontend/.next/

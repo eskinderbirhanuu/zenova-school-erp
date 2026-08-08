@@ -44,20 +44,24 @@ api.interceptors.response.use((response) => response,
   async (error) => {
     const originalRequest = error.config
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      try {
-        if (!refreshPromise) {
-          refreshPromise = axios.post(
-            `${BASE_URL}/auth/refresh`,
-            {},
-            { withCredentials: true }
-          ).then(() => {}).finally(() => { refreshPromise = null })
-        }
-        await refreshPromise
-        return api(originalRequest)
-      } catch {
-        if (typeof window !== "undefined") {
-          window.location.href = "/login?reason=session_expired"
+      const url: string = originalRequest.url || ""
+      const isAuthEndpoint = url.includes("/auth/")
+      if (!isAuthEndpoint) {
+        originalRequest._retry = true
+        try {
+          if (!refreshPromise) {
+            refreshPromise = axios.post(
+              `${BASE_URL}/auth/refresh`,
+              {},
+              { withCredentials: true }
+            ).then(() => {}).finally(() => { refreshPromise = null })
+          }
+          await refreshPromise
+          return api(originalRequest)
+        } catch {
+          if (typeof window !== "undefined") {
+            window.location.href = "/login?reason=session_expired"
+          }
         }
       }
     }
@@ -467,8 +471,8 @@ export const platformService = {
 }
 
 export const announcementService = {
-  list: (params?: Record<string, unknown>): ApiResponse<{ id: string; title: string; body: string; created_at: string }[]> =>
+  list: (params?: Record<string, unknown>): ApiResponse<{ id: string; title: string; content: string; target_roles: string; is_published: boolean; created_at: string }[]> =>
     api.get("/announcements", { params }),
-  create: (data: { title: string; body: string }): ApiResponse<{ id: string; title: string; body: string }> => api.post("/announcements", data),
+  create: (data: { title: string; content: string; target_roles?: string }): ApiResponse<{ id: string; title: string; content: string }> => api.post("/announcements", data),
   delete: (id: string): ApiResponse<void> => api.delete(`/announcements/${id}`),
 }

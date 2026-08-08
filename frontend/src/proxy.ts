@@ -13,7 +13,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1
 async function checkSetupComplete(): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/setup/status`, {
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(8000),
       credentials: "include",
     })
     const data = await res.json()
@@ -62,15 +62,15 @@ export async function proxy(request: NextRequest) {
   const allRoles = userRoles.length > 0 ? userRoles : (userRole ? [userRole] : [])
 
   if (pathname === "/") {
-    const setupComplete = await checkSetupComplete()
-    if (!setupComplete) {
-      return NextResponse.next()
-    }
     if (accessToken && allRoles.length > 0) {
       const bestDashboard = getBestDashboard(allRoles) || (userRole ? ROLE_DASHBOARD[userRole] : null)
       if (bestDashboard) {
         return NextResponse.redirect(new URL(bestDashboard, request.url))
       }
+    }
+    const setupComplete = await checkSetupComplete()
+    if (!setupComplete) {
+      return NextResponse.next()
     }
     return NextResponse.redirect(new URL("/login", request.url))
   }

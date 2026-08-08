@@ -7,10 +7,23 @@ from app.core.constants import (
     LOGIN_RATE_LIMIT_COUNT, LOGIN_RATE_WINDOW,
     API_RATE_LIMIT_COUNT, API_RATE_WINDOW,
 )
+from app.config import settings
 
 
 def rate_limit_key(prefix: str, ip: str) -> str:
     return f"ratelimit:{prefix}:{ip}"
+
+
+def _limit_for(prefix: str, default_count: int, default_window: int) -> tuple[int, int]:
+    """Resolve per-prefix limits from settings when available, else defaults."""
+    s = settings
+    count = getattr(s, f"{prefix}_rate_limit", None)
+    window = getattr(s, f"{prefix}_rate_window_seconds", None)
+    if isinstance(count, int) and count > 0:
+        default_count = count
+    if isinstance(window, int) and window > 0:
+        default_window = window
+    return default_count, default_window
 
 
 def rate_limit(prefix: str, limit: int, window_seconds: int):
@@ -19,12 +32,13 @@ def rate_limit(prefix: str, limit: int, window_seconds: int):
         ip = get_client_ip(request)
         key = rate_limit_key(prefix, ip)
         redis = get_redis()
+        eff_limit, eff_window = _limit_for(prefix, limit, window_seconds)
         try:
             current = redis.get(key)
             if current is None:
-                redis.setex(key, window_seconds, 1)
-            elif int(current) >= limit:
-                raise TooManyRequestsException(f"Rate limit exceeded. Try again in {window_seconds}s.")
+                redis.setex(key, eff_window, 1)
+            elif int(current) >= eff_limit:
+                raise TooManyRequestsException(f"Rate limit exceeded. Try again in {eff_window}s.")
             else:
                 redis.incr(key)
         except TooManyRequestsException:

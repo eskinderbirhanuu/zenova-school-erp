@@ -51,7 +51,7 @@ def seed():
             status=LicenseStatus.ACTIVE,
             valid_from=datetime.now(timezone.utc),
             valid_until=datetime.now(timezone.utc) + timedelta(days=365),
-            max_users="Unlimited",
+            max_users=None,
         )
         db.add(demo_license)
         db.commit()

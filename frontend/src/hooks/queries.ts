@@ -158,8 +158,8 @@ export function useDeleteClass() {
 
 // ─── Academic: Sections ─────────────────────────────────
 
-export function useSections(params?: Record<string, unknown>) {
-  return useApiQuery<Section[]>(["sections", params], () => academicService.sections.list(params))
+export function useSections(params?: Record<string, unknown>, options?: { enabled?: boolean }) {
+  return useApiQuery<Section[]>(["sections", params], () => academicService.sections.list(params), options)
 }
 
 export function useCreateSection() {
@@ -595,11 +595,11 @@ export function useUpdateNotificationPreferences() {
 // ─── Announcements ──────────────────────────────────────
 
 export function useAnnouncements(params?: Record<string, unknown>) {
-  return useApiQuery<{ id: string; title: string; body: string; created_at: string }[]>(["announcements", params], () => announcementService.list(params))
+  return useApiQuery<{ id: string; title: string; content: string; target_roles: string; is_published: boolean; created_at: string }[]>(["announcements", params], () => announcementService.list(params))
 }
 
 export function useCreateAnnouncement() {
-  return useApiMutation((data: { title: string; body: string }) => announcementService.create(data), { invalidate: [["announcements"]] })
+  return useApiMutation((data: { title: string; content: string; target_roles?: string }) => announcementService.create(data), { invalidate: [["announcements"]] })
 }
 
 export function useDeleteAnnouncement() {

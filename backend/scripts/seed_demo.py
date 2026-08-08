@@ -19,8 +19,7 @@ from app.models.teacher_grade_assignment import TeacherGradeAssignment
 from app.models.teacher_section_assignment import TeacherSectionAssignment
 from app.models.staff_profile import StaffProfile
 from app.models.fee import FeeType, FeeStructure
-from app.models.inventory import InventoryCategory, InventoryItem
-from app.models.supplier import Supplier
+from app.models.inventory import InventoryCategory, InventoryItem, Supplier
 from app.models.library import BookCategory, Book
 from app.models.cafeteria import CafeteriaProduct
 from app.models.leave import LeaveType
@@ -87,10 +86,10 @@ def seed():
         db.flush()
 
         sem1 = Semester(id=str(uuid.uuid4()), name="Semester 1",
-                        academic_year_id=academic_year.id,
+                        academic_year_id=academic_year.id, school_id=school_id,
                         start_date=date(2025, 9, 1), end_date=date(2026, 1, 31))
         sem2 = Semester(id=str(uuid.uuid4()), name="Semester 2",
-                        academic_year_id=academic_year.id,
+                        academic_year_id=academic_year.id, school_id=school_id,
                         start_date=date(2026, 2, 1), end_date=date(2026, 7, 31))
         db.add_all([sem1, sem2])
         db.flush()
@@ -109,7 +108,7 @@ def seed():
         for g in grades:
             for sn in ["A", "B"]:
                 s = Section(id=str(uuid.uuid4()), name=f"{g.name} {sn}",
-                           class_id=g.id, capacity=40)
+                           class_id=g.id, capacity=40, school_id=school_id)
                 db.add(s)
                 db.flush()
                 sections.append(s)
@@ -117,7 +116,8 @@ def seed():
         subjects = []
         for sn, sc in SUBJECT_NAMES:
             sub = Subject(id=str(uuid.uuid4()), name=sn, code=sc,
-                         class_id=grades[0].id, is_optional=False)
+                         class_id=grades[0].id, is_optional=False,
+                         school_id=school_id)
             db.add(sub)
             db.flush()
             subjects.append(sub)
@@ -140,7 +140,8 @@ def seed():
             tp = TeacherProfile(id=str(uuid.uuid4()), user_id=user.id,
                                teacher_id=employee_id,
                                qualification="Bachelor's Degree",
-                               department=dept, employment_date=date(2023, 9, 1))
+                               department=dept, employment_date=date(2023, 9, 1),
+                               school_id=school_id)
             db.add(tp)
             db.flush()
 
@@ -150,11 +151,13 @@ def seed():
             db.add(ts)
 
             tga = TeacherGradeAssignment(id=str(uuid.uuid4()), teacher_id=tp.id,
-                                        grade_id=grades[i % len(grades)].id)
+                                        grade_id=grades[i % len(grades)].id,
+                                        school_id=school_id)
             db.add(tga)
 
             tsa = TeacherSectionAssignment(id=str(uuid.uuid4()), teacher_id=tp.id,
-                                          section_id=sections[i % len(sections)].id)
+                                          section_id=sections[i % len(sections)].id,
+                                          school_id=school_id)
             db.add(tsa)
             teachers.append(tp)
 
@@ -182,7 +185,8 @@ def seed():
             db.add(user)
             db.flush()
             sp = StaffProfile(id=str(uuid.uuid4()), user_id=user.id, staff_id=eid,
-                             department=sn, employment_date=date(2023, 1, 1))
+                             department=sn, employment_date=date(2023, 1, 1),
+                             school_id=school_id)
             db.add(sp)
             staff_users.append(user)
 
@@ -240,13 +244,16 @@ def seed():
 
         for g in grades[:4]:
             fs = FeeStructure(id=str(uuid.uuid4()), fee_type_id=tuition.id,
-                             class_id=g.id, amount=12000.00)
+                             class_id=g.id, amount=12000.00,
+                             school_id=school_id)
             db.add(fs)
 
         reg_fee = FeeStructure(id=str(uuid.uuid4()), fee_type_id=registration.id,
-                              class_id=grades[0].id, amount=500.00)
+                              class_id=grades[0].id, amount=500.00,
+                              school_id=school_id)
         act_fee = FeeStructure(id=str(uuid.uuid4()), fee_type_id=activity.id,
-                              class_id=grades[0].id, amount=2000.00)
+                              class_id=grades[0].id, amount=2000.00,
+                              school_id=school_id)
         db.add_all([reg_fee, act_fee])
 
         inv_cat = InventoryCategory(id=str(uuid.uuid4()), name="Stationery",

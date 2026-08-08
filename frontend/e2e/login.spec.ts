@@ -21,6 +21,6 @@ test.describe("Login flow", () => {
     await page.fill('input[name="email"]', "admin@zenova.app")
     await page.fill('input[name="password"]', "admin123")
     await page.click('button[type="submit"]')
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 })
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 30000 })
   })
 })

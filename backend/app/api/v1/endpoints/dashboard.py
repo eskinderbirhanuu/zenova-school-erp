@@ -75,7 +75,7 @@ def _count_branches(db: Session, school_id: int | None, is_super: bool) -> int:
 
 def _count_events(db: Session, school_id: int | None, is_super: bool) -> int:
     now = datetime.now(timezone.utc)
-    q = db.query(func.count(Event.id)).filter(Event.start_date >= now)
+    q = db.query(func.count(Event.id)).filter(Event.event_date >= now)
     if not is_super:
         q = q.filter(Event.school_id == school_id)
     return q.scalar() or 0

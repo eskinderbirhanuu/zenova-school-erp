@@ -28,6 +28,6 @@ test.describe("Admin flows", () => {
     await page.fill('input[name="title"]', "E2E Test Announcement")
     await page.fill('textarea[name="content"]', "Created by Playwright test")
     await page.getByRole("button", { name: /publish|submit|save/i }).click()
-    await expect(page.getByText(/announcement published|success|created/i)).toBeVisible()
+    await expect(page.getByText("Announcement published", { exact: true })).toBeVisible()
   })
 })

@@ -35,7 +35,7 @@ function SectionCard({ icon: Icon, title, children, className = "" }: { icon: an
   )
 }
 
-function Field({ label, name, type = "text", required, placeholder, options, className = "", form, handleChange }: any) {
+function Field({ label, name, type = "text", required, placeholder, options, className = "", form = {}, handleChange = () => {} }: any) {
   return (
     <div className={`space-y-1.5 ${className}`}>
       <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label} {required && <span className="text-red-400">*</span>}</label>
@@ -88,7 +88,10 @@ export default function RegisterStudentPage() {
     address: "", nationality: "", blood_group: "",
     emergency_contact: "",
   })
-  const { data: sectionsData } = useSections(form.grade_id ? { class_id: form.grade_id } : {})
+  const { data: sectionsData } = useSections(
+    form.grade_id ? { class_id: form.grade_id } : undefined,
+    { enabled: !!form.grade_id },
+  )
 
   const [parentQuery, setParentQuery] = useState("")
   const [parentResults, setParentResults] = useState<any[]>([])

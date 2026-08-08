@@ -16,7 +16,7 @@ router = APIRouter(tags=["announcements"])
 def create_announcement(
     data: AnnouncementCreate,
     db: Session = Depends(get_db),
-    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
+    current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
     announcement = Announcement(
         title=data.title,
@@ -31,7 +31,7 @@ def create_announcement(
     return announcement
 
 
-@router.get("/announcements")
+@router.get("/announcements", response_model=list[AnnouncementResponse])
 def list_announcements(
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -43,10 +43,7 @@ def list_announcements(
     ).order_by(Announcement.created_at.desc())
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
     items = paginated_q.all()
-    return build_paginated_response(
-        items=[AnnouncementResponse.model_validate(a) for a in items],
-        total=total, page=cur_page, page_size=cur_size, total_pages=total_pages,
-    )
+    return items
 
 
 @router.get("/announcements/{announcement_id}", response_model=AnnouncementResponse)
@@ -68,7 +65,7 @@ def get_announcement(
 def delete_announcement(
     announcement_id: str,
     db: Session = Depends(get_db),
-    current_user: User = require_permission(Permission.SCHOOL_MANAGE),
+    current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
     a = db.query(Announcement).filter(
         Announcement.id == announcement_id,

@@ -15,7 +15,7 @@ test.describe("Student flows", () => {
   })
 
   test("student grades page loads", async ({ page }) => {
-    await page.goto("/student/grades")
+    await page.goto("/student/results")
     await expect(page.getByText(/grade|result|score|subject/i).first()).toBeVisible({ timeout: 10000 })
   })
 

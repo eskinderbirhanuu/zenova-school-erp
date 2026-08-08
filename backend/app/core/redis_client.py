@@ -18,8 +18,8 @@ def get_redis():
             _redis_client = redis.from_url(
                 settings.redis_url,
                 decode_responses=True,
-                socket_connect_timeout=3,
-                socket_timeout=3,
+                socket_connect_timeout=5,
+                socket_timeout=10,
             )
             _redis_client.ping()
         except Exception as exc:

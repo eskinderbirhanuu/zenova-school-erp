@@ -16,7 +16,7 @@ test.describe("Registrar flows", () => {
 
   test("student registration page loads", async ({ page }) => {
     await page.goto("/registrar/students/new")
-    await expect(page.getByRole("heading", /register|new student/i)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole("heading", { name: /register|new student/i })).toBeVisible({ timeout: 10000 })
   })
 
   test("transfers page loads", async ({ page }) => {

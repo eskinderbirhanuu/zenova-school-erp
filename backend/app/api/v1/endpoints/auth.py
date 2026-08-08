@@ -243,8 +243,11 @@ def login(
     refresh_token_str = auth_service.create_refresh_token({"sub": user.id})
 
     if redis:
-        _check_concurrent_sessions(redis, user.id)
-        _register_session(redis, user.id, refresh_token_str)
+        try:
+            _check_concurrent_sessions(redis, user.id)
+            _register_session(redis, user.id, refresh_token_str)
+        except Exception as exc:
+            logger.warning("Redis session check failed during login; continuing: %s", exc)
 
     auth_service.update_last_login(db, user.id)
     auth_service.log_login_audit(

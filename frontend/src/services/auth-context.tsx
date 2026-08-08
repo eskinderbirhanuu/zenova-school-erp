@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [activeRole, setActiveRoleState] = useState<string>("")
 
-  const { data: user, isLoading, isFetching } = useQuery<User | null>({
+  const { data: user, isPending, isFetching } = useQuery<User | null>({
     queryKey: AUTH_QUERY_KEY,
     queryFn: async () => {
       try {
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retry: false,
   })
 
-  const loading = (isLoading || isFetching) && user === null
+  const loading = (isPending || isFetching) && user == null
 
   const login = async (email: string, password: string, employee_id?: string) => {
     await authService.login(email, password, employee_id)

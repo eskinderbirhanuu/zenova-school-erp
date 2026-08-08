@@ -16,6 +16,7 @@ from app.models.teacher_profile import TeacherProfile
 from app.models.staff_profile import StaffProfile
 from app.models.teacher_grade_assignment import TeacherGradeAssignment
 from app.models.teacher_section_assignment import TeacherSectionAssignment
+from app.models.teacher_subject import TeacherSubject
 from app.models.qr_code import QRCode
 from app.models.nfc_card import NFCCard
 from app.models.number_sequence import NumberSequence
@@ -78,3 +79,9 @@ from app.models.card_design import CardDesign
 from app.models.corporate_department import CorporateDepartment
 from app.models.corporate_employee import CorporateEmployee
 from app.models.password_recovery import PasswordResetRequest, RecoveryCode, PasswordAudit
+from app.models.currency import Currency
+from app.models.device_fingerprint import DeviceFingerprint
+from app.models.payment_session import PaymentSession
+from app.models.receipt import Receipt, ReceiptLine
+from app.models.refund import Refund
+from app.models.webauthn_credential import WebAuthnCredential

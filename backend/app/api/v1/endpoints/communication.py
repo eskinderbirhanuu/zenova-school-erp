@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.deps import get_db, get_current_user
 from app.core.permissions import require_permission, Permission
 from app.schemas.communication import (
-    AnnouncementCreate, AnnouncementResponse, NotificationResponse,
+    NotificationResponse,
     MessageCreate, MessageResponse,
 )
 from app.schemas.notification import NotificationPreferenceResponse, NotificationPreferenceUpdate
@@ -37,23 +37,6 @@ def _ensure_notification_prefs(db: Session, user_id: str) -> NotificationPrefere
         db.commit()
         db.refresh(pref)
     return pref
-
-
-@router.post("/announcements", response_model=AnnouncementResponse, dependencies=ADMIN)
-def communication_create_announcement(data: AnnouncementCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return communication_service.create_announcement(db, current_user.school_id, data, current_user.id)
-
-
-@router.get("/announcements", dependencies=ALL)
-def communication_list_announcements(
-    skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db), current_user=Depends(get_current_user),
-):
-    from app.models.announcement import Announcement
-    q = db.query(Announcement).filter(Announcement.school_id == current_user.school_id).order_by(Announcement.created_at.desc())
-    total = q.count()
-    items = q.offset(skip).limit(limit).all()
-    return {"total": total, "data": items, "skip": skip, "limit": limit}
 
 
 @router.get("/notifications", dependencies=ALL)

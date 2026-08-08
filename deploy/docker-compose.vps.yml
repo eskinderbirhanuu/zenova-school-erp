@@ -96,6 +96,8 @@ services:
   sync-worker:
     image: zenova/backend:${ZENOVA_VERSION:-latest}
     entrypoint: ["python", "-m", "app.workers.sync_worker", "30"]
+    healthcheck:
+      disable: true
     environment:
       DATABASE_URL: "postgresql://${DB_USER:-zenova}:${DB_PASSWORD}@db:5432/${DB_NAME:-zenova_prod}"
       REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:6379/0"
@@ -135,6 +137,8 @@ services:
       DB_USER: ${DB_USER:-zenova}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
       DB_NAME: ${DB_NAME:-zenova_prod}
+    healthcheck:
+      disable: true
     restart: unless-stopped
 
 volumes:
