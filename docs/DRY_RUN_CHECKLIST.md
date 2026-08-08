@@ -32,8 +32,30 @@ cp deploy/.env.vps.example deploy/.env.vps
 ./deploy/deploy.sh school
 ```
 
+### Super-Admin Setup (installer flow)
+A fresh deploy has **no admin user** until the installer runs — `admin@zenova.app` exists only in backend tests, not in production.
+
+1. In `.env.vps`, set `MASTER_SETUP_KEY=<strong secret>` (maps to `settings.master_setup_key`).
+2. Ensure `ZENOVA_LICENSE_SERVER` points at a reachable license server (cloud or local) so `verify_license` passes.
+3. Generate a `SUPER_ADMIN` license key (via Control Center → Generate license, or directly on the license server).
+4. Confirm readiness: `GET /api/v1/installer/status` → `server_identity_exists:false`, `has_master_key:true`.
+5. Initialize the super admin:
+```bash
+curl -X POST https://<domain>/api/v1/installer/initialize-super-admin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fingerprint":"<server-machine-fingerprint>",
+    "master_setup_key":"<MASTER_SETUP_KEY>",
+    "super_admin_license":"<SUPER_ADMIN-license-key>",
+    "email":"admin@<your-school>.com",
+    "password":"<strong-password>"
+  }'
+```
+Expected: `201` → `{success:true, server_id:..., email:..., message:"Super admin server activated successfully"}`. The chosen email/password are then the login credentials (not `admin@zenova.app`).
+
 ### Health Checks
-- [ ] Login works (admin@zenova.app / admin123)
+- [ ] Super-admin setup completed via installer flow (see above)
+- [ ] Login works with the installer-created super-admin credentials
 - [ ] Super-admin dashboard loads
 - [ ] Admin dashboard loads
 - [ ] Teacher dashboard loads
