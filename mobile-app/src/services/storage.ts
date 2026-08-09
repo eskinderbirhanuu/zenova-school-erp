@@ -69,6 +69,17 @@ export async function readCachedFeed<T>(key: string): Promise<T | null> {
   }
 }
 
+export async function readCachedFeedEntry<T>(key: string): Promise<{ savedAt: number; data: T } | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as FeedCache<T>
+    return { savedAt: parsed.savedAt, data: parsed.data }
+  } catch {
+    return null
+  }
+}
+
 export async function writeCachedFeed<T>(key: string, data: T): Promise<void> {
   const entry: FeedCache<T> = { savedAt: Date.now(), data }
   await SecureStore.setItemAsync(key, JSON.stringify(entry))

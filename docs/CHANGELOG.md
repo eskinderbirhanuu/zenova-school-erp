@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.0.0-apu-phase1] — 2026-08-09
+
+### APU Phase 1 — Parent & Student read path (mobile-app only, no backend change)
+- **Authenticated API client** (`mobile-app/src/services/api.ts`): `apiGet`/`apiPost` with automatic token refresh + one retry on 401 (Gap A1); `getCsrfToken()` fetches `/auth/csrf-token`, caches per school, and `apiPost` sends `X-CSRF-Token` header + matching `csrf_token` cookie (Gap A3); `validateSession()` hits `GET /auth/me`; `SessionExpiredError` surfaces for sign-out routing.
+- **Boot session validation** (Gap A2): `App.tsx` boot now validates the stored token via `/auth/me`; on expiry it clears the session and shows login, on backend-unreachable it keeps the cached session (offline-first).
+- **Parent portal** (`mobile-app/src/screens/ParentPortal.tsx`): children dashboard (attendance%, grades, fees, outstanding via `/parent-payments/dashboard`), invoices tab (`/parent-payments/invoices`), receipts tab (`/parent-payments/receipts`), and a pay flow (`POST /parent-portal/payments` with CSRF + idempotent invoice pay).
+- **Student portal** (`mobile-app/src/screens/StudentPortal.tsx`): dashboard (`/student-portal/dashboard`: attendance, today's schedule, subject grades, wallet, upcoming assignments), assignments tab (`/assignments`), exams tab (`/exams`).
+- **Announcements screen** (`mobile-app/src/screens/AnnouncementsScreen.tsx`): published announcements feed.
+- **Offline cache + freshness** (`mobile-app/src/hooks/useCachedResource.ts`): cached-first load with background refresh and a stale badge (`FreshnessBadge` in `src/components/PortalScreen.tsx`); `storage.ts` gains `readCachedFeedEntry`.
+- **HomeScreen**: feature tiles now navigate to the role portal (parent/student) or announcements instead of "Coming Soon"; teacher tiles still route to a placeholder (Phase 2).
+- i18n: EN + AM keys added for all new screens (loading, retry, updated, invoices, receipts, outstanding, pay now, assignments, exams, wallet, schedule, etc.).
+- Verified: `tsc --noEmit` clean; `expo export --platform android` bundles (919 modules).
+
+## [1.0.0-apu-docs] — 2026-08-09
+
+### APU documentation phase (architecture only — no code)
+Expanded the APU doc set from 2 to 16 indexed files covering the full product design (TEACHER/PARENT/STUDENT mobile client of the existing ZENOVA backend):
+
+- **`APU_OVERVIEW.md`** — what/why/how/what-it-reuses, principles, risk summary.
+- **`APU_SCHOOL_RESOLUTION.md`** — School-ID → branding → endpoint flow; LAN endpoint candidate designs.
+- **`APU_NETWORK_ARCHITECTURE.md`** — local/cloud/hybrid connectivity model; LAN security.
+- **`APU_API_INTEGRATION.md`** — verified endpoint inventory (auth, parent, student, teacher, shared reads, WS) + APU reuse map.
+- **`APU_CLOUD_PARENT_STUDENT_MODE.md`** — cloud-first paths for parent/student.
+- **`APU_LOCAL_TEACHER_MODE.md`** — LAN-first teacher path (design only).
+- **`APU_SYNC_ARCHITECTURE.md`** — offline queue, replay, idempotency, conflict policy (design only).
+- **`APU_OFFLINE_FIRST.md`** — per-role offline behavior and storage budget.
+- **`APU_NOTIFICATIONS.md`** — push (FCM/APNs) design + PARENT/STUDENT notification permission fix.
+- **`APU_DEPLOYMENT.md`** — build/install pipeline, env vars, release management, known gaps.
+- **`APU_GAPS_AND_DEPENDENCIES.md`** — classified gaps (BACKEND/MOBILE/DESIGN) with status.
+- **`APU_IMPLEMENTATION_PLAN.md`** — phased plan (Phase 0 done; Phases 1–5 + future cycles) with verification gates.
+- Indexed all 16 APU docs in `docs/README.md`.
+
+No implementation in this phase. Backend/mobile work is intentionally deferred to the phase plan.
+
 ## [1.0.0-dryrun-superadmin] — 2026-08-08
 
 ### Super-admin installer verified end-to-end (production dry-run VM)

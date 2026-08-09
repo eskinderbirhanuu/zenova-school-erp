@@ -1,6 +1,6 @@
 ## docs
 
-Consolidated documentation is in `docs/` (16 files). See `docs/README.md` for the index. Originals archived at `docs/archive/`.
+Consolidated documentation is in `docs/` (indexed in `docs/README.md`). Originals archived at `docs/archive/`.
 
 ## enterprise-architecture
 
@@ -111,7 +111,8 @@ Rules:
 ### Remaining for production readiness
 - **§3 feature checks on dry-run VM**: corporate dashboard test account, and full CRUD feature checks (student create, attendance, report cards, payments, announcements, NFC/QR, password recovery). Super-admin setup and role-dashboard validation are complete.
 - Intermittent `auth.setup` 401 flake: root-caused to the standalone server serving an empty login shell when `.next/static` is missing after rebuild (fixed + documented above); `auth.setup.ts` de-instrumented after 3 consecutive full-suite passes
-- APU future cycles (NOT done, must not be fabricated): sync engine, offline-first ERP, push notifications, device/session management, backup, analytics, privacy/deep links, audit logs, deployment docs
+- APU future cycles (NOT implemented — docs exist, code must not be fabricated): sync engine, offline-first ERP, push notifications, device/session management, backup, analytics, privacy/deep links, audit logs, deployment docs. All 16 APU docs are in `docs/` (indexed in `docs/README.md`); `APU_GAPS_AND_DEPENDENCIES.md` classifies open gaps and `APU_IMPLEMENTATION_PLAN.md` sequences them.
+- **APU Phase 1 DONE (2026-08-09, mobile-only, no backend change)**: Parent & Student read path — `src/services/api.ts` (token-refresh interceptor on 401 + CSRF helper + `validateSession`), boot session validation in `App.tsx`, `ParentPortal.tsx` (children/invoices/receipts/pay), `StudentPortal.tsx` (dashboard/assignments/exams), `AnnouncementsScreen.tsx`, offline cache via `useCachedResource.ts` + `FreshnessBadge`. `tsc --noEmit` clean; `expo export` bundles (919 modules). Remaining: teacher path (Phase 2), notifications permission fix (N1), report-card ownership gate (P1), LAN endpoint design (R2).
 
 ### Key files
 - `AGENTS.md` — This file (project memory for AI agents)

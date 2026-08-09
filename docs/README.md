@@ -104,7 +104,26 @@ Analysis-only documentation produced for DeepSeek V4 Flash to implement. No code
 
 ## APU Multi-School Docs
 
-One APU mobile app → many schools. See [APU_ARCHITECTURE.md](APU_ARCHITECTURE.md) and [APU_SECURITY.md](APU_SECURITY.md).
+One APU mobile app → many schools (TEACHER / PARENT / STUDENT).
+
+| Doc | Description |
+|-----|-------------|
+| [APU_OVERVIEW.md](APU_OVERVIEW.md) | What/why/how/what-it-reuses, principles, risk summary |
+| [APU_ARCHITECTURE.md](APU_ARCHITECTURE.md) | Components, boot flow, branding, tenant isolation |
+| [APU_USER_ROLES.md](APU_USER_ROLES.md) | The 3 supported roles + per-role capability map |
+| [APU_AUTHENTICATION.md](APU_AUTHENTICATION.md) | Login, refresh, MFA, CSRF, secure token storage |
+| [APU_SCHOOL_RESOLUTION.md](APU_SCHOOL_RESOLUTION.md) | School-ID → branding → endpoint flow |
+| [APU_NETWORK_ARCHITECTURE.md](APU_NETWORK_ARCHITECTURE.md) | Local / cloud / hybrid connectivity model |
+| [APU_API_INTEGRATION.md](APU_API_INTEGRATION.md) | Endpoint inventory + APU reuse map |
+| [APU_CLOUD_PARENT_STUDENT_MODE.md](APU_CLOUD_PARENT_STUDENT_MODE.md) | Cloud-first parent/student paths |
+| [APU_LOCAL_TEACHER_MODE.md](APU_LOCAL_TEACHER_MODE.md) | LAN-first teacher path (design) |
+| [APU_SYNC_ARCHITECTURE.md](APU_SYNC_ARCHITECTURE.md) | Offline queue + replay + idempotency (design) |
+| [APU_OFFLINE_FIRST.md](APU_OFFLINE_FIRST.md) | Per-role offline behavior (design) |
+| [APU_NOTIFICATIONS.md](APU_NOTIFICATIONS.md) | Push channel design + permission fix |
+| [APU_DEPLOYMENT.md](APU_DEPLOYMENT.md) | Build/install pipeline, env vars, known gaps |
+| [APU_SECURITY.md](APU_SECURITY.md) | Applied security hardening (verified by tests) |
+| [APU_GAPS_AND_DEPENDENCIES.md](APU_GAPS_AND_DEPENDENCIES.md) | Classified backend/mobile/design gaps |
+| [APU_IMPLEMENTATION_PLAN.md](APU_IMPLEMENTATION_PLAN.md) | Phased build plan with verification gates |
 
 ## Security Documentation (2026-07-05)
 

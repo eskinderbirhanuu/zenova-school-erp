@@ -10,17 +10,41 @@ interface HomeScreenProps {
   theme: SchoolTheme
   onSignOut: () => void
   onChangeSchool: () => void
+  onOpenPortal: (portal: "parent" | "student" | "announcements" | "teacher") => void
 }
 
-const ROLE_FEATURES: Record<string, string[]> = {
-  PARENT: ["featureChildren", "featureAttendance", "featureResults", "featureFees", "featureAnnouncements", "featureMessages"],
-  STUDENT: ["featureAttendance", "featureResults", "featureExams", "featureSchedule", "featureAnnouncements"],
-  TEACHER: ["featureAttendance", "featureResults", "featureExams", "featureSchedule", "featureAnnouncements"],
-  DIRECTOR: ["featureAttendance", "featureResults", "featureFees", "featureAnnouncements", "featureMessages"],
-  ADMIN: ["featureAttendance", "featureResults", "featureFees", "featureAnnouncements", "featureMessages"],
+type FeatureRoute = { key: string; portal: "parent" | "student" | "announcements" | "teacher" | null }
+
+const ROLE_FEATURES: Record<string, FeatureRoute[]> = {
+  PARENT: [
+    { key: "featureChildren", portal: "parent" },
+    { key: "featureAttendance", portal: "parent" },
+    { key: "featureResults", portal: "parent" },
+    { key: "featureFees", portal: "parent" },
+    { key: "featureAnnouncements", portal: "announcements" },
+    { key: "featureMessages", portal: null },
+  ],
+  STUDENT: [
+    { key: "featureAttendance", portal: "student" },
+    { key: "featureResults", portal: "student" },
+    { key: "featureExams", portal: "student" },
+    { key: "featureSchedule", portal: "student" },
+    { key: "featureAnnouncements", portal: "announcements" },
+  ],
+  TEACHER: [
+    { key: "featureAttendance", portal: "teacher" },
+    { key: "featureResults", portal: "teacher" },
+    { key: "featureExams", portal: "teacher" },
+    { key: "featureSchedule", portal: "teacher" },
+    { key: "featureAnnouncements", portal: "announcements" },
+  ],
 }
 
-const DEFAULT_FEATURES = ["featureAnnouncements", "featureResults", "featureAttendance"]
+const DEFAULT_FEATURES: FeatureRoute[] = [
+  { key: "featureAnnouncements", portal: "announcements" },
+  { key: "featureResults", portal: null },
+  { key: "featureAttendance", portal: null },
+]
 
 function roleLabel(roleName: string | null, t: (k: never) => string): string | null {
   if (!roleName) return null
@@ -36,7 +60,14 @@ function roleLabel(roleName: string | null, t: (k: never) => string): string | n
   return roleName
 }
 
-export default function HomeScreen({ schoolName, roleName, theme, onSignOut, onChangeSchool }: HomeScreenProps) {
+export default function HomeScreen({
+  schoolName,
+  roleName,
+  theme,
+  onSignOut,
+  onChangeSchool,
+  onOpenPortal,
+}: HomeScreenProps) {
   const { t } = useI18n()
   const features = ROLE_FEATURES[roleName ?? ""] ?? DEFAULT_FEATURES
   const label = roleLabel(roleName, t as never)
@@ -53,11 +84,17 @@ export default function HomeScreen({ schoolName, roleName, theme, onSignOut, onC
 
         <Text style={styles.sectionTitle}>{t("dashboard")}</Text>
         <View style={styles.grid}>
-          {features.map((key) => (
-            <View key={key} style={styles.tile}>
-              <Text style={styles.tileTitle}>{t(key as never)}</Text>
-              <Text style={styles.tileHint}>{t("featureComingSoon")}</Text>
-            </View>
+          {features.map((feature) => (
+            <Pressable
+              key={feature.key}
+              onPress={() => (feature.portal ? onOpenPortal(feature.portal) : undefined)}
+              style={({ pressed }) => [styles.tile, pressed && styles.dim]}
+            >
+              <Text style={styles.tileTitle}>{t(feature.key as never)}</Text>
+              <Text style={styles.tileHint}>
+                {feature.portal ? t("open") : t("featureComingSoon")}
+              </Text>
+            </Pressable>
           ))}
         </View>
 
@@ -71,9 +108,7 @@ export default function HomeScreen({ schoolName, roleName, theme, onSignOut, onC
           <Text style={styles.buttonText}>{t("signOut")}</Text>
         </Pressable>
 
-        <Text style={styles.note}>
-          ZENOVA mobile v{APP_VERSION}
-        </Text>
+        <Text style={styles.note}>ZENOVA mobile v{APP_VERSION}</Text>
       </ScrollView>
     </LinearGradient>
   )

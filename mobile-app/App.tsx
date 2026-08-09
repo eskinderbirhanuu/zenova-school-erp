@@ -15,14 +15,19 @@ import { fetchRemoteConfig, isVersionAtLeast, type RemoteConfig } from "./src/se
 import { defaultTheme, themeFromBranding, type SchoolTheme } from "./src/theme/colors"
 import { APP_VERSION } from "./src/config/app"
 import type { ResolvedSchool } from "./src/services/resolve"
+import { validateSession, clearCsrfCache, SessionExpiredError } from "./src/services/api"
 import SchoolSelectScreen from "./src/screens/SchoolSelectScreen"
 import LoginScreen from "./src/screens/LoginScreen"
 import MFAScreen from "./src/screens/MFAScreen"
 import HomeScreen from "./src/screens/HomeScreen"
 import UpdateRequiredScreen from "./src/screens/UpdateRequiredScreen"
+import ParentPortal from "./src/screens/ParentPortal"
+import StudentPortal from "./src/screens/StudentPortal"
+import AnnouncementsScreen from "./src/screens/AnnouncementsScreen"
 import { colors } from "./src/theme/colors"
 
-type Stage = "booting" | "school" | "login" | "mfa" | "home" | "update"
+type Stage = "booting" | "school" | "login" | "mfa" | "home" | "portal" | "update"
+type Portal = "parent" | "student" | "announcements" | "teacher"
 
 const DEFAULT_CONFIG: RemoteConfig = {
   minimum_version: "1.0.0",
@@ -42,6 +47,7 @@ export default function App() {
 
 function Root() {
   const [stage, setStage] = useState<Stage>("booting")
+  const [portal, setPortal] = useState<Portal>("announcements")
   const [schoolUrl, setSchoolUrl] = useState("")
   const [schoolName, setSchoolName] = useState("")
   const [theme, setTheme] = useState<SchoolTheme>(defaultTheme())
@@ -71,7 +77,19 @@ function Root() {
         setSchoolUrl(storedUrl)
         setSchoolName(storedUrl.replace(/^https?:\/\//, ""))
         setTheme(themeFromBranding(storedBranding))
-        setStage("home")
+        try {
+          const session = await validateSession(storedUrl)
+          setRoleName(session.roleName)
+          setStage("home")
+        } catch (err) {
+          if (err instanceof SessionExpiredError) {
+            await clearStoredSession()
+            setStage("login")
+          } else {
+            // Backend unreachable: keep the cached session and show home (offline-first).
+            setStage("home")
+          }
+        }
       } else if (storedUrl) {
         setSchoolUrl(storedUrl)
         setSchoolName(storedUrl.replace(/^https?:\/\//, ""))
@@ -119,6 +137,7 @@ function Root() {
     await clearStoredSchoolUrl()
     await clearStoredSession()
     await setStoredSchoolBranding(null)
+    clearCsrfCache()
     setRoleName(null)
     setMfaToken(null)
     setMfaSetupRequired(false)
@@ -128,11 +147,26 @@ function Root() {
 
   const handleSignOut = useCallback(async () => {
     await clearStoredSession()
+    clearCsrfCache()
     setRoleName(null)
     setMfaToken(null)
     setMfaSetupRequired(false)
     setStage("login")
   }, [])
+
+  const handleOpenPortal = useCallback((p: Portal) => {
+    setPortal(p)
+    setStage("portal")
+  }, [])
+
+  const handleClosePortal = useCallback(() => {
+    setPortal("announcements")
+    setStage("home")
+  }, [])
+
+  const handleSessionExpired = useCallback(() => {
+    handleSignOut()
+  }, [handleSignOut])
 
   return (
     <View style={styles.container}>
@@ -173,7 +207,33 @@ function Root() {
           theme={theme}
           onSignOut={handleSignOut}
           onChangeSchool={handleChangeSchool}
+          onOpenPortal={handleOpenPortal}
         />
+      ) : null}
+      {stage === "portal" ? (
+        portal === "parent" ? (
+          <ParentPortal
+            schoolUrl={schoolUrl}
+            schoolName={schoolName}
+            theme={theme}
+            onBack={handleClosePortal}
+            onSessionExpired={handleSessionExpired}
+          />
+        ) : portal === "student" ? (
+          <StudentPortal
+            schoolUrl={schoolUrl}
+            theme={theme}
+            onBack={handleClosePortal}
+            onSessionExpired={handleSessionExpired}
+          />
+        ) : (
+          <AnnouncementsScreen
+            schoolUrl={schoolUrl}
+            theme={theme}
+            onBack={handleClosePortal}
+            onSessionExpired={handleSessionExpired}
+          />
+        )
       ) : null}
       {stage === "update" ? (
         <UpdateRequiredScreen
