@@ -5,7 +5,13 @@ export interface LoginResult {
   refreshToken: string | null
   roleName: string | null
   mfaRequired: boolean
+  mfaSetupRequired: boolean
   mfaToken: string | null
+}
+
+export interface MfaBootstrapSetup {
+  secret: string
+  qrCodeUrl: string
 }
 
 function extractCookie(headers: Headers, name: string): string | null {
@@ -54,6 +60,7 @@ export async function login(
   const body = (await res.json().catch(() => ({}))) as {
     role_name?: string | null
     mfa_required?: boolean
+    mfa_setup_required?: boolean
     mfa_token?: string | null
     detail?: string
   }
@@ -72,6 +79,7 @@ export async function login(
       refreshToken: null,
       roleName: body.role_name ?? null,
       mfaRequired: true,
+      mfaSetupRequired: body.mfa_setup_required ?? false,
       mfaToken: body.mfa_token ?? null,
     }
   }
@@ -85,8 +93,57 @@ export async function login(
     refreshToken,
     roleName: body.role_name ?? null,
     mfaRequired: false,
+    mfaSetupRequired: false,
     mfaToken: null,
   }
+}
+
+/**
+ * Start MFA setup for a pending-login user (no access token needed). Returns
+ * the TOTP secret and an otpauth:// provisioning URI for the authenticator app.
+ */
+export async function mfaBootstrapSetup(
+  schoolUrl: string,
+  mfaToken: string,
+): Promise<MfaBootstrapSetup> {
+  const res = await fetch(`${schoolUrl}/api/v1/auth/mfa/bootstrap/setup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mfa_token: mfaToken }),
+  })
+  const body = (await res.json().catch(() => ({}))) as {
+    secret?: string
+    qr_code_url?: string
+    detail?: string
+  }
+  if (!res.ok) {
+    throw new Error(typeof body.detail === "string" ? body.detail : "MFA setup failed")
+  }
+  return { secret: body.secret ?? "", qrCodeUrl: body.qr_code_url ?? "" }
+}
+
+/**
+ * Confirm a TOTP code during MFA setup (no access token needed). Returns the
+ * single-use backup codes after MFA is enabled.
+ */
+export async function mfaBootstrapVerify(
+  schoolUrl: string,
+  mfaToken: string,
+  code: string,
+): Promise<string[]> {
+  const res = await fetch(`${schoolUrl}/api/v1/auth/mfa/bootstrap/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mfa_token: mfaToken, code }),
+  })
+  const body = (await res.json().catch(() => ({}))) as {
+    backup_codes?: string[]
+    detail?: string
+  }
+  if (!res.ok) {
+    throw new Error(typeof body.detail === "string" ? body.detail : "MFA verification failed")
+  }
+  return body.backup_codes ?? []
 }
 
 /**

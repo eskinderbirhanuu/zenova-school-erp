@@ -26,6 +26,7 @@ class TokenResponse(BaseModel):
     employee_id: str | None = None
     role_name: str | None = None
     mfa_required: bool = False
+    mfa_setup_required: bool = False
     mfa_token: str | None = None
 
 
@@ -67,6 +68,17 @@ class MFAVerifyRequest(BaseModel):
 class MFALoginRequest(BaseModel):
     mfa_code: str = Field(..., min_length=6, max_length=6)
     mfa_token: str
+
+
+class MFABootstrapSetupRequest(BaseModel):
+    """Start MFA setup for a user who has a valid ``mfa_token`` from login."""
+    mfa_token: str
+
+
+class MFABootstrapVerifyRequest(BaseModel):
+    """Confirm a TOTP code and enable MFA for a pending-login user."""
+    mfa_token: str
+    code: str = Field(..., min_length=6, max_length=6)
 
 
 class UserResponse(BaseModel):

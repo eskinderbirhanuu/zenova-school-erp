@@ -47,6 +47,7 @@ function Root() {
   const [theme, setTheme] = useState<SchoolTheme>(defaultTheme())
   const [roleName, setRoleName] = useState<string | null>(null)
   const [mfaToken, setMfaToken] = useState<string | null>(null)
+  const [mfaSetupRequired, setMfaSetupRequired] = useState(false)
   const [remoteConfig, setRemoteConfig] = useState<RemoteConfig>(DEFAULT_CONFIG)
 
   useEffect(() => {
@@ -104,11 +105,13 @@ function Root() {
   const handleSignedIn = useCallback((role: string | null) => {
     setRoleName(role)
     setMfaToken(null)
+    setMfaSetupRequired(false)
     setStage("home")
   }, [])
 
-  const handleMfaRequired = useCallback((token: string) => {
+  const handleMfaRequired = useCallback((token: string, setupRequired: boolean) => {
     setMfaToken(token)
+    setMfaSetupRequired(setupRequired)
     setStage("mfa")
   }, [])
 
@@ -118,6 +121,7 @@ function Root() {
     await setStoredSchoolBranding(null)
     setRoleName(null)
     setMfaToken(null)
+    setMfaSetupRequired(false)
     setTheme(defaultTheme())
     setStage("school")
   }, [])
@@ -126,6 +130,7 @@ function Root() {
     await clearStoredSession()
     setRoleName(null)
     setMfaToken(null)
+    setMfaSetupRequired(false)
     setStage("login")
   }, [])
 
@@ -155,6 +160,7 @@ function Root() {
           schoolUrl={schoolUrl}
           schoolName={schoolName}
           mfaToken={mfaToken}
+          setupRequired={mfaSetupRequired}
           theme={theme}
           onVerified={handleSignedIn}
           onBack={() => setStage("login")}

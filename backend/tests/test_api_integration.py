@@ -67,14 +67,23 @@ def auth_client():
 
 
 class TestAuthLogin:
-    def test_login_mfa_enforced_for_finance(self, auth_client):
+    def test_login_mfa_bootstrap_required_for_finance(self, auth_client):
         with patch("app.api.v1.endpoints.auth.auth_service.authenticate_user") as mock_auth:
             mock_auth.return_value = make_mock_user(role="FINANCE", mfa_enabled=False)
-            with patch("app.api.v1.endpoints.auth._check_brute_force"):
-                resp = auth_client.post("/api/v1/auth/login",
-                    json={"email": "finance@zenova.app", "password": PASS})
-                assert resp.status_code == 403
-                assert "MFA" in resp.json()["detail"]
+            with patch("app.api.v1.endpoints.auth.auth_service.create_mfa_token") as mock_mfa_tok:
+                mock_mfa_tok.return_value = "mfa-token-abc"
+                with patch("app.api.v1.endpoints.auth.auth_service.get_user_role_name") as mock_role:
+                    mock_role.return_value = "FINANCE"
+                    with patch("app.api.v1.endpoints.auth.mfa_service.mfa_required_for_any_role") as mock_req:
+                        mock_req.return_value = True
+                        with patch("app.api.v1.endpoints.auth._check_brute_force"):
+                            resp = auth_client.post("/api/v1/auth/login",
+                                json={"email": "finance@zenova.app", "password": PASS})
+                            assert resp.status_code == 200
+                            data = resp.json()
+                            assert data["mfa_required"] is True
+                            assert data["mfa_setup_required"] is True
+                            assert data["mfa_token"] == "mfa-token-abc"
 
     def test_login_invalid_credentials_returns_401(self, auth_client):
         with patch("app.api.v1.endpoints.auth.auth_service.authenticate_user") as mock_auth:
@@ -147,6 +156,62 @@ class TestAuthLogin:
                             data = resp.json()
                             assert data["mfa_required"] is True
                             assert data["mfa_token"] == "mfa-token-abc"
+
+
+# ---------------------------------------------------------------------------
+# 1b. MFA Bootstrap (chicken-and-egg setup) Tests
+# ---------------------------------------------------------------------------
+
+class TestMFABootstrap:
+    def test_bootstrap_setup_returns_secret_and_qr(self, auth_client):
+        user = make_mock_user(role="SUPER_ADMIN", mfa_enabled=False)
+        with patch("app.api.v1.endpoints.auth._resolve_user_from_mfa_token") as mock_resolve:
+            mock_resolve.return_value = user
+            with patch("app.services.mfa_service.initiate_mfa_setup") as mock_setup:
+                mock_setup.return_value = {"secret": "SECRET123", "qr_code_url": "otpauth://totp/ZENOVA:admin"}
+                resp = auth_client.post("/api/v1/auth/mfa/bootstrap/setup",
+                    json={"mfa_token": "mfa-token-abc"})
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["secret"] == "SECRET123"
+                assert "otpauth://" in data["qr_code_url"]
+
+    def test_bootstrap_setup_rejects_when_mfa_enabled(self, auth_client):
+        user = make_mock_user(role="SUPER_ADMIN", mfa_enabled=True)
+        with patch("app.api.v1.endpoints.auth._resolve_user_from_mfa_token") as mock_resolve:
+            mock_resolve.return_value = user
+            resp = auth_client.post("/api/v1/auth/mfa/bootstrap/setup",
+                json={"mfa_token": "mfa-token-abc"})
+            assert resp.status_code == 409
+
+    def test_bootstrap_verify_enables_mfa_and_returns_backup_codes(self, auth_client):
+        user = make_mock_user(role="SUPER_ADMIN", mfa_enabled=False)
+        with patch("app.api.v1.endpoints.auth._resolve_user_from_mfa_token") as mock_resolve:
+            mock_resolve.return_value = user
+            with patch("app.services.mfa_service.complete_mfa_setup") as mock_complete:
+                mock_complete.return_value = {"backup_codes": ["CODE1", "CODE2"]}
+                resp = auth_client.post("/api/v1/auth/mfa/bootstrap/verify",
+                    json={"mfa_token": "mfa-token-abc", "code": "123456"})
+                assert resp.status_code == 200
+                assert resp.json()["backup_codes"] == ["CODE1", "CODE2"]
+
+    def test_bootstrap_verify_rejects_bad_code(self, auth_client):
+        user = make_mock_user(role="SUPER_ADMIN", mfa_enabled=False)
+        with patch("app.api.v1.endpoints.auth._resolve_user_from_mfa_token") as mock_resolve:
+            mock_resolve.return_value = user
+            with patch("app.services.mfa_service.complete_mfa_setup") as mock_complete:
+                mock_complete.return_value = None
+                resp = auth_client.post("/api/v1/auth/mfa/bootstrap/verify",
+                    json={"mfa_token": "mfa-token-abc", "code": "000000"})
+                assert resp.status_code == 400
+
+    def test_bootstrap_setup_rejects_invalid_token(self, auth_client):
+        from app.core.exceptions import UnauthorizedException
+        with patch("app.api.v1.endpoints.auth._resolve_user_from_mfa_token") as mock_resolve:
+            mock_resolve.side_effect = UnauthorizedException("Invalid or expired MFA token — please log in again")
+            resp = auth_client.post("/api/v1/auth/mfa/bootstrap/setup",
+                json={"mfa_token": "bad-token"})
+            assert resp.status_code == 401
 
 
 # ---------------------------------------------------------------------------

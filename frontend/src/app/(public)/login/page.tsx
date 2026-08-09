@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Mail, Lock, Eye, EyeOff, User, CheckCircle2, AlertCircle, Loader2, Building2, Fingerprint } from "lucide-react"
 import { Logo } from "@/components/branding"
-import { useAuth } from "@/services/auth-context"
+import { useAuth, type LoginResult } from "@/services/auth-context"
+import { MfaFlow } from "@/components/auth/mfa-flow"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { DynamicGradientMeshBackground } from "@/components/3d/dynamic"
@@ -46,6 +47,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const [mfa, setMfa] = useState<LoginResult | null>(null)
 
   useEffect(() => {
     fetch(`${BRANDING_API}/api/v1/setup/school-branding`, { cache: "no-store" })
@@ -64,7 +66,11 @@ function LoginForm() {
     setLoading(true)
 
     try {
-      await login(identifier, password, mode === "employee" ? identifier : undefined)
+      const result = await login(identifier, password, mode === "employee" ? identifier : undefined)
+      if (result.mfaRequired) {
+        setMfa(result)
+        return
+      }
       setSuccess(true)
       setTimeout(() => {
         router.push("/")
@@ -74,6 +80,14 @@ function LoginForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const completeLogin = () => {
+    setSuccess(true)
+    setTimeout(() => {
+      router.push("/")
+      router.refresh()
+    }, 1000)
   }
 
   const handlePasskeyLogin = async () => {
@@ -375,6 +389,30 @@ function LoginForm() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* MFA Card */}
+        <AnimatePresence>
+          {mfa?.mfaToken && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mt-6"
+            >
+              <Card className="backdrop-blur-xl bg-white/80 dark:bg-gray-800/80 border-gray-200/50 dark:border-gray-700/50 shadow-2xl">
+                <CardContent className="p-6">
+                  <MfaFlow
+                    mfaToken={mfa.mfaToken}
+                    setupRequired={mfa.mfaSetupRequired}
+                    onComplete={completeLogin}
+                    onBack={() => setMfa(null)}
+                    submitLabel="Verify & Sign In"
+                  />
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Footer */}
         <motion.p

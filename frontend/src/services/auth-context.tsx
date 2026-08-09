@@ -35,7 +35,10 @@ function getCookie(name: string): string | undefined {
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (email: string, password: string, employee_id?: string) => Promise<void>
+  login: (email: string, password: string, employee_id?: string) => Promise<LoginResult>
+  mfaLogin: (mfaToken: string, code: string) => Promise<void>
+  mfaBootstrapSetup: (mfaToken: string) => Promise<{ secret: string; qr_code_url: string }>
+  mfaBootstrapVerify: (mfaToken: string, code: string) => Promise<string[]>
   passkeyLogin: () => Promise<void>
   logout: () => void
   isAuthenticated: boolean
@@ -44,6 +47,12 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean
   hasAnyPermission: (...permissions: string[]) => boolean
   hasRole: (role: string) => boolean
+}
+
+export interface LoginResult {
+  mfaRequired: boolean
+  mfaSetupRequired: boolean
+  mfaToken: string | null
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -75,11 +84,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loading = (isPending || isFetching) && user == null
 
-  const login = async (email: string, password: string, employee_id?: string) => {
-    await authService.login(email, password, employee_id)
+  const login = async (email: string, password: string, employee_id?: string): Promise<LoginResult> => {
+    const res = await authService.login(email, password, employee_id)
+    const data = res.data as any
+    if (data?.mfa_required) {
+      return {
+        mfaRequired: true,
+        mfaSetupRequired: !!data.mfa_setup_required,
+        mfaToken: data.mfa_token ?? null,
+      }
+    }
     const meRes = await authService.me()
     const normalized = normalizeUser(meRes.data)
     queryClient.setQueryData(AUTH_QUERY_KEY, normalized)
+    return { mfaRequired: false, mfaSetupRequired: false, mfaToken: null }
+  }
+
+  const mfaLogin = async (mfaToken: string, code: string) => {
+    await authService.mfaLogin(mfaToken, code)
+    const meRes = await authService.me()
+    const normalized = normalizeUser(meRes.data)
+    queryClient.setQueryData(AUTH_QUERY_KEY, normalized)
+  }
+
+  const mfaBootstrapSetup = async (mfaToken: string) => {
+    const res = await authService.mfaBootstrapSetup(mfaToken)
+    return res.data
+  }
+
+  const mfaBootstrapVerify = async (mfaToken: string, code: string) => {
+    const res = await authService.mfaBootstrapVerify(mfaToken, code)
+    return res.data?.backup_codes ?? []
   }
 
   const passkeyLogin = async () => {
@@ -146,6 +181,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: user ?? null,
         loading,
         login,
+        mfaLogin,
+        mfaBootstrapSetup,
+        mfaBootstrapVerify,
         passkeyLogin,
         logout,
         isAuthenticated: !!user,

@@ -19,6 +19,8 @@ from app.schemas.auth import (
     MFALoginRequest,
     MFADisableRequest,
     MFABackupCodesResponse,
+    MFABootstrapSetupRequest,
+    MFABootstrapVerifyRequest,
 )
 from app.services import auth_service
 from app.services import mfa_service
@@ -38,6 +40,37 @@ MAX_FAILED_PER_IP = _settings.brute_force_max_per_ip
 MAX_FAILED_PER_ID = _settings.brute_force_max_per_id
 LOCKOUT_SECONDS = _settings.brute_force_lockout_seconds
 BRUTE_FORCE_KEY = "bruteforce"
+
+
+def _set_session_cookies(
+    response: Response,
+    user: User,
+    role_name: str,
+    role_names_str: str,
+    access_token: str,
+    refresh_token: str,
+) -> None:
+    """Set the access/refresh/role cookies after a successful login (incl. MFA)."""
+    response.set_cookie(
+        key="access_token", value=access_token,
+        httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/",
+        max_age=60 * 30,
+    )
+    response.set_cookie(
+        key="refresh_token", value=refresh_token,
+        httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/",
+        max_age=60 * 60 * 24 * 7,
+    )
+    response.set_cookie(
+        key="user_role", value=role_name,
+        httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/",
+        max_age=60 * 60 * 24 * 7,
+    )
+    response.set_cookie(
+        key="user_roles", value=role_names_str,
+        httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/",
+        max_age=60 * 60 * 24 * 7,
+    )
 
 
 @router.get("/csrf-token")
@@ -222,9 +255,17 @@ def login(
     role_names_str = ",".join(role_names) if role_names else ""
 
     if not user.mfa_enabled and mfa_service.mfa_required_for_any_role(role_names):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="MFA is required for your role. Please enable MFA before logging in.",
+        # Bootstrap path: the role requires MFA but it is not enabled yet.
+        # Rather than a hard 403 (chicken-and-egg with /auth/mfa/setup which
+        # needs an access token), hand back the short-lived mfa_token so the
+        # caller can run the MFA setup flow (see /auth/mfa/bootstrap/*).
+        mfa_token = auth_service.create_mfa_token({"sub": user.id, "role": role_name})
+        return TokenResponse(
+            mfa_required=True,
+            mfa_setup_required=True,
+            mfa_token=mfa_token,
+            employee_id=user.employee_id,
+            role_name=role_name,
         )
 
     if user.mfa_enabled:
@@ -256,41 +297,8 @@ def login(
         user_agent=get_user_agent(request),
     )
 
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite="strict",
-        path="/",
-        max_age=60 * 30,
-    )
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token_str,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite="strict",
-        path="/",
-        max_age=60 * 60 * 24 * 7,
-    )
-    response.set_cookie(
-        key="user_role",
-        value=role_name,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite="strict",
-        path="/",
-        max_age=60 * 60 * 24 * 7,
-    )
-    response.set_cookie(
-        key="user_roles",
-        value=role_names_str,
-        httponly=True,
-        secure=_COOKIE_SECURE,
-        samesite="strict",
-        path="/",
-        max_age=60 * 60 * 24 * 7,
+    _set_session_cookies(
+        response, user, role_name, role_names_str, access_token, refresh_token_str
     )
 
     return TokenResponse(
@@ -722,25 +730,8 @@ def mfa_login(
         user_agent=get_user_agent(request),
     )
 
-    response.set_cookie(
-        key="access_token", value=access_token,
-        httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/",
-        max_age=60 * 30,
-    )
-    response.set_cookie(
-        key="refresh_token", value=refresh_token_str,
-        httponly=True, secure=_COOKIE_SECURE, samesite="strict", path="/",
-        max_age=60 * 60 * 24 * 7,
-    )
-    response.set_cookie(
-        key="user_role", value=role_name,
-        httponly=False, secure=_COOKIE_SECURE, samesite="strict", path="/",
-        max_age=60 * 60 * 24 * 7,
-    )
-    response.set_cookie(
-        key="user_roles", value=role_names_str,
-        httponly=False, secure=_COOKIE_SECURE, samesite="strict", path="/",
-        max_age=60 * 60 * 24 * 7,
+    _set_session_cookies(
+        response, user, role_name, role_names_str, access_token, refresh_token_str
     )
 
     return TokenResponse(
@@ -749,3 +740,59 @@ def mfa_login(
         employee_id=user.employee_id,
         role_name=role_name,
     )
+
+
+def _resolve_user_from_mfa_token(db: Session, mfa_token: str) -> User:
+    """Validate an ``mfa_step_up`` JWT and return its user (for bootstrap setup)."""
+    payload = auth_service.decode_token(mfa_token)
+    if payload is None or payload.get("type") != "mfa_step_up":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired MFA token — please log in again",
+        )
+    identifier = payload.get("sub", "unknown")
+    user = auth_service.get_user_by_id(db, identifier)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+        )
+    return user
+
+
+@router.post("/mfa/bootstrap/setup", response_model=MFASetupResponse)
+def mfa_bootstrap_setup(
+    data: MFABootstrapSetupRequest,
+    db: Session = Depends(get_db),
+):
+    """Bootstrap MFA setup using the ``mfa_token`` from a pending login.
+
+    This endpoint does NOT require an access token — it validates the short-lived
+    ``mfa_step_up`` JWT returned by ``POST /auth/login`` when
+    ``mfa_setup_required`` is true, resolving the chicken-and-egg for fresh
+    SUPER_ADMIN/FINANCE users.
+    """
+    user = _resolve_user_from_mfa_token(db, data.mfa_token)
+    if user.mfa_enabled:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA is already enabled")
+    result = mfa_service.initiate_mfa_setup(db, user)
+    return MFASetupResponse(
+        secret=result["secret"],
+        qr_code_url=result["qr_code_url"],
+        backup_codes=[],
+    )
+
+
+@router.post("/mfa/bootstrap/verify", response_model=MFAVerifyResponse)
+def mfa_bootstrap_verify(
+    data: MFABootstrapVerifyRequest,
+    db: Session = Depends(get_db),
+):
+    """Confirm a TOTP code and enable MFA for a pending-login user (no access token needed)."""
+    user = _resolve_user_from_mfa_token(db, data.mfa_token)
+    if user.mfa_enabled:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA is already enabled")
+    result = mfa_service.complete_mfa_setup(db, user, data.code)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid TOTP code")
+    return MFAVerifyResponse(backup_codes=result["backup_codes"])

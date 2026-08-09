@@ -4,25 +4,68 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useAuth } from "@/services/auth-context"
+import { useAuth, type LoginResult } from "@/services/auth-context"
+import { MfaFlow } from "@/components/auth/mfa-flow"
 import { toast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 import { ShieldCheck, Eye, EyeOff, Loader2 } from "lucide-react"
 
 export default function SuperAdminLogin() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [mfa, setMfa] = useState<LoginResult | null>(null)
   const { login } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
-      await login(email, password)
+      const result = await login(email, password)
+      if (result.mfaRequired) {
+        setMfa(result)
+        return
+      }
+      router.push("/super-admin/dashboard")
+      router.refresh()
     } catch {
       toast({ title: "Invalid credentials", variant: "destructive" })
     } finally { setLoading(false) }
+  }
+
+  if (mfa?.mfaToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <h1 className="text-xl font-semibold tracking-tight">Super Admin</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Two-factor authentication</p>
+          </div>
+          <Card className="border shadow-sm">
+            <CardContent className="p-6">
+              <MfaFlow
+                mfaToken={mfa.mfaToken}
+                setupRequired={mfa.mfaSetupRequired}
+                onComplete={() => {
+                  router.push("/super-admin/dashboard")
+                  router.refresh()
+                }}
+                onBack={() => setMfa(null)}
+                submitLabel="Verify & Sign In"
+              />
+            </CardContent>
+          </Card>
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} ZENOVA. All rights reserved.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -106,6 +106,20 @@ export const authService = {
   logout: (): ApiResponse<void> => api.post("/auth/logout"),
   forgotPassword: (email: string): ApiResponse<void> => api.post("/auth/forgot-password", { email }),
   resetPassword: (token: string, password: string): ApiResponse<void> => api.post("/auth/reset-password", { token, password }),
+  mfaLogin: (mfaToken: string, mfaCode: string): ApiResponse<{ mfa_required: boolean }> =>
+    api.post("/auth/mfa/login", { mfa_token: mfaToken, mfa_code: mfaCode }),
+  mfaBootstrapSetup: (mfaToken: string): ApiResponse<{ secret: string; qr_code_url: string }> =>
+    api.post("/auth/mfa/bootstrap/setup", { mfa_token: mfaToken }),
+  mfaBootstrapVerify: (mfaToken: string, code: string): ApiResponse<{ backup_codes: string[] }> =>
+    api.post("/auth/mfa/bootstrap/verify", { mfa_token: mfaToken, code }),
+  mfaSetup: (): ApiResponse<{ secret: string; qr_code_url: string }> =>
+    api.post("/auth/mfa/setup"),
+  mfaVerify: (code: string): ApiResponse<{ backup_codes: string[] }> =>
+    api.post("/auth/mfa/verify", { code }),
+  mfaDisable: (password: string): ApiResponse<void> =>
+    api.post("/auth/mfa/disable", { password }),
+  mfaRegenerateBackupCodes: (): ApiResponse<{ backup_codes: string[] }> =>
+    api.post("/auth/mfa/backup-codes"),
 }
 
 export const studentService = {

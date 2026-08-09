@@ -22,7 +22,7 @@ interface LoginScreenProps {
   schoolName: string
   theme: SchoolTheme
   onSignedIn: (roleName: string | null) => void
-  onMfaRequired: (mfaToken: string) => void
+  onMfaRequired: (mfaToken: string, setupRequired: boolean) => void
   onChangeSchool: () => void
 }
 
@@ -49,7 +49,7 @@ export default function LoginScreen({ schoolUrl, schoolName, theme, onSignedIn, 
       const result = await login(schoolUrl, identifier, password, mode === "employee")
       if (result.mfaRequired) {
         if (result.mfaToken) {
-          onMfaRequired(result.mfaToken)
+          onMfaRequired(result.mfaToken, result.mfaSetupRequired)
         } else {
           setError(t("invalidCredentials"))
         }
