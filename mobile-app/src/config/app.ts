@@ -10,7 +10,11 @@ export const CONTROL_CENTER_URL = (process.env.EXPO_PUBLIC_CONTROL_CENTER_URL ??
 
 export const isControlCenterConfigured = CONTROL_CENTER_URL.length > 0
 
+export const APP_VERSION = "1.0.0"
+
 export const PARTNERS_FEED_PATH = "/api/v1/public/partners"
 export const SCHOOLS_FEED_PATH = "/api/v1/public/schools"
+export const SCHOOL_RESOLVE_PATH = "/api/v1/public/schools/resolve"
+export const REMOTE_CONFIG_PATH = "/api/v1/public/config"
 
 export const FEED_REFRESH_MS = 60 * 60 * 1000 // refresh partner/school feed at most hourly

@@ -11,19 +11,24 @@ import {
 } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { searchSchools } from "../services/schools"
+import { resolveSchool, type ResolvedSchool } from "../services/resolve"
 import type { School } from "../services/schools"
 import { useI18n } from "../i18n"
 import { colors, gradientColors } from "../theme/colors"
 
 interface SchoolSelectScreenProps {
   onSelect: (schoolUrl: string, schoolName: string) => void
+  onSelectResolved: (school: ResolvedSchool) => void
 }
 
-export default function SchoolSelectScreen({ onSelect }: SchoolSelectScreenProps) {
+export default function SchoolSelectScreen({ onSelect, onSelectResolved }: SchoolSelectScreenProps) {
   const { t } = useI18n()
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<School[]>([])
   const [manual, setManual] = useState("")
+  const [schoolId, setSchoolId] = useState("")
+  const [resolving, setResolving] = useState(false)
+  const [resolveError, setResolveError] = useState("")
   const [loading, setLoading] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -52,6 +57,19 @@ export default function SchoolSelectScreen({ onSelect }: SchoolSelectScreenProps
     onSelect(`https://${normalizedManual}`, normalizedManual)
   }
 
+  const handleResolve = async () => {
+    if (!schoolId.trim()) return
+    setResolving(true)
+    setResolveError("")
+    const result = await resolveSchool(schoolId)
+    setResolving(false)
+    if (result.found && result.school) {
+      onSelectResolved(result.school)
+    } else {
+      setResolveError(t("schoolNotFound"))
+    }
+  }
+
   return (
     <LinearGradient colors={[...gradientColors] as [string, string, string, string]} style={styles.container}>
       <KeyboardAvoidingView
@@ -64,6 +82,34 @@ export default function SchoolSelectScreen({ onSelect }: SchoolSelectScreenProps
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.heading}>{t("schoolId")}</Text>
+          <TextInput
+            value={schoolId}
+            onChangeText={setSchoolId}
+            placeholder={t("schoolIdPlaceholder")}
+            placeholderTextColor={colors.textSecondary}
+            style={styles.input}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {resolveError ? <Text style={styles.hint}>{resolveError}</Text> : null}
+          <Pressable
+            onPress={handleResolve}
+            disabled={resolving || !schoolId.trim()}
+            style={({ pressed }) => [
+              styles.button,
+              (resolving || !schoolId.trim() || pressed) && styles.buttonDim,
+            ]}
+          >
+            <Text style={styles.buttonText}>{resolving ? t("resolving") : t("resolveSchool")}</Text>
+          </Pressable>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{t("or")}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           <Text style={styles.heading}>{t("findSchool")}</Text>
           <TextInput
             value={query}

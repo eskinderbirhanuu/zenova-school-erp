@@ -1,10 +1,11 @@
-import { setStoredSession } from "./storage"
+import { getStoredRefreshToken, setStoredSession } from "./storage"
 
 export interface LoginResult {
   accessToken: string | null
   refreshToken: string | null
   roleName: string | null
   mfaRequired: boolean
+  mfaToken: string | null
 }
 
 function extractCookie(headers: Headers, name: string): string | null {
@@ -53,6 +54,7 @@ export async function login(
   const body = (await res.json().catch(() => ({}))) as {
     role_name?: string | null
     mfa_required?: boolean
+    mfa_token?: string | null
     detail?: string
   }
 
@@ -65,7 +67,13 @@ export async function login(
   const refreshToken = extractCookie(res.headers, "refresh_token")
 
   if (body.mfa_required) {
-    return { accessToken: null, refreshToken: null, roleName: body.role_name ?? null, mfaRequired: true }
+    return {
+      accessToken: null,
+      refreshToken: null,
+      roleName: body.role_name ?? null,
+      mfaRequired: true,
+      mfaToken: body.mfa_token ?? null,
+    }
   }
 
   if (accessToken) {
@@ -77,7 +85,59 @@ export async function login(
     refreshToken,
     roleName: body.role_name ?? null,
     mfaRequired: false,
+    mfaToken: null,
   }
+}
+
+/**
+ * Complete a two-factor login with the short-lived `mfa_token` returned when
+ * `mfa_required` is true.
+ */
+export async function mfaLogin(
+  schoolUrl: string,
+  mfaToken: string,
+  code: string,
+): Promise<{ roleName: string | null }> {
+  const url = `${schoolUrl}/api/v1/auth/mfa/login`
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mfa_token: mfaToken, mfa_code: code }),
+  })
+  const body = (await res.json().catch(() => ({}))) as {
+    role_name?: string | null
+    detail?: string
+  }
+  if (!res.ok) {
+    throw new Error(typeof body.detail === "string" ? body.detail : "MFA verification failed")
+  }
+  const accessToken = extractCookie(res.headers, "access_token")
+  const refreshToken = extractCookie(res.headers, "refresh_token")
+  if (accessToken) {
+    await setStoredSession(accessToken, refreshToken)
+  }
+  return { roleName: body.role_name ?? null }
+}
+
+/**
+ * Exchange a refresh token for a fresh access token (token rotation handled
+ * server-side). Returns the new access token or null on failure.
+ */
+export async function refreshSession(schoolUrl: string): Promise<string | null> {
+  const refreshToken = await getStoredRefreshToken()
+  if (!refreshToken) return null
+  const res = await fetch(`${schoolUrl}/api/v1/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  })
+  if (!res.ok) return null
+  const accessToken = extractCookie(res.headers, "access_token")
+  const newRefreshToken = extractCookie(res.headers, "refresh_token")
+  if (accessToken) {
+    await setStoredSession(accessToken, newRefreshToken ?? refreshToken)
+  }
+  return accessToken
 }
 
 export async function apiGet(baseUrl: string, path: string, token: string): Promise<unknown> {

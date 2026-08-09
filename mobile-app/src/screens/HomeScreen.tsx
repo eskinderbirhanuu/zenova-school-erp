@@ -1,59 +1,125 @@
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useI18n } from "../i18n"
-import { colors, gradientColors } from "../theme/colors"
+import { colors, type SchoolTheme } from "../theme/colors"
+import { APP_VERSION } from "../config/app"
 
 interface HomeScreenProps {
   schoolName: string
   roleName: string | null
+  theme: SchoolTheme
   onSignOut: () => void
+  onChangeSchool: () => void
 }
 
-export default function HomeScreen({ schoolName, roleName, onSignOut }: HomeScreenProps) {
+const ROLE_FEATURES: Record<string, string[]> = {
+  PARENT: ["featureChildren", "featureAttendance", "featureResults", "featureFees", "featureAnnouncements", "featureMessages"],
+  STUDENT: ["featureAttendance", "featureResults", "featureExams", "featureSchedule", "featureAnnouncements"],
+  TEACHER: ["featureAttendance", "featureResults", "featureExams", "featureSchedule", "featureAnnouncements"],
+  DIRECTOR: ["featureAttendance", "featureResults", "featureFees", "featureAnnouncements", "featureMessages"],
+  ADMIN: ["featureAttendance", "featureResults", "featureFees", "featureAnnouncements", "featureMessages"],
+}
+
+const DEFAULT_FEATURES = ["featureAnnouncements", "featureResults", "featureAttendance"]
+
+function roleLabel(roleName: string | null, t: (k: never) => string): string | null {
+  if (!roleName) return null
+  const map: Record<string, string> = {
+    PARENT: "roleParent",
+    STUDENT: "roleStudent",
+    TEACHER: "roleTeacher",
+  }
+  if (map[roleName]) return t(map[roleName] as never)
+  if (roleName.toUpperCase().includes("ADMIN") || roleName.toUpperCase().includes("DIRECTOR")) {
+    return t("roleAdmin" as never)
+  }
+  return roleName
+}
+
+export default function HomeScreen({ schoolName, roleName, theme, onSignOut, onChangeSchool }: HomeScreenProps) {
   const { t } = useI18n()
+  const features = ROLE_FEATURES[roleName ?? ""] ?? DEFAULT_FEATURES
+  const label = roleLabel(roleName, t as never)
+
   return (
-    <LinearGradient colors={[...gradientColors] as [string, string, string, string]} style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.signedIn}>{t("signedIn")}</Text>
-        <Text style={styles.school} numberOfLines={1}>
-          {schoolName}
-        </Text>
-        {roleName ? <Text style={styles.role}>{roleName}</Text> : null}
-        <Text style={styles.note}>ZENOVA mobile v1.0</Text>
-        <Pressable onPress={onSignOut} style={({ pressed }) => [styles.button, pressed && styles.buttonDim]}>
+    <LinearGradient colors={theme.gradient} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.school} numberOfLines={1}>
+            {schoolName}
+          </Text>
+          {label ? <Text style={styles.role}>{label}</Text> : null}
+        </View>
+
+        <Text style={styles.sectionTitle}>{t("dashboard")}</Text>
+        <View style={styles.grid}>
+          {features.map((key) => (
+            <View key={key} style={styles.tile}>
+              <Text style={styles.tileTitle}>{t(key as never)}</Text>
+              <Text style={styles.tileHint}>{t("featureComingSoon")}</Text>
+            </View>
+          ))}
+        </View>
+
+        <Pressable onPress={onChangeSchool} style={({ pressed }) => [styles.secondaryButton, pressed && styles.dim]}>
+          <Text style={styles.secondaryText}>{t("changeSchool")}</Text>
+        </Pressable>
+        <Pressable
+          onPress={onSignOut}
+          style={({ pressed }) => [styles.button, { backgroundColor: theme.primary }, pressed && styles.dim]}
+        >
           <Text style={styles.buttonText}>{t("signOut")}</Text>
         </Pressable>
-      </View>
+
+        <Text style={styles.note}>
+          ZENOVA mobile v{APP_VERSION}
+        </Text>
+      </ScrollView>
     </LinearGradient>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  card: {
+  container: { flex: 1 },
+  content: { padding: 20, paddingTop: 64, paddingBottom: 32 },
+  header: { alignItems: "center", marginBottom: 24 },
+  school: { color: colors.textOnDark, fontSize: 24, fontWeight: "800", textAlign: "center" },
+  role: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 14,
+    marginTop: 6,
+    fontWeight: "600",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  sectionTitle: { color: "rgba(255,255,255,0.9)", fontSize: 15, fontWeight: "700", marginBottom: 12 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  tile: {
+    width: "47%",
     backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 20,
-    padding: 28,
-    width: "100%",
-    alignItems: "center",
+    borderRadius: 16,
+    padding: 16,
+    minHeight: 84,
     shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
-  signedIn: { fontSize: 13, fontWeight: "700", color: colors.success, letterSpacing: 1 },
-  school: { fontSize: 22, fontWeight: "800", color: colors.textPrimary, marginTop: 8 },
-  role: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
-  note: { fontSize: 12, color: colors.textSecondary, marginTop: 16 },
+  tileTitle: { fontSize: 15, fontWeight: "700", color: colors.textPrimary },
+  tileHint: { fontSize: 12, color: colors.textSecondary, marginTop: 6 },
   button: {
-    backgroundColor: colors.primary,
     borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 40,
+    paddingVertical: 14,
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 24,
   },
-  buttonDim: { opacity: 0.7 },
-  buttonText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  secondaryButton: { alignItems: "center", marginTop: 20 },
+  secondaryText: { color: colors.textOnDark, fontSize: 14, fontWeight: "600", textDecorationLine: "underline" },
+  buttonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  dim: { opacity: 0.7 },
+  note: { color: "rgba(255,255,255,0.7)", fontSize: 12, textAlign: "center", marginTop: 28 },
 })

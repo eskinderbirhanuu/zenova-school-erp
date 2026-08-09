@@ -15,18 +15,20 @@ import { fetchPartnerFeed } from "../services/partners"
 import { PartnerTicker } from "../components/PartnerTicker"
 import { useI18n } from "../i18n"
 import type { Partner } from "../config/partners"
-import { colors, gradientColors } from "../theme/colors"
+import { colors, type SchoolTheme } from "../theme/colors"
 
 interface LoginScreenProps {
   schoolUrl: string
   schoolName: string
+  theme: SchoolTheme
   onSignedIn: (roleName: string | null) => void
+  onMfaRequired: (mfaToken: string) => void
   onChangeSchool: () => void
 }
 
 type Mode = "email" | "employee"
 
-export default function LoginScreen({ schoolUrl, schoolName, onSignedIn, onChangeSchool }: LoginScreenProps) {
+export default function LoginScreen({ schoolUrl, schoolName, theme, onSignedIn, onMfaRequired, onChangeSchool }: LoginScreenProps) {
   const { t, language, setLanguage } = useI18n()
   const [mode, setMode] = useState<Mode>("email")
   const [identifier, setIdentifier] = useState("")
@@ -46,7 +48,11 @@ export default function LoginScreen({ schoolUrl, schoolName, onSignedIn, onChang
     try {
       const result = await login(schoolUrl, identifier, password, mode === "employee")
       if (result.mfaRequired) {
-        setError(t("invalidCredentials"))
+        if (result.mfaToken) {
+          onMfaRequired(result.mfaToken)
+        } else {
+          setError(t("invalidCredentials"))
+        }
         setLoading(false)
         return
       }
@@ -56,10 +62,10 @@ export default function LoginScreen({ schoolUrl, schoolName, onSignedIn, onChang
     } finally {
       setLoading(false)
     }
-  }, [schoolUrl, identifier, password, mode, onSignedIn, t])
+  }, [schoolUrl, identifier, password, mode, onSignedIn, onMfaRequired, t])
 
   return (
-    <LinearGradient colors={[...gradientColors] as [string, string, string, string]} style={styles.container}>
+    <LinearGradient colors={theme.gradient} style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
         <ScrollView
           style={styles.flex}
@@ -122,7 +128,7 @@ export default function LoginScreen({ schoolUrl, schoolName, onSignedIn, onChang
             <Pressable
               onPress={handleSubmit}
               disabled={loading || !identifier || !password}
-              style={({ pressed }) => [styles.button, (loading || !identifier || !password || pressed) && styles.buttonDim]}
+              style={({ pressed }) => [styles.button, { backgroundColor: theme.primary }, (loading || !identifier || !password || pressed) && styles.buttonDim]}
             >
               <Text style={styles.buttonText}>{loading ? t("signingIn") : t("signIn")}</Text>
             </Pressable>

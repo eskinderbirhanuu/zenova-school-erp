@@ -81,12 +81,31 @@ def ping():
 
 
 @app.post("/api/v1/heartbeat")
-def heartbeat(data: dict, db=Depends(get_db)):
-    """Receive heartbeat from school servers."""
-    from app.models.models import HeartbeatEvent, School
+def heartbeat(data: dict, request: Request, db=Depends(get_db)):
+    """Receive heartbeat from school servers.
+
+    Authenticated via X-HMAC-Signature = HMAC-SHA256(school_code, HEARTBEAT_SECRET).
+    The school server computes the same value with its SYNC_SECRET, so both
+    deployments must share the secret.
+    """
+    import hashlib
+    import hmac
+    from app.models.models import HeartbeatEvent, School, SchoolLicense
+
     school_code = data.get("school_code", "")
     if not school_code:
         return JSONResponse(status_code=400, content={"detail": "school_code is required"})
+
+    provided = request.headers.get("X-HMAC-Signature", "")
+    expected = hmac.new(
+        settings.heartbeat_secret.encode(), school_code.encode(), hashlib.sha256
+    ).hexdigest()
+    if not hmac.compare_digest(provided, expected):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Invalid HMAC signature"},
+        )
+
     event = HeartbeatEvent(
         school_code=school_code,
         server_id=data.get("server_id", ""),
@@ -95,8 +114,19 @@ def heartbeat(data: dict, db=Depends(get_db)):
         reported_at=datetime.now(timezone.utc),
     )
     db.add(event)
-    db.query(School).filter(School.id == school_code).update(
-        {"last_sync_at": datetime.now(timezone.utc)}
-    )
+
+    # Resolve the school: try direct School.id first, then via the license key.
+    school = db.query(School).filter(School.id == school_code).first()
+    if school is None:
+        lic = (
+            db.query(SchoolLicense)
+            .filter(SchoolLicense.key == data.get("license_key", ""))
+            .first()
+        )
+        if lic:
+            school = db.query(School).filter(School.id == lic.school_id).first()
+    if school is not None:
+        school.last_sync_at = datetime.now(timezone.utc)
+
     db.commit()
     return {"status": "received", "timestamp": datetime.now(timezone.utc).isoformat()}

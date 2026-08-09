@@ -1,0 +1,11 @@
+{
+  "minimum_version": "1.0.0",
+  "recommended_version": "1.0.0",
+  "maintenance_mode": false,
+  "message": "",
+  "features": {
+    "attendance": true,
+    "finance": true,
+    "library": false
+  }
+}

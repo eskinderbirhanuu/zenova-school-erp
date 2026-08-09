@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.0.0-dryrun-superadmin] — 2026-08-08
+
+### Super-admin installer verified end-to-end (production dry-run VM)
+- `backend/alembic/versions/3f5a9c1d2e4b_add_license_enum_values.py` — new migration: adds `SUPER_ADMIN` to `licensetype` and `REVIEW_MODE`/`DEVICE_LOCKED` to `licensestatus` (fresh deploys could not seed a SUPER_ADMIN license because the initial migration's enums lacked those members).
+- `backend/alembic/versions/9a4b5c6d7e8f_add_missing_schema_fixes.py` — new migration: closes schema drift vs models — tables `currencies`, `device_fingerprints`, `teacher_subjects`; columns `invoices.currency_code`, `payments.currency_code`; missing `deleted_at`/`created_at` columns (`server_identities`, `sync_queue`, `number_sequences`, `notification_preferences`, `school_settings`, `school_telegram_bots`, `teacher_section_assignments`).
+- `deploy/docker-compose.vps.yml` — pass `MASTER_SETUP_KEY` env to the backend service.
+- Dry-run fixes applied on the VM: `/data` volume permission (`chown 999:999`), license seed `created_at`, CSRF on installer POST, installer rate-limit reset. Super-admin activated (`SRV-C007D1F76D2E`), MFA two-step login verified, `GET /api/v1/platform/admin/dashboard`, `/schools`, `/licenses` return 200.
+- Known gap documented in `docs/DRY_RUN_CHECKLIST.md`: no MFA setup UI exists for `SUPER_ADMIN`/`FINANCE` (MFA-required roles) — `/auth/mfa/setup` needs an existing token, a chicken-and-egg for fresh super admins.
+
+## [1.0.0-apu] — 2026-08-08
+
+### APU multi-school mobile app
+- **APU app boot flow wired** (`mobile-app/App.tsx`): booting → school → login → mfa → home → update stage machine. Loads stored URL/token/branding from SecureStore, resolves the school by School ID, fetches remote config, gates on `maintenance_mode` / `minimum_version`, and threads the school `SchoolTheme` through Login/MFA/Home.
+- **SchoolSelectScreen**: added School ID resolve field wired to `onSelectResolved(school)`.
+- **LoginScreen**: now themed (branded gradient + primary-colored button) and MFA-aware — routes `{mfa_required: true, mfa_token}` to the MFA screen instead of showing "invalid credentials".
+- **MFAScreen** (new): 6-digit TOTP against `POST /api/v1/auth/mfa/login` with back-to-login.
+- **HomeScreen**: rewritten as a role-aware dashboard (PARENT/STUDENT/TEACHER/ADMIN feature grids, signed-in role badge, sign out / change school).
+- **UpdateRequiredScreen** (new): maintenance mode and app-version gate screens.
+- **Theme engine** (`src/theme/colors.ts`): `themeFromBranding()` builds a gradient `[primary, secondary, accent, accent]`; WCAG 4.5:1 button-text contrast check (`hasWhiteTextContrast`); invalid colors fall back to ZENOVA defaults.
+- **Services**: `resolve.ts` (`resolveSchool`), `config.ts` (`fetchRemoteConfig`, `isVersionAtLeast`, non-blocking fallback), `auth.ts` (`mfaLogin`, `refreshSession`, `mfaToken` in `LoginResult`), `storage.ts` (branding + refresh-token accessors).
+- **i18n**: EN + AM keys for school ID, resolve, MFA, update/maintenance gates, role labels, feature tiles.
+- TypeScript `--noEmit` clean; `expo export --platform android` bundles (599 modules).
+- Debug APK builds green (`gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a`); self-contained signed release APK (`assembleRelease -PreactNativeArchitectures=arm64-v8a`, Hermes bundle embedded, v2-signed) at `mobile-app/android/app/build/outputs/apk/release/app-release.apk` (25.1 MB). Note: `org.gradle.jvmargs` bumped to `-Xmx3g -XX:MaxMetaspaceSize=1g` in `android/gradle.properties`; use `--max-workers=2` on 12 GB RAM / 4-core hosts to avoid Gradle Worker Daemon OOM crashes.
+
+### Control Center APU public API
+- `POST /api/v1/public/schools/resolve` — `{code}` → `{found, school: {name, domain, code, api_url, branding, features}}`; only `is_active` customers; code matches `domain LIKE 'code.%'` or exact domain.
+- `GET /api/v1/public/config` — `{minimum_version, recommended_version, maintenance_mode, message, features}` from `control-center/backend/app/remote_config.json`.
+- `Customer` branding fields added: `logo_url`, `primary_color`, `secondary_color`, `accent_color`, `tagline`, `features`; schemas extended; `init_db()` runs idempotent `ALTER TABLE` migration (`_ensure_customer_branding_columns`).
+
+### Security hardening
+- **License Server**: school login now uses `create_school_token` (role `school`) instead of `super_admin` tokens; `get_current_school` dependency; removed shadowed duplicate routes in `licenses.py`. Heartbeat requires `X-HMAC-Signature` (HMAC-SHA256 of `school_code` with `HEARTBEAT_SECRET`); resolves school by id OR license key; `heartbeat_secret` config with default warning. Tests: `license-server/tests/test_security.py` 3/3.
+- **Control Center**: `verify_token` → `HTTPBearer(auto_error=False)`; all admin endpoints now require bearer auth (frontend already sent it). Public endpoints stay open. Tests: `control-center/backend/tests/test_security_apu.py` 5/5.
+- **APU docs**: `docs/APU_ARCHITECTURE.md`, `docs/APU_SECURITY.md` added and indexed in `docs/README.md`.
+
 ## [0.9.5] — 2026-07-11
 
 ### NFC Card school_id

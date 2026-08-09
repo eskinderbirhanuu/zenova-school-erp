@@ -74,31 +74,3 @@ def get_school_licenses(school_id: str, db: Session = Depends(get_db), admin: st
         "licenses": [l.to_dict() for l in licenses],
         "total": len(licenses),
     }
-
-
-@router.post("/activate", response_model=LicenseActivateResponse)
-def activate(data: LicenseActivateRequest, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
-    result = activate_license(db, data.key, data.machine_fingerprint)
-    return LicenseActivateResponse(
-        activated=result["activated"],
-        message=result["message"],
-    )
-
-
-@router.post("/generate")
-def generate(data: LicenseKeyGenerate, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
-    lic = create_license(
-        db, data.school_id, data.license_type,
-        data.valid_until, data.max_users, data.max_branches,
-    )
-    return {"key": lic.key, "id": lic.id, "license_type": lic.license_type}
-
-
-@router.get("/school/{school_id}")
-def get_school_licenses(school_id: str, db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
-    licenses = list_school_licenses(db, school_id)
-    return {
-        "school_id": school_id,
-        "licenses": [l.to_dict() for l in licenses],
-        "total": len(licenses),
-    }

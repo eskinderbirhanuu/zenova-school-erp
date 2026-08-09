@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store"
 const SCHOOL_KEY = "zenova.schoolUrl"
 const TOKEN_KEY = "zenova.accessToken"
 const REFRESH_KEY = "zenova.refreshToken"
+const BRANDING_KEY = "zenova.schoolBranding"
 const FEED_CACHE_KEY = "zenova.partnerFeedCache"
 
 export async function getStoredSchoolUrl(): Promise<string | null> {
@@ -21,6 +22,10 @@ export async function getStoredToken(): Promise<string | null> {
   return SecureStore.getItemAsync(TOKEN_KEY)
 }
 
+export async function getStoredRefreshToken(): Promise<string | null> {
+  return SecureStore.getItemAsync(REFRESH_KEY)
+}
+
 export async function setStoredSession(accessToken: string, refreshToken: string | null): Promise<void> {
   await SecureStore.setItemAsync(TOKEN_KEY, accessToken)
   if (refreshToken) await SecureStore.setItemAsync(REFRESH_KEY, refreshToken)
@@ -29,6 +34,23 @@ export async function setStoredSession(accessToken: string, refreshToken: string
 export async function clearStoredSession(): Promise<void> {
   await SecureStore.deleteItemAsync(TOKEN_KEY)
   await SecureStore.deleteItemAsync(REFRESH_KEY)
+}
+
+export async function setStoredSchoolBranding(branding: unknown): Promise<void> {
+  if (branding == null) {
+    await SecureStore.deleteItemAsync(BRANDING_KEY)
+    return
+  }
+  await SecureStore.setItemAsync(BRANDING_KEY, JSON.stringify(branding))
+}
+
+export async function getStoredSchoolBranding<T>(): Promise<T | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(BRANDING_KEY)
+    return raw ? (JSON.parse(raw) as T) : null
+  } catch {
+    return null
+  }
 }
 
 interface FeedCache<T> {

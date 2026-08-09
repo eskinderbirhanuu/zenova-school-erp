@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.schemas.auth import LoginRequest, TokenResponse
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+bearer_scheme = HTTPBearer(auto_error=False)
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
@@ -17,7 +19,11 @@ def create_access_token(data: dict) -> str:
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
 
-def verify_token(token: str = "") -> dict:
+def verify_token(credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme)) -> dict:
+    """Admin-only auth dependency. Requires `Authorization: Bearer <token>`."""
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    token = credentials.credentials
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
         if payload.get("sub") != "admin":

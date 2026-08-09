@@ -43,6 +43,34 @@ def create_access_token(email: str) -> str:
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
+def get_current_school(token: str = Depends(oauth2_scheme)) -> str:
+    """Dependency for school-scoped endpoints.
+
+    Returns the school id (`sub`) only for tokens minted with role 'school'.
+    A school token can NEVER pass get_current_admin (role mismatch), so school
+    credentials cannot reach admin/control-center operations.
+    """
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        school_id: str = payload.get("sub")
+        role: str = payload.get("role", "")
+        if school_id is None or role != "school":
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        return school_id
+    except jwt.JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+
+def create_school_token(school_id: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    payload = {
+        "sub": school_id,
+        "role": "school",
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest):
     if not verify_admin(data.email, data.password):
@@ -60,5 +88,5 @@ def school_login(data: LoginRequest, db: Session = Depends(get_db)):
     school = authenticate_school(db, data.email, data.password)
     if not school:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    token = create_access_token(school.email)
+    token = create_school_token(school.id)
     return TokenResponse(access_token=token)

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     super_admin_email: str = "super@zenova.app"
     super_admin_password: str = ""
     cors_origins: list[str] = ["http://localhost:3000"]
+    heartbeat_secret: str = "dev-heartbeat-secret"
 
     class Config:
         env_file = ".env"
@@ -25,6 +26,12 @@ class Settings(BaseSettings):
         if not self.super_admin_password:
             print("FATAL: SUPER_ADMIN_PASSWORD environment variable is required", file=sys.stderr)
             sys.exit(1)
+        if self.heartbeat_secret == "dev-heartbeat-secret":
+            print(
+                "WARNING: HEARTBEAT_SECRET is using the insecure default. "
+                "Set HEARTBEAT_SECRET (must match each school's SYNC_SECRET) in production.",
+                file=sys.stderr,
+            )
 
 
 settings = Settings()

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
+from app.api.v1.endpoints.auth import verify_token
 from app.database import get_db
 from app.models.customer import Customer
 from app.models.license import License
@@ -12,7 +13,7 @@ from app.schemas.monitoring import HeartbeatRequest, HeartbeatResponse
 router = APIRouter()
 
 @router.post("/heartbeat", response_model=HeartbeatResponse)
-def record_heartbeat(data: HeartbeatRequest, db: Session = Depends(get_db)):
+def record_heartbeat(data: HeartbeatRequest, db: Session = Depends(get_db), _admin: dict = Depends(verify_token)):
     hb = Heartbeat(**data.model_dump())
     db.add(hb)
     customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
@@ -22,7 +23,7 @@ def record_heartbeat(data: HeartbeatRequest, db: Session = Depends(get_db)):
     return HeartbeatResponse(status="ok")
 
 @router.get("/dashboard")
-def dashboard(db: Session = Depends(get_db)):
+def dashboard(db: Session = Depends(get_db), _admin: dict = Depends(verify_token)):
     total_customers = db.query(Customer).count()
     active_licenses = db.query(License).filter(License.is_active == True).count()
     online_now = db.query(Heartbeat).filter(
@@ -35,7 +36,7 @@ def dashboard(db: Session = Depends(get_db)):
     }
 
 @router.get("/heartbeats/{customer_id}")
-def customer_heartbeats(customer_id: int, limit: int = 100, db: Session = Depends(get_db)):
+def customer_heartbeats(customer_id: int, limit: int = 100, db: Session = Depends(get_db), _admin: dict = Depends(verify_token)):
     return db.query(Heartbeat).filter(
         Heartbeat.customer_id == customer_id
     ).order_by(Heartbeat.recorded_at.desc()).limit(limit).all()

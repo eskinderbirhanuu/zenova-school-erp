@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.v1.endpoints.auth import verify_token
 from app.database import get_db
 from app.models.license import License
 from app.schemas.license import LicenseCreate, LicenseResponse, LicenseValidateRequest, LicenseValidateResponse
@@ -14,14 +15,14 @@ def generate_license_key() -> str:
     return "-".join(raw[i:i+6] for i in range(0, 24, 6))
 
 @router.get("", response_model=list[LicenseResponse])
-def list_licenses(customer_id: int | None = None, db: Session = Depends(get_db)):
+def list_licenses(customer_id: int | None = None, db: Session = Depends(get_db), _admin: dict = Depends(verify_token)):
     query = db.query(License)
     if customer_id:
         query = query.filter(License.customer_id == customer_id)
     return query.order_by(License.created_at.desc()).all()
 
 @router.post("", response_model=LicenseResponse)
-def create_license(data: LicenseCreate, db: Session = Depends(get_db)):
+def create_license(data: LicenseCreate, db: Session = Depends(get_db), _admin: dict = Depends(verify_token)):
     license_key = generate_license_key()
     lic = License(
         customer_id=data.customer_id,
@@ -37,14 +38,14 @@ def create_license(data: LicenseCreate, db: Session = Depends(get_db)):
     return lic
 
 @router.get("/{license_id}", response_model=LicenseResponse)
-def get_license(license_id: int, db: Session = Depends(get_db)):
+def get_license(license_id: int, db: Session = Depends(get_db), _admin: dict = Depends(verify_token)):
     lic = db.query(License).filter(License.id == license_id).first()
     if not lic:
         raise HTTPException(status_code=404, detail="License not found")
     return lic
 
 @router.post("/validate", response_model=LicenseValidateResponse)
-def validate_license(req: LicenseValidateRequest, db: Session = Depends(get_db)):
+def validate_license(req: LicenseValidateRequest, db: Session = Depends(get_db), _admin: dict = Depends(verify_token)):
     lic = db.query(License).filter(License.license_key == req.license_key).first()
     if not lic:
         return LicenseValidateResponse(valid=False, message="License key not found")
@@ -62,7 +63,7 @@ def validate_license(req: LicenseValidateRequest, db: Session = Depends(get_db))
     )
 
 @router.post("/{license_id}/deactivate")
-def deactivate_license(license_id: int, db: Session = Depends(get_db)):
+def deactivate_license(license_id: int, db: Session = Depends(get_db), _admin: dict = Depends(verify_token)):
     lic = db.query(License).filter(License.id == license_id).first()
     if not lic:
         raise HTTPException(status_code=404, detail="License not found")

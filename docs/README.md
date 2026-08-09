@@ -102,6 +102,10 @@ Analysis-only documentation produced for DeepSeek V4 Flash to implement. No code
 | [DEEPSEEK_TASKS.md](DEEPSEEK_TASKS.md) | 26 step-by-step tasks (P0→P3) for implementation |
 | [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) | Go/no-go: score 7.7/10, blockers resolved, deploy checklist |
 
+## APU Multi-School Docs
+
+One APU mobile app → many schools. See [APU_ARCHITECTURE.md](APU_ARCHITECTURE.md) and [APU_SECURITY.md](APU_SECURITY.md).
+
 ## Security Documentation (2026-07-05)
 
 Anti-piracy and source protection architecture across 18 defense layers.

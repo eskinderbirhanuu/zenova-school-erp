@@ -35,14 +35,22 @@ cp deploy/.env.vps.example deploy/.env.vps
 ### Super-Admin Setup (installer flow)
 A fresh deploy has **no admin user** until the installer runs — `admin@zenova.app` exists only in backend tests, not in production.
 
-1. In `.env.vps`, set `MASTER_SETUP_KEY=<strong secret>` (maps to `settings.master_setup_key`).
+**Verified end-to-end on the dry-run VM (2026-08-08).** Required two new Alembic migrations that earlier fresh deploys were missing (both in `backend/alembic/versions/`):
+- `3f5a9c1d2e4b_add_license_enum_values.py` — adds `SUPER_ADMIN` to the `licensetype` DB enum and `REVIEW_MODE`/`DEVICE_LOCKED` to `licensestatus` (the initial migration `56e806ae8fa1` only created the subset used then; `alembic upgrade head` on a fresh DB fails to seed a `SUPER_ADMIN` license without it).
+- `9a4b5c6d7e8f_add_missing_schema_fixes.py` — closes the full schema drift vs. the models: tables `currencies`, `device_fingerprints`, `teacher_subjects`; columns `invoices.currency_code`, `payments.currency_code`, plus missing `deleted_at`/`created_at` columns (e.g. `server_identities.deleted_at`, `sync_queue.deleted_at`, `number_sequences.created_at`). Without it the installer 500s and re-running `schema_diff.py` (compare models to live DB) shows the drift.
+
+Steps:
+
+1. In `.env.vps`, set `MASTER_SETUP_KEY=<strong secret>` (maps to `settings.master_setup_key`). Backend containers must be recreated after editing it (`docker compose up -d backend`).
 2. Ensure `ZENOVA_LICENSE_SERVER` points at a reachable license server (cloud or local) so `verify_license` passes.
-3. Generate a `SUPER_ADMIN` license key (via Control Center → Generate license, or directly on the license server).
+3. Generate a `SUPER_ADMIN` license key (via Control Center → Generate license, or directly on the license server) and seed it into the DB. Note the `licensetype` enum stores **member names** (`SUPER_ADMIN`, not `super_admin`). The seeded row must have `created_at` set (raw SQL inserts that omit it make `GET /api/v1/licenses` 500 with a pydantic `datetime` validation error).
 4. Confirm readiness: `GET /api/v1/installer/status` → `server_identity_exists:false`, `has_master_key:true`.
-5. Initialize the super admin:
+5. Initialize the super admin (this POST requires a CSRF token first: `GET /api/v1/auth/csrf-token`, send both the `csrftoken` cookie and the token in the body):
 ```bash
 curl -X POST https://<domain>/api/v1/installer/initialize-super-admin \
   -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: <csrf-token>" \
+  -b "csrftoken=<csrf-token>" \
   -d '{
     "fingerprint":"<server-machine-fingerprint>",
     "master_setup_key":"<MASTER_SETUP_KEY>",
@@ -53,10 +61,18 @@ curl -X POST https://<domain>/api/v1/installer/initialize-super-admin \
 ```
 Expected: `201` → `{success:true, server_id:..., email:..., message:"Super admin server activated successfully"}`. The chosen email/password are then the login credentials (not `admin@zenova.app`).
 
+Gotchas hit during the dry-run (all fixed):
+- Installer is rate-limited (`installer_init`, 3/hour per IP; Redis key `ratelimit:installer_init:<ip>`). Failed attempts burn quota — clear the key in Redis to retry sooner.
+- The `/data` volume (`deploy_server-data`) is root-owned but the backend container runs as uid 999 (`zenova`); `server_id.json` writes fail with `PermissionError` until you `chown -R 999:999 <volume dir>`.
+- `bind_license_to_hardware` (`app/services/license_crypto.py`) commits internally, so a later failure (e.g. identity save) leaves partial state (bound license + orphan admin user). If the installer 500s after the license verify step, unbind the license, delete `server_identities` rows, and delete the half-created admin user before retrying.
+
+**Known product gap — MFA setup:** `MFA_REQUIRED_ROLES` (`app/core/constants.py`) includes `SUPER_ADMIN`, so login is rejected with `PERM_001` ("MFA is required for your role") until MFA is enabled — but there is **no MFA setup UI** anywhere (web frontend or APU mobile app). `/api/v1/auth/mfa/setup` exists but requires an already-authenticated token, a chicken-and-egg for a fresh super admin. For the dry-run we enabled MFA directly in the DB with a known TOTP secret to verify the two-step login; a real MFA setup screen is outstanding product work.
+
 ### Health Checks
-- [ ] Super-admin setup completed via installer flow (see above)
-- [ ] Login works with the installer-created super-admin credentials
-- [ ] Super-admin dashboard loads
+- [x] Super-admin setup completed via installer flow (see above)
+- [x] Login works with the installer-created super-admin credentials (two-step: `/auth/login` → `mfa_token`, then `/auth/mfa/login` with TOTP)
+- [x] Super-admin dashboard API loads (`GET /api/v1/platform/admin/dashboard` → 200 with platform stats)
+- [x] Core super-admin APIs authenticated: `GET /api/v1/schools` → 200, `GET /api/v1/licenses` → 200
 - [ ] Admin dashboard loads
 - [ ] Teacher dashboard loads
 - [ ] Student dashboard loads
@@ -95,6 +111,30 @@ cp deploy/.env.cc.example deploy/.env.cc
 - [ ] View customers list
 - [ ] Upload update package
 - [ ] View monitoring dashboard
+
+### APU Public API Verification (APU mobile app dependency)
+The APU app needs these public endpoints before any school can sign in through it:
+```bash
+# 1. Remote config (version gates / maintenance mode)
+curl https://<control-center>/api/v1/public/config
+# expect: {"minimum_version":"1.0.0","recommended_version":"1.0.0","maintenance_mode":false,...}
+
+# 2. Resolve a school by its code (branding + api_url)
+curl -X POST https://<control-center>/api/v1/public/schools/resolve \
+  -H "Content-Type: application/json" \
+  -d '{"code":"<SCHOOL_CODE>"}'
+# expect: {"found":true,"school":{...,"api_url":"https://<school-domain>","branding":{...},"features":{...}}}
+
+# 3. Unknown/inactive code must not resolve
+curl -X POST https://<control-center>/api/v1/public/schools/resolve \
+  -H "Content-Type: application/json" \
+  -d '{"code":"NO_SUCH_SCHOOL"}'
+# expect: {"found":false}
+```
+- [ ] `/api/v1/public/config` returns version + feature shape
+- [ ] `/api/v1/public/schools/resolve` returns branding + `api_url` for an active customer
+- [ ] Unknown code returns `{"found":false}` (no data leak)
+- [ ] Admin endpoints reject requests without `Authorization: Bearer` (401)
 
 ## 5. Update Simulation
 - [ ] Backup DB

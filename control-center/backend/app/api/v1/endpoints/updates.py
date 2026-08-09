@@ -2,6 +2,7 @@ import hashlib, os
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
+from app.api.v1.endpoints.auth import verify_token
 from app.config import settings
 from app.database import get_db
 from app.models.update import Update
@@ -9,7 +10,7 @@ from app.models.update import Update
 router = APIRouter()
 
 @router.get("")
-def list_updates(db: Session = Depends(get_db)):
+def list_updates(db: Session = Depends(get_db), _admin: dict = Depends(verify_token)):
     return db.query(Update).order_by(Update.created_at.desc()).all()
 
 @router.post("")
@@ -20,6 +21,7 @@ async def upload_update(
     min_version: str = "0.0.0",
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    _admin: dict = Depends(verify_token),
 ):
     existing = db.query(Update).filter(Update.version == version).first()
     if existing:
