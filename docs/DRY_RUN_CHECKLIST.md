@@ -73,19 +73,23 @@ Gotchas hit during the dry-run (all fixed):
 - [x] Login works with the installer-created super-admin credentials (two-step: `/auth/login` → `mfa_token`, then `/auth/mfa/login` with TOTP)
 - [x] Super-admin dashboard API loads (`GET /api/v1/platform/admin/dashboard` → 200 with platform stats)
 - [x] Core super-admin APIs authenticated: `GET /api/v1/schools` → 200, `GET /api/v1/licenses` → 200
-- [ ] Admin dashboard loads
-- [ ] Teacher dashboard loads
-- [ ] Student dashboard loads
-- [ ] Parent dashboard loads
-- [ ] Registrar dashboard loads
-- [ ] Finance dashboard loads
-- [ ] Director dashboard loads
-- [ ] Library dashboard loads
-- [ ] Cafeteria dashboard loads
-- [ ] HR dashboard loads
-- [ ] Inventory dashboard loads
-- [ ] Auditor dashboard loads
-- [ ] Corporate dashboard loads
+- [x] Admin dashboard loads (`GET /api/v1/dashboard/overview` + `/trends` → 200)
+- [x] Teacher dashboard loads (`/dashboard/overview` + `/trends` → 200)
+- [x] Student dashboard loads (`/dashboard/overview` + `/trends` → 200)
+- [x] Parent dashboard loads (`/dashboard/overview` + `/trends` → 200; `parent-portal/dashboard` → 400 "not linked" until a `Parent` profile is linked to the user — see note below)
+- [x] Registrar dashboard loads (`/dashboard/overview` + `/trends` → 200; `/students`, `/classes` → 200)
+- [x] Finance dashboard loads (`/dashboard/overview` + `/trends` → 200)
+- [x] Director dashboard loads (`/dashboard/overview` + `/trends` → 200; `platform/dashboard` → 400 "No school associated" until the user has a `school_id`)
+- [x] Library dashboard loads (`/dashboard/overview` + `/trends` → 200)
+- [x] Cafeteria dashboard loads (`/dashboard/overview` + `/trends` → 200)
+- [x] HR dashboard loads (`/dashboard/overview` + `/trends` → 200)
+- [x] Inventory dashboard loads (`/dashboard/overview` + `/trends` → 200)
+- [x] Auditor dashboard loads (`/dashboard/overview` + `/trends` → 200)
+- [ ] Corporate dashboard loads (no corporate test account on dry-run VM yet)
+
+> **Role-dashboard validation method (dry-run 2026-08-09):** 13 test users (`role{admin,teacher,student,registrar,parent,director,library,hr,cafeteria,inventory,auditor}@zenova.app` + `financetest@zenova.app` + the installer super admin) were created in the VM DB, and `/api/v1/dashboard/overview` + `/api/v1/dashboard/trends` were called with minted access tokens via `localhost:8000` inside the backend container. All 13 roles returned **200/200**. Endpoints that return non-200 are **correct empty-DB behavior**, not bugs (documented inline above).
+
+> **Bug found & fixed during validation:** both `parent_portal.py` and `parent_payments.py` read `current_user.parent_id`, which **does not exist** on the `User` model → every parent dashboard request 500'd (`AttributeError`). Fixed in `67a8e6e`: parent profile is now resolved via `Parent.user_id == current_user.id` (new `get_parent_for_user()` in `parent_service.py`); the `parent_payments` router was **also never registered** in `router.py` (all `/api/v1/parent-payments/*` returned 404) — now included. Verified live: parent endpoints 500→400 / 404→400. Regression tests in `backend/tests/test_parent_portal_endpoints.py` (6 tests); full backend suite 468 passed.
 
 ### Feature Checks
 - [ ] Create a student → appears in student list
