@@ -40,6 +40,14 @@ def create_parent(
     return parent
 
 
+def get_parent_for_user(db: Session, user_id: str, school_id: str | None = None) -> Parent | None:
+    """Resolve the Parent profile linked to a user account via Parent.user_id."""
+    q = db.query(Parent).filter(Parent.user_id == user_id)
+    if school_id:
+        q = q.filter(Parent.school_id == school_id)
+    return q.first()
+
+
 def smart_search_parents(db: Session, query: str, school_id: str | None = None, include_deleted: bool = False) -> list[Parent]:
     """Smart search: phone, national_id, passport_id, kebele_id, name"""
     like = f"%{query}%"

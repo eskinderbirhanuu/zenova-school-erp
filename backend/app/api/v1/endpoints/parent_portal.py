@@ -4,7 +4,6 @@ from sqlalchemy import func
 from app.database import get_db
 from app.api.v1.deps import get_current_user
 from app.models.user import User
-from app.models.parent import Parent
 from app.models.parent_student_link import ParentStudentLink
 from app.models.student import Student
 from app.models.attendance import Attendance
@@ -71,12 +70,11 @@ def parent_portal_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if not current_user.parent_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not linked to a parent profile")
+    from app.services.parent_service import get_parent_for_user
 
-    parent = db.query(Parent).filter(Parent.id == current_user.parent_id).first()
+    parent = get_parent_for_user(db, current_user.id, current_user.school_id)
     if not parent:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not linked to a parent profile")
 
     links = db.query(ParentStudentLink).filter(ParentStudentLink.parent_id == parent.id).all()
     student_ids = [l.student_id for l in links]
@@ -137,10 +135,13 @@ def parent_portal_dashboard(
 
 
 def get_linked_student_ids(db: Session, current_user: User) -> list[str]:
-    if not current_user.parent_id:
+    from app.services.parent_service import get_parent_for_user
+
+    parent = get_parent_for_user(db, current_user.id, current_user.school_id)
+    if not parent:
         raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
     links = db.query(ParentStudentLink).filter(
-        ParentStudentLink.parent_id == current_user.parent_id
+        ParentStudentLink.parent_id == parent.id
     ).all()
     return [l.student_id for l in links]
 

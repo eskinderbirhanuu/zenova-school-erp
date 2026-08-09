@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, licenses, setup, dashboard, installer, iga, backup, parent_portal, sync, card_design, webauthn, currencies, password_recovery
+from app.api.v1.endpoints import health, auth, licenses, setup, dashboard, installer, iga, backup, parent_portal, parent_payments, sync, card_design, webauthn, currencies, password_recovery
 from app.api.v1.endpoints import students, parents, teachers, staff, qr, nfc, nfc_v2, corporate, archive, conflicts, sequences, metrics, features
 from app.api.v1.endpoints import academic
 from app.api.v1.endpoints import finance
@@ -50,6 +50,7 @@ router.include_router(installer.router, prefix="", tags=["installer"])
 router.include_router(iga.router, prefix="", tags=["iga"])
 router.include_router(backup.router, prefix="", tags=["backup"])
 router.include_router(parent_portal.router, prefix="", tags=["parent-portal"])
+router.include_router(parent_payments.router, prefix="", tags=["parent-payments"])
 router.include_router(sync.router, prefix="", tags=["sync"])
 router.include_router(report_cards.router, prefix="", tags=["report-cards"])
 router.include_router(student_portal.router, prefix="", tags=["student-portal"])

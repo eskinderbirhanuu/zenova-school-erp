@@ -45,12 +45,11 @@ def parent_payment_dashboard(
     current_user: User = Depends(get_current_user),
 ):
     """Get parent payment dashboard with outstanding balances."""
-    if not current_user.parent_id:
-        raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
+    from app.services.parent_service import get_parent_for_user
 
-    parent = db.query(Parent).filter(Parent.id == current_user.parent_id).first()
+    parent = get_parent_for_user(db, current_user.id, current_user.school_id)
     if not parent:
-        raise HTTPException(status_code=404, detail="Parent not found")
+        raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
 
     return get_parent_dashboard(db, parent.id, current_user.school_id)
 
@@ -61,10 +60,13 @@ def parent_invoices(
     current_user: User = Depends(get_current_user),
 ):
     """Get all invoices for parent's children."""
-    if not current_user.parent_id:
+    from app.services.parent_service import get_parent_for_user
+
+    parent = get_parent_for_user(db, current_user.id, current_user.school_id)
+    if not parent:
         raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
 
-    return get_parent_children_invoices(db, current_user.parent_id, current_user.school_id)
+    return get_parent_children_invoices(db, parent.id, current_user.school_id)
 
 
 @router.post("/parent-payments/create-session")
@@ -77,13 +79,16 @@ def create_payment_session_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     """Create a payment session for online payment."""
-    if not current_user.parent_id:
+    from app.services.parent_service import get_parent_for_user
+
+    parent = get_parent_for_user(db, current_user.id, current_user.school_id)
+    if not parent:
         raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
 
     try:
         session = create_payment_session(
             db=db,
-            parent_id=current_user.parent_id,
+            parent_id=parent.id,
             student_id=student_id,
             invoice_id=invoice_id,
             amount=amount,
@@ -111,9 +116,14 @@ def initialize_chapa_payment(
     """Initialize a payment session via the configured gateway."""
     if not settings.feature_chapa:
         raise HTTPException(status_code=503, detail="Chapa is not available")
+    from app.services.parent_service import get_parent_for_user
+
+    parent = get_parent_for_user(db, current_user.id, current_user.school_id)
+    if not parent:
+        raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
     session = db.query(PaymentSession).filter(
         PaymentSession.session_id == session_id,
-        PaymentSession.parent_id == current_user.parent_id,
+        PaymentSession.parent_id == parent.id,
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Payment session not found")
@@ -204,11 +214,14 @@ def get_receipts(
     current_user: User = Depends(get_current_user),
 ):
     """Get all receipts for parent's payments."""
-    if not current_user.parent_id:
+    from app.services.parent_service import get_parent_for_user
+
+    parent = get_parent_for_user(db, current_user.id, current_user.school_id)
+    if not parent:
         raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
 
     receipts = db.query(Receipt).filter(
-        Receipt.parent_id == current_user.parent_id,
+        Receipt.parent_id == parent.id,
         Receipt.school_id == current_user.school_id,
     ).order_by(Receipt.created_at.desc()).all()
 
@@ -233,10 +246,13 @@ def download_receipt(
     current_user: User = Depends(get_current_user),
 ):
     """Download receipt as PDF."""
-    if not current_user.parent_id:
+    from app.services.parent_service import get_parent_for_user
+
+    parent = get_parent_for_user(db, current_user.id, current_user.school_id)
+    if not parent:
         raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
 
-    receipt = get_receipt_by_id(db, receipt_id, current_user.parent_id)
+    receipt = get_receipt_by_id(db, receipt_id, parent.id)
     if not receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
 
@@ -263,7 +279,10 @@ def request_refund_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     """Request a refund for a payment."""
-    if not current_user.parent_id:
+    from app.services.parent_service import get_parent_for_user
+
+    parent = get_parent_for_user(db, current_user.id, current_user.school_id)
+    if not parent:
         raise HTTPException(status_code=400, detail="User is not linked to a parent profile")
 
     # Validate payment ownership: payment -> invoice -> student -> parent link
@@ -273,7 +292,7 @@ def request_refund_endpoint(
     if not payment.student_id:
         raise HTTPException(status_code=400, detail="Payment has no associated student")
     link = db.query(ParentStudentLink).filter(
-        ParentStudentLink.parent_id == current_user.parent_id,
+        ParentStudentLink.parent_id == parent.id,
         ParentStudentLink.student_id == payment.student_id,
     ).first()
     if not link:
