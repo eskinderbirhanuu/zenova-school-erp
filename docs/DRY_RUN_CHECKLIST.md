@@ -85,20 +85,29 @@ Gotchas hit during the dry-run (all fixed):
 - [x] HR dashboard loads (`/dashboard/overview` + `/trends` → 200)
 - [x] Inventory dashboard loads (`/dashboard/overview` + `/trends` → 200)
 - [x] Auditor dashboard loads (`/dashboard/overview` + `/trends` → 200)
-- [ ] Corporate dashboard loads (no corporate test account on dry-run VM yet)
+- [x] Corporate dashboard loads (corpadmin@zenova.app + `ZENOVA_CORPORATE_ADMIN` role seeded by the §3 harness; `GET /corporate/dashboard` → 200 for corpadmin, 403 for a plain ADMIN)
 
 > **Role-dashboard validation method (dry-run 2026-08-09):** 13 test users (`role{admin,teacher,student,registrar,parent,director,library,hr,cafeteria,inventory,auditor}@zenova.app` + `financetest@zenova.app` + the installer super admin) were created in the VM DB, and `/api/v1/dashboard/overview` + `/api/v1/dashboard/trends` were called with minted access tokens via `localhost:8000` inside the backend container. All 13 roles returned **200/200**. Endpoints that return non-200 are **correct empty-DB behavior**, not bugs (documented inline above).
 
 > **Bug found & fixed during validation:** both `parent_portal.py` and `parent_payments.py` read `current_user.parent_id`, which **does not exist** on the `User` model → every parent dashboard request 500'd (`AttributeError`). Fixed in `67a8e6e`: parent profile is now resolved via `Parent.user_id == current_user.id` (new `get_parent_for_user()` in `parent_service.py`); the `parent_payments` router was **also never registered** in `router.py` (all `/api/v1/parent-payments/*` returned 404) — now included. Verified live: parent endpoints 500→400 / 404→400. Regression tests in `backend/tests/test_parent_portal_endpoints.py` (6 tests); full backend suite 468 passed.
 
 ### Feature Checks
-- [ ] Create a student → appears in student list
-- [ ] Mark attendance → shows in attendance report
-- [ ] Generate report card → PDF downloads
-- [ ] Process a payment → appears in financial reports
-- [ ] Create an announcement → visible to users
-- [ ] NFC/QR card registration
-- [ ] Password recovery flow (offline-first)
+- [x] Create a student → appears in student list (**see bug fix below**)
+- [x] Mark attendance → 403 outside 08:00–10:00 Ethiopian window (by design; the check harness opens the window in-process to exercise the real code path)
+- [x] Generate report card → PDF downloads (**was blocked until the student-create bug was fixed**)
+- [x] Process a payment → appears in financial reports
+- [x] Create an announcement → visible to users
+- [x] NFC/QR card registration → **gated** without a valid school license (`403` — expected; NFC/QR are license-gated features, keep code dormant but present per architecture)
+- [x] Password recovery flow (offline-first) → initiate/approve/temp-password verified (**approval + temp-password require the DIRECTOR token when the target is an ADMIN**; script-side, not an app bug)
+
+> **§3 in-container harness (`feat_check.py`)** seeds a school (`DRYRUN1`), links role users to DB roles, and drives full CRUD over the live API (localhost:8000 in the container). CSRF handling for production: fetch `GET /auth/csrf-token`, then send `X-CSRF-Token` + a manual `Cookie: csrf_token=<token>` header (the Secure cookie is never returned by a browser-grade cookie jar over plain HTTP, and the container resolves `localhost` → `localhost.local`).
+
+> **Genuine bugs found & fixed during §3 (all locally regression-tested, deployed to the VM):**
+> - **P0 `POST /corporate/employees` → 500 `INT_001`:** `corporate.py:create_employee` called `corporate_service.create_employee(**data.model_dump(), created_by=...)` **without `db`** → `TypeError: missing required positional argument: 'db'`. Fixed to pass `db=db`.
+> - **P0 `POST /students` → 500 `INT_001` after commit:** `Notification.school_id` is `NOT NULL` but `send_notification()` never set it, so the admin-notification loop after `create_student` raised `NotNullViolation`. The student row was committed but the API returned 500 with no `id` → exam-result/report-card/invoice then failed with null `student_id`. Fixed by threading `school_id` through `send_notification` (all callers: student, academic, finance, notification_service, `_alert_new_device`) **and** making the column nullable defensively (migration `4d6e8f0a2c4e`, model updated) so super-admin/system notifications can't abort a primary transaction.
+> - **Latent `ImportError` on new-device login:** `_alert_new_device` imported `send_notification` from `app.core.notifications`, which has no such function (it lives in `app.services.communication_service`). Fixed the import + passes `school_id`.
+> - Regression tests: `backend/tests/test_dryrun_500_regressions.py` (5 tests). Full backend suite: **499 passed**.
+> - **Correct-by-design / script-side:** attendance window check (08:00–10:00 Ethiopian time); `recovery-approve`/`temp-password` require DIRECTOR for an ADMIN target (`RECOVERY_HIERARCHY` in `password_recovery_service.py`); NFC/QR are license-gated.
 
 ### Backup & Recovery
 - [ ] `docker compose exec -T db pg_dump` works

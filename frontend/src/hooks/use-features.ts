@@ -3,12 +3,14 @@ import api from "@/services/api"
 
 interface Features {
   chapa: boolean
+  push?: boolean
 }
 
 export function useFeatures(): {
   features: Features
   loading: boolean
   isChapaEnabled: boolean
+  isPushEnabled: boolean
 } {
   const { data, isLoading } = useQuery<Features>({
     queryKey: ["features"],
@@ -17,5 +19,5 @@ export function useFeatures(): {
     retry: 1,
   })
   const features = data ?? { chapa: false }
-  return { features, loading: isLoading, isChapaEnabled: features.chapa }
+  return { features, loading: isLoading, isChapaEnabled: features.chapa, isPushEnabled: features.push ?? false }
 }

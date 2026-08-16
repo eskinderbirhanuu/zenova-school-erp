@@ -72,17 +72,45 @@ GET {CONTROL_CENTER}/api/v1/public/config
 - On success: store `schoolUrl`, school name, and branding in SecureStore; build a `SchoolTheme` via `themeFromBranding()` (`mobile-app/src/theme/colors.ts`, WCAG 4.5:1 button contrast).
 - Non-resolved/manual-URL schools keep the ZENOVA default theme (branding only comes from resolve).
 
-## 5. Local / LAN endpoint (future requirement)
+## 5. Local / LAN endpoint (implemented — 2026-08-09)
 
 Teacher local-network mode needs a **configurable/discoverable local endpoint**. Today `api_url` is cloud-only.
 
-**Candidate designs (document only — implement later):**
-1. Control Center `Customer` gains a `local_domain` / `lan_url` field returned by resolve (BACKEND + CC change).
-2. The school's own branding/config returns a `local_url` (SCHOOL_SETTINGS change).
-3. APU discovers a LAN server via mDNS/Bonjour service advertisement (`_zenova._tcp`) — zero-config.
-4. APU stores a per-school manual "local server address" override in SecureStore.
+**Decision (R2):** adopt **candidate 1 as the primary** and **candidate 4 as the fallback** (both implemented):
 
-**Do NOT** hard-code one IP. The existing ZENOVA deployment keeps the local server as the operational source during offline operation.
+1. **Primary — resolve-driven `local_url`** (Control Center change): `Customer` gains an optional `local_url` field returned by resolve:
+   ```json
+   {
+     "found": true,
+     "school": {
+       "name": "Omega Academy",
+       "api_url": "https://omega.zenova.et",
+       "local_url": "https://192.168.1.8:8443",
+       "local_url_label": "School LAN server",
+       ...
+     }
+   }
+   ```
+   - `local_url`/`local_url_label` are optional `Customer` columns (added idempotently in `control-center/backend/app/database.py#init_db`); they are only populated when the school's deployment registers one (internet-connected VPS-only schools leave them empty).
+   - The APU never follows `local_url` blindly — it probes `GET {local_url}/api/v1/health/live` with a ~2s timeout (`mobile-app/src/services/resolve.ts#probeLocalEndpoint`) and only then switches the base URL.
+2. **Fallback — per-school manual override (SecureStore):** in `SchoolSelectScreen`, a "Local server address (optional)" field stores `local_url` per school under `zenova.localUrl.<code>` (scoped by school code). This covers air-gapped schools whose Control Center is unreachable during setup.
+3. **Deferred — mDNS/Bonjour discovery (`_zenova._tcp`):** not implemented. LAN broadcast is unreliable across managed Wi-Fi segments and adds a trust surface; revisit only if a school has no way to configure the address.
+
+**Rejected (do not implement):** hard-coding one IP; auto-switching to LAN for non-teacher roles (parents/students stay cloud-connected per `APU_NETWORK_ARCHITECTURE.md`).
+
+**Base-URL policy (`mobile-app/src/services/resolve.ts#pickBaseUrl`):**
+```
+override_url (SecureStore) configured?
+   yes ─► probe it
+            reachable? ► use override
+            no ────────▼
+local_url (resolve) configured? ─────────────┐
+   yes ─► probe it                            │
+            reachable? ► use local_url        │
+            no ────────▼                      ▼
+use cloud api_url  ◄──────────────────── fall back
+```
+Probe = `GET {candidate}/api/v1/health/live`, ~2s timeout. Cloud `api_url` is the unconditional fallback.
 
 ## 6. Multi-school guarantees
 

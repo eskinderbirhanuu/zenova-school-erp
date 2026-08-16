@@ -5,6 +5,7 @@ const TOKEN_KEY = "zenova.accessToken"
 const REFRESH_KEY = "zenova.refreshToken"
 const BRANDING_KEY = "zenova.schoolBranding"
 const FEED_CACHE_KEY = "zenova.partnerFeedCache"
+const LOCAL_URL_PREFIX = "zenova.localUrl."
 
 export async function getStoredSchoolUrl(): Promise<string | null> {
   return SecureStore.getItemAsync(SCHOOL_KEY)
@@ -16,6 +17,28 @@ export async function setStoredSchoolUrl(url: string): Promise<void> {
 
 export async function clearStoredSchoolUrl(): Promise<void> {
   await SecureStore.deleteItemAsync(SCHOOL_KEY)
+}
+
+function localUrlKey(schoolCode: string): string {
+  return `${LOCAL_URL_PREFIX}${schoolCode.toLowerCase()}`
+}
+
+export async function setStoredLocalUrl(schoolCode: string, localUrl: string): Promise<void> {
+  const trimmed = (localUrl ?? "").trim().replace(/\/+$/, "")
+  const key = localUrlKey(schoolCode)
+  if (!trimmed) {
+    await SecureStore.deleteItemAsync(key)
+    return
+  }
+  await SecureStore.setItemAsync(key, trimmed)
+}
+
+export async function getStoredLocalUrl(schoolCode: string): Promise<string | null> {
+  return SecureStore.getItemAsync(localUrlKey(schoolCode))
+}
+
+export async function clearStoredLocalUrl(schoolCode: string): Promise<void> {
+  await SecureStore.deleteItemAsync(localUrlKey(schoolCode))
 }
 
 export async function getStoredToken(): Promise<string | null> {

@@ -1,7 +1,7 @@
 # APU Notifications
 
-> **Status:** DOCUMENTATION/ARCHITECTURE PHASE — design only, **not implemented**.
-> WHAT / WHY / HOW / WHAT-it-reuses for push notifications in APU.
+> **Status:** IMPLEMENTED (2026-08-09) — device-token registration + FCM relay live.
+> Backend: `backend/app/services/fcm_relay.py`, `push_devices` table, `/notifications/device-token*` (feature-gated `FEATURE_PUSH`). Mobile: `mobile-app/src/services/push.ts` (register on sign-in/boot, unregister on sign-out). See `APU_GAPS_AND_DEPENDENCIES.md` row N2.
 
 ## 1. WHAT are we building?
 

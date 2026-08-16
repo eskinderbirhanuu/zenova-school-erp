@@ -22,5 +22,7 @@ class Customer(Base):
     accent_color: Mapped[str] = mapped_column(String(20), default="#EC4899")
     tagline: Mapped[str] = mapped_column(String(255), default="")
     features: Mapped[str] = mapped_column(Text, default="{}")
+    local_url: Mapped[str] = mapped_column(String(500), default="")
+    local_url_label: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

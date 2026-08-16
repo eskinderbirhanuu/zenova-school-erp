@@ -71,12 +71,66 @@ export async function getCsrfToken(baseUrl: string): Promise<string | null> {
 
 /**
  * Authenticated POST with CSRF token + matching cookie and automatic refresh on
- * 401 (Gaps A1 + A3).
+ * 401 (Gaps A1 + A3). Extra headers (e.g. `X-Idempotency-Key`) can be supplied.
  */
 export async function apiPost<T>(
   baseUrl: string,
   path: string,
   body: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<T> {
+  return apiSend<T>("POST", baseUrl, path, body, extraHeaders)
+}
+
+/**
+ * Authenticated PATCH with CSRF token + matching cookie and automatic refresh
+ * on 401 (Gaps A1 + A3).
+ */
+export async function apiPatch<T>(
+  baseUrl: string,
+  path: string,
+  body: unknown,
+): Promise<T> {
+  return apiSend<T>("PATCH", baseUrl, path, body)
+}
+
+export async function apiDelete<T>(baseUrl: string, path: string): Promise<T> {
+  let token = await getStoredToken()
+  if (!token) throw new SessionExpiredError()
+
+  const run = async (accessToken: string) => {
+    const res = await fetch(`${baseUrl}/api/v1${path}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (res.status === 401) return null
+    if (!res.ok) {
+      const errBody = (await res.json().catch(() => ({}))) as { detail?: string }
+      throw new ApiError(
+        typeof errBody.detail === "string" ? errBody.detail : `Request failed (${res.status})`,
+        res.status,
+      )
+    }
+    return res.json() as Promise<T>
+  }
+
+  let result = await run(token)
+  if (result === null) {
+    const refreshed = await refreshSession(baseUrl)
+    if (!refreshed) throw new SessionExpiredError()
+    token = refreshed
+    result = await run(token)
+  }
+  if (result === null) throw new SessionExpiredError()
+  return result
+}
+
+async function apiSend<T>(
+  method: "POST" | "PATCH",
+  baseUrl: string,
+  path: string,
+  body: unknown,
+  extraHeaders?: Record<string, string>,
 ): Promise<T> {
   let token = await getStoredToken()
   if (!token) throw new SessionExpiredError()
@@ -86,13 +140,14 @@ export async function apiPost<T>(
     const headers: Record<string, string> = {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
+      ...extraHeaders,
     }
     if (csrf) {
       headers["X-CSRF-Token"] = csrf
       headers["Cookie"] = `csrf_token=${csrf}`
     }
     const res = await fetch(`${baseUrl}/api/v1${path}`, {
-      method: "POST",
+      method,
       headers,
       body: JSON.stringify(body),
     })
@@ -125,12 +180,13 @@ export async function apiPost<T>(
  */
 export async function validateSession(
   baseUrl: string,
-): Promise<{ roleName: string | null; roles: string[] }> {
+): Promise<{ roleName: string | null; roles: string[]; mfaEnabled: boolean }> {
   const me = await apiGet<{
     role_name?: string | null
     roles?: string[] | null
+    mfa_enabled?: boolean
   }>(baseUrl, "/auth/me")
-  return { roleName: me.role_name ?? null, roles: me.roles ?? [] }
+  return { roleName: me.role_name ?? null, roles: me.roles ?? [], mfaEnabled: me.mfa_enabled ?? false }
 }
 
 export function clearCsrfCache(): void {

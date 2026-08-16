@@ -1,5 +1,67 @@
 # Changelog
 
+## [1.0.0-apu-a5] - 2026-08-09
+
+### APU A5 - PARENT/STUDENT self-registration decision (deferred)
+- **Decision**: APU keeps self-registration OFF. Admin-provisioned accounts are the enrollment control (`Parent.user_id` / `Student.user_id` links created by registrars); APU signs into those accounts.
+- **Blockers identified**: (1) no enrollment binding — a self-registered PARENT/STUDENT is inert until an admin links a profile, yet consumes a user row + email with no verification; (2) the resolve payload does not include the backend `school_id` UUID, so APU cannot scope a new account to the resolved school.
+- **Future path** (documented, not implemented): admin-issued enrollment/invite code that binds the new account to an existing Parent/Student profile, plus adding `school_id` to the resolve response.
+- Docs updated: `APU_GAPS_AND_DEPENDENCIES.md` A5 → DECIDED-DEFER, `APU_AUTHENTICATION.md` §10, `APU_USER_ROLES.md` §5, `APU_IMPLEMENTATION_PLAN.md` Phase 5.1. Docs only — no code changed.
+
+## [1.0.0-apu-r4] - 2026-08-09
+
+### APU R4 - LAN certificate trust policy (design)
+- **New design doc** `docs/APU_CERT_TRUST_POLICY.md`: documented trust policy for self-signed LAN certs. Principles: never disable TLS validation app-wide; cloud always validated against the OS trust store; LAN is an opt-in, per-school, explicitly-pinned exception.
+- **Three trust tiers** (in preference order): (1) publicly-trusted cert on the LAN server (OS validation), (2) per-school public-key (SPKI) pinning with TOFU fingerprint confirmation stored in SecureStore under `zenova.localUrl.<code>`, (3) explicit HTTP on a trusted LAN with a persistent warning badge + confirm dialog (last resort, never default).
+- **Scope boundaries**: pinning applies only to the exact configured `local_url` host:port; cloud connections never use pinning; no silent `https`→`http` downgrade; no global trust-all. Explicitly rejected anti-patterns listed in §5; failure modes/UX table in §6; implementation checklist in §7.
+- Cross-referenced from `APU_NETWORK_ARCHITECTURE.md` §6 and `APU_LOCAL_TEACHER_MODE.md` §8 (both now cite the policy doc). Gaps doc R4 → DONE. Design doc only — no code changed.
+
+## [1.0.0-apu-a4] - 2026-08-09
+
+### APU A4 - Voluntary MFA for TEACHER/PARENT/STUDENT
+- **Design decision**: the backend already allowed any authenticated role to manage MFA (`/auth/mfa/setup|verify|disable|backup-codes` require only `get_current_user`; `/auth/me` returns `mfa_enabled`). A4 is therefore a mobile-only UX decision - no backend change needed.
+- **Mobile** (`mobile-app/src/screens/SecurityScreen.tsx`, `mobile-app/src/services/mfa.ts`): new Security portal reachable from the home grid for all APU roles. Reads MFA status from `/auth/me`, then runs the enable flow (setup -> QR/secret -> verify code -> save backup codes), disable flow (password-confirmed), and backup-code regeneration. Reuses the `react-native-qrcode-svg` + i18n patterns from `MFAScreen`.
+- `validateSession` now also returns `mfaEnabled` (`mobile-app/src/services/api.ts`).
+- Wired into `App.tsx` (`portal === "security"`) and `HomeScreen` role grids; i18n EN + AM keys added.
+- Verified: `tsc --noEmit` clean; `expo export --platform android` bundles (926 modules).
+
+## [1.0.0-apu-r2] — 2026-08-09
+
+### APU R2 — LAN endpoint implementation
+- **Control Center** (`control-center/backend`): `Customer` gained optional `local_url` + `local_url_label` columns (idempotent `ALTER TABLE` in `init_db()` via `_ensure_customer_branding_columns`); added to create/update/response schemas and to the public resolve payload (`POST /api/v1/public/schools/resolve`). VPS-only schools leave them empty.
+- **Mobile base-URL policy** (`mobile-app/src/services/resolve.ts`): `pickBaseUrl()` prefers a per-school SecureStore override, then the resolve-driven `local_url`, then cloud `api_url` — each local candidate is only used after `probeLocalEndpoint()` confirms `GET /api/v1/health/live` (2s timeout). Never follows an unprobed URL.
+- **Manual override** (`SchoolSelectScreen.tsx` + `storage.ts`): optional "Local server address" field persists per-school under `zenova.localUrl.<code>` (SecureStore) — covers air-gapped schools. i18n EN + AM.
+- `App.tsx` `handleSelectResolvedSchool` now consults the stored override + resolves the effective base URL.
+- Verified: CC `test_security_apu.py` 5/5 (resolve returns local_url); backend suite **499 passed**; `tsc --noEmit` clean; `expo export` bundles.
+
+## [1.0.0-apu-s1-s2] — 2026-08-09
+
+### APU S1/S2 — Student finance history + documents read
+- **S1 — `GET /student-portal/finance`** (`backend/app/api/v1/endpoints/student_portal.py`): ownership-scoped via `Student.user_id == current_user.id`. Returns the student's own invoices (with line items), payment history, wallet balance, and billed/paid/outstanding totals.
+- **S2 — `GET /student-portal/documents`** (`student_portal.py`): ownership-scoped read-only metadata for the student's own `StudentDocument` records (filename, type, url, created_at).
+- New `_get_student_for_user()` helper resolves the profile via `Student.user_id` (404 when unlinked) — same pattern as `get_parent_for_user()`.
+- **Mobile** (`mobile-app/src/screens/StudentPortal.tsx`, `mobile-app/src/services/student.ts`): StudentPortal gained Finance and Documents tabs; Finance shows wallet, billed/paid/outstanding stats, invoice list with line items + balances, and payment history; Documents lists file metadata. i18n EN + AM keys added.
+- Verified: `backend/tests/test_student_portal_finance_docs.py` 6/6; full backend suite **499 passed**; `tsc --noEmit` clean; `expo export --platform android` bundles.
+
+## [1.0.0-apu-phase2] — 2026-08-09
+
+### APU Phase 2 — Teacher path
+- **Backend**: `GET /teachers/me/subjects`, `GET /teachers/me/students` (T1 section_id/subject_id filters, 403 when not assigned), `GET /timetable/by-teacher`, `GET /exam-results/marksheet`, `POST /attendance/bulk` (T3 `X-Idempotency-Key` + `attendance_batch` table for replay-safe marks; `AttendanceBatch` model + migration `12ab34cd56ef`).
+- **Mobile** (`mobile-app/src/screens/TeacherPortal.tsx`): 5-tab teacher portal — Subjects / Roster / Timetable / Attendance / Marksheet; subject + section pickers derived from timetable; attendance with Present/Absent/Late/Excused + offline queue (`src/services/queue.ts`, `drainAttendanceQueue` FIFO replay) + sync banner.
+- Wired into `App.tsx` (`portal === "teacher"`) and `HomeScreen` TEACHER role grid. i18n EN + AM keys added.
+- Verified: `backend/tests/test_teacher_phase2.py` 6/6 + `test_audit_flush_regression.py` 3/3; `tsc --noEmit` clean; `expo export` bundles (922 modules).
+
+## [1.0.0-apu-phase3] — 2026-08-09
+
+### APU Phase 3 — Notifications, security, fix-a-mark, LAN design
+- **N1 — PARENT/STUDENT notification/message access** (`backend/app/api/v1/endpoints/communication.py`): reads (`GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `GET /messages`, `POST /messages/{id}/read`) switched from the staff-permission `ALL` gate to an `AUTHENTICATED` gate. Queries were already user-scoped (`Notification.user_id`/`Message.recipient_id`), so parents/students now see only their own items; `POST /messages` (send) stays permission-gated.
+- **P1 — Report-card ownership gate** (`backend/app/api/v1/endpoints/report_cards.py`): `_resolve_accessible_student_ids()` returns `None` for staff with `STUDENT_VIEW` (unrestricted), otherwise a set of student-self + linked-parent child ids; `_require_card_access()` returns 404 for foreign cards. List filters by accessible ids; `/generate` requires staff permission; single-card detail is ownership-checked.
+- **Fix-a-mark UX** (`backend/app/api/v1/endpoints/attendance.py`, `backend/app/schemas/hr.py`): `GET /attendance` accepts `section_id` (validated against the Section table) and returns `student_name` on `AttendanceResponse`. Mobile `AttendanceView` (`mobile-app/src/screens/TeacherPortal.tsx`) gained a Mark/Fix mode toggle; fix sends `PATCH /attendance/{id}` via the existing `fixAttendance` + reload.
+- **R1 — Resolve error semantics** (`mobile-app/src/services/resolve.ts`, `SchoolSelectScreen.tsx`): `ResolveResult.kind` now distinguishes `found`/`not_found`/`network`/`config`/`invalid`, so transport failures no longer show "school not found". i18n keys `resolveConfigError` (EN + AM).
+- **N5 — Mobile notification inbox** (`mobile-app/src/screens/NotificationsScreen.tsx`, `mobile-app/src/services/notifications.ts`): Notifications/Messages tabs with unread dots, tap-to-mark-read, mark-all-read, offline cache + freshness badge. Wired to `featureMessages` for PARENT/STUDENT/TEACHER in `HomeScreen`/`App.tsx` (new `notifications` portal).
+- **R2/R3 — LAN endpoint design decided** (`docs/APU_SCHOOL_RESOLUTION.md` §5, `docs/APU_LOCAL_TEACHER_MODE.md` §3.1): resolve-driven `local_url` (primary) + SecureStore per-school override (fallback); mDNS deferred. Implementation still OPEN.
+- Verified: `backend/tests/test_phase3_security.py` 11/11; full backend suite **488 passed**; `tsc --noEmit` clean; `expo export --platform android` bundles (~924 modules).
+
 ## [1.0.0-apu-phase1] — 2026-08-09
 
 ### APU Phase 1 — Parent & Student read path (mobile-app only, no backend change)

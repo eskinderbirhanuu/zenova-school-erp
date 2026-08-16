@@ -5,6 +5,8 @@ export interface ResolvedSchool {
   domain: string
   code: string
   api_url: string
+  local_url?: string | null
+  local_url_label?: string | null
   branding: {
     logo_url?: string | null
     primary_color?: string | null
@@ -19,6 +21,16 @@ export interface ResolveResult {
   found: boolean
   error?: string
   school?: ResolvedSchool
+  /**
+   * R1: distinguishes transport/config failures (which are *not* "school not
+   * found") from an authoritative not-found response:
+   *  - "found"      → resolved
+   *  - "not_found"  → Control Center responded; code/domain unknown
+   *  - "network"    → could not reach the Control Center (offline/DNS/timeout)
+   *  - "config"     → no Control Center URL configured at build time
+   *  - "invalid"    → empty input
+   */
+  kind?: "found" | "not_found" | "network" | "config" | "invalid"
 }
 
 /**
@@ -27,8 +39,8 @@ export interface ResolveResult {
  */
 export async function resolveSchool(code: string): Promise<ResolveResult> {
   const trimmed = code.trim()
-  if (!trimmed) return { found: false, error: "code is required" }
-  if (!CONTROL_CENTER_URL) return { found: false, error: "no control center configured" }
+  if (!trimmed) return { found: false, kind: "invalid", error: "code is required" }
+  if (!CONTROL_CENTER_URL) return { found: false, kind: "config", error: "no control center configured" }
 
   try {
     const controller = new AbortController()
@@ -41,8 +53,51 @@ export async function resolveSchool(code: string): Promise<ResolveResult> {
     })
     clearTimeout(timer)
     const body = (await res.json().catch(() => ({}))) as ResolveResult
-    return body
+    if (res.status === 200 && body.found && body.school) {
+      return { ...body, kind: "found" }
+    }
+    return { ...body, found: false, kind: "not_found" }
   } catch {
-    return { found: false, error: "resolve failed" }
+    return { found: false, kind: "network", error: "resolve failed" }
   }
+}
+
+/**
+ * R2: probe a candidate local (LAN) endpoint before switching the base URL.
+ * Returns the base URL when the server responds 200 to `/api/v1/health/live`,
+ * otherwise null. A short timeout keeps the probe from hanging the app.
+ */
+export async function probeLocalEndpoint(candidateUrl: string, timeoutMs = 2000): Promise<string | null> {
+  if (!candidateUrl) return null
+  const base = candidateUrl.replace(/\/+$/, "")
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    const res = await fetch(`${base}/api/v1/health/live`, {
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+    if (res.ok) return base
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * R2 base-URL policy: prefer the per-school manual override (SecureStore
+ * fallback), then the resolve-driven local_url, then the cloud api_url — but
+ * only ever after a successful health probe. Never follows an unprobed URL.
+ */
+export async function pickBaseUrl(
+  school: { api_url: string; local_url?: string | null },
+  overrideUrl?: string | null,
+): Promise<string> {
+  const candidates = [overrideUrl, school.local_url]
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const reachable = await probeLocalEndpoint(candidate)
+    if (reachable) return reachable
+  }
+  return school.api_url.replace(/\/+$/, "")
 }

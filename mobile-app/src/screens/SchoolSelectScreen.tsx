@@ -13,6 +13,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { searchSchools } from "../services/schools"
 import { resolveSchool, type ResolvedSchool } from "../services/resolve"
 import type { School } from "../services/schools"
+import { setStoredLocalUrl } from "../services/storage"
 import { useI18n } from "../i18n"
 import { colors, gradientColors } from "../theme/colors"
 
@@ -27,6 +28,7 @@ export default function SchoolSelectScreen({ onSelect, onSelectResolved }: Schoo
   const [results, setResults] = useState<School[]>([])
   const [manual, setManual] = useState("")
   const [schoolId, setSchoolId] = useState("")
+  const [localAddress, setLocalAddress] = useState("")
   const [resolving, setResolving] = useState(false)
   const [resolveError, setResolveError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -64,7 +66,14 @@ export default function SchoolSelectScreen({ onSelect, onSelectResolved }: Schoo
     const result = await resolveSchool(schoolId)
     setResolving(false)
     if (result.found && result.school) {
+      if (localAddress.trim()) {
+        await setStoredLocalUrl(result.school.code, localAddress.trim())
+      }
       onSelectResolved(result.school)
+    } else if (result.kind === "network") {
+      setResolveError(t("resolveError"))
+    } else if (result.kind === "config") {
+      setResolveError(t("resolveConfigError"))
     } else {
       setResolveError(t("schoolNotFound"))
     }
@@ -93,6 +102,16 @@ export default function SchoolSelectScreen({ onSelect, onSelectResolved }: Schoo
             autoCapitalize="none"
           />
           {resolveError ? <Text style={styles.hint}>{resolveError}</Text> : null}
+          <TextInput
+            value={localAddress}
+            onChangeText={setLocalAddress}
+            placeholder={t("localAddressPlaceholder")}
+            placeholderTextColor={colors.textSecondary}
+            style={styles.input}
+            autoCorrect={false}
+            autoCapitalize="none"
+            keyboardType="url"
+          />
           <Pressable
             onPress={handleResolve}
             disabled={resolving || !schoolId.trim()}

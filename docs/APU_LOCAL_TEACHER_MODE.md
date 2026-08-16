@@ -30,12 +30,12 @@ Teacher phone: `192.168.x.x` · Local server: `192.168.x.x` (configurable — **
 
 ### 3.1 Endpoint selection
 - On School resolution, the app learns `cloud_url` (from resolve `api_url`) and, when configured, `local_url`.
-- `local_url` may come from (candidate designs — not yet decided):
-  1. a `local_domain`/`lan_url` field added to Control Center `Customer` and returned by resolve,
-  2. the school's own config/branding,
-  3. mDNS/Bonjour discovery (`_zenova._tcp`),
-  4. a per-school manual override stored in SecureStore.
+- `local_url` source (design decided 2026-08-09 — see `APU_SCHOOL_RESOLUTION.md` §5):
+  1. **Primary:** a `local_url` field added to Control Center `Customer` and returned by resolve,
+  2. **Fallback:** a per-school manual override stored in SecureStore (set in `SchoolSelectScreen`),
+  3. mDNS/Bonjour discovery (`_zenova._tcp`) — **deferred**, not implemented.
 - **Configurable/discoverable, never a single hard-coded IP.**
+- The app only trusts `local_url` from resolve or the explicit manual override — never an arbitrary LAN host with stored cloud credentials.
 
 ### 3.2 Local-first policy (TEACHER)
 ```
@@ -91,4 +91,4 @@ Use local_url as base for all API calls (auth + data)
 - **Dependencies:** local server running the same `zenova/backend` image; phone on the same LAN.
 - **Assumptions:** the school has one local server that is the operational source; offline duration < license grace (45 days).
 - **Risks:** LAN endpoint misconfiguration (could leak credentials to the wrong host) → mitigate by resolving local_url only through trusted config; clock skew between phone/server for sync.
-- **Unresolved:** LAN endpoint discovery mechanism; certificate trust for the LAN server; whether attendance entry offline must be restricted (the backend already enforces an 08:00–10:00 Ethiopian-time window for `/attendance/bulk`).
+- **Unresolved:** whether attendance entry offline must be restricted (the backend already enforces an 08:00–10:00 Ethiopian-time window for `/attendance/bulk`). LAN endpoint source is decided (resolve `local_url` + SecureStore override) and implemented; **certificate trust policy for the LAN server is documented in `APU_CERT_TRUST_POLICY.md`** (design — not yet implemented).

@@ -15,7 +15,10 @@ import { fetchRemoteConfig, isVersionAtLeast, type RemoteConfig } from "./src/se
 import { defaultTheme, themeFromBranding, type SchoolTheme } from "./src/theme/colors"
 import { APP_VERSION } from "./src/config/app"
 import type { ResolvedSchool } from "./src/services/resolve"
+import { pickBaseUrl, probeLocalEndpoint } from "./src/services/resolve"
+import { getStoredLocalUrl } from "./src/services/storage"
 import { validateSession, clearCsrfCache, SessionExpiredError } from "./src/services/api"
+import { registerDeviceForPush, unregisterDeviceForPush } from "./src/services/push"
 import SchoolSelectScreen from "./src/screens/SchoolSelectScreen"
 import LoginScreen from "./src/screens/LoginScreen"
 import MFAScreen from "./src/screens/MFAScreen"
@@ -24,10 +27,13 @@ import UpdateRequiredScreen from "./src/screens/UpdateRequiredScreen"
 import ParentPortal from "./src/screens/ParentPortal"
 import StudentPortal from "./src/screens/StudentPortal"
 import AnnouncementsScreen from "./src/screens/AnnouncementsScreen"
+import NotificationsScreen from "./src/screens/NotificationsScreen"
+import TeacherPortal from "./src/screens/TeacherPortal"
+import SecurityScreen from "./src/screens/SecurityScreen"
 import { colors } from "./src/theme/colors"
 
 type Stage = "booting" | "school" | "login" | "mfa" | "home" | "portal" | "update"
-type Portal = "parent" | "student" | "announcements" | "teacher"
+type Portal = "parent" | "student" | "announcements" | "teacher" | "notifications" | "security"
 
 const DEFAULT_CONFIG: RemoteConfig = {
   minimum_version: "1.0.0",
@@ -81,6 +87,7 @@ function Root() {
           const session = await validateSession(storedUrl)
           setRoleName(session.roleName)
           setStage("home")
+          void registerDeviceForPush(storedUrl)
         } catch (err) {
           if (err instanceof SessionExpiredError) {
             await clearStoredSession()
@@ -111,7 +118,8 @@ function Root() {
   }, [])
 
   const handleSelectResolvedSchool = useCallback(async (school: ResolvedSchool) => {
-    const url = school.api_url.replace(/\/+$/, "")
+    const storedLocal = await getStoredLocalUrl(school.code)
+    const url = await pickBaseUrl(school, storedLocal)
     await setStoredSchoolUrl(url)
     await setStoredSchoolBranding(school.branding)
     setSchoolUrl(url)
@@ -125,7 +133,8 @@ function Root() {
     setMfaToken(null)
     setMfaSetupRequired(false)
     setStage("home")
-  }, [])
+    void registerDeviceForPush(schoolUrl)
+  }, [schoolUrl])
 
   const handleMfaRequired = useCallback((token: string, setupRequired: boolean) => {
     setMfaToken(token)
@@ -134,6 +143,7 @@ function Root() {
   }, [])
 
   const handleChangeSchool = useCallback(async () => {
+    if (schoolUrl) void unregisterDeviceForPush(schoolUrl)
     await clearStoredSchoolUrl()
     await clearStoredSession()
     await setStoredSchoolBranding(null)
@@ -143,16 +153,17 @@ function Root() {
     setMfaSetupRequired(false)
     setTheme(defaultTheme())
     setStage("school")
-  }, [])
+  }, [schoolUrl])
 
   const handleSignOut = useCallback(async () => {
+    if (schoolUrl) void unregisterDeviceForPush(schoolUrl)
     await clearStoredSession()
     clearCsrfCache()
     setRoleName(null)
     setMfaToken(null)
     setMfaSetupRequired(false)
     setStage("login")
-  }, [])
+  }, [schoolUrl])
 
   const handleOpenPortal = useCallback((p: Portal) => {
     setPortal(p)
@@ -221,6 +232,27 @@ function Root() {
           />
         ) : portal === "student" ? (
           <StudentPortal
+            schoolUrl={schoolUrl}
+            theme={theme}
+            onBack={handleClosePortal}
+            onSessionExpired={handleSessionExpired}
+          />
+        ) : portal === "teacher" ? (
+          <TeacherPortal
+            schoolUrl={schoolUrl}
+            theme={theme}
+            onBack={handleClosePortal}
+            onSessionExpired={handleSessionExpired}
+          />
+        ) : portal === "notifications" ? (
+          <NotificationsScreen
+            schoolUrl={schoolUrl}
+            theme={theme}
+            onBack={handleClosePortal}
+            onSessionExpired={handleSessionExpired}
+          />
+        ) : portal === "security" ? (
+          <SecurityScreen
             schoolUrl={schoolUrl}
             theme={theme}
             onBack={handleClosePortal}

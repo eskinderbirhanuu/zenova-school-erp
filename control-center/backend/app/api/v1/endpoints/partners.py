@@ -62,6 +62,8 @@ def _school_payload(c: Customer) -> dict[str, Any]:
         "domain": c.domain,
         "code": c.domain.split(".")[0],
         "api_url": f"https://{c.domain}",
+        "local_url": c.local_url or "",
+        "local_url_label": c.local_url_label or "",
         "branding": {
             "logo_url": c.logo_url or "",
             "primary_color": c.primary_color or "#6366F1",

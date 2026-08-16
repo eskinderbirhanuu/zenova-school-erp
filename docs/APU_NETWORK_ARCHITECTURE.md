@@ -82,5 +82,5 @@ APU does **not** invent a new deployment architecture. It consumes the school's 
 
 - **Dependencies:** LAN reachability requires the phone and school server on the same network segment; `EXPO_PUBLIC_CONTROL_CENTER_URL` set at build.
 - **Assumptions:** the school's local server exposes the same `/api/v1` surface as the VPS (same image). Confirmed — same `zenova/backend` image is used for both.
-- **Risks:** DNS rebinding if local_url is attacker-controlled (mitigate by resolving via Control Center, not arbitrary input); mixed HTTP/HTTPS content; certificate validation on self-signed LAN certs (needs a documented trust policy — do not disable TLS validation app-wide).
-- **Unresolved:** LAN endpoint discovery mechanism (mDNS vs config vs resolve field); self-signed certificate handling policy.
+- **Risks:** DNS rebinding if local_url is attacker-controlled (mitigate by resolving via Control Center, not arbitrary input); mixed HTTP/HTTPS content; certificate validation on self-signed LAN certs (trust policy documented in `APU_CERT_TRUST_POLICY.md` — never disable TLS validation app-wide).
+- **Unresolved:** LAN endpoint discovery mechanism (mDNS vs config vs resolve field — decided: resolve field + manual override, see `APU_SCHOOL_RESOLUTION.md` §5).

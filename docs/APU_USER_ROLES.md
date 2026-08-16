@@ -90,7 +90,7 @@ Each item below is marked **REUSE** (existing endpoint) or **BACKEND GAP** (does
 ## 5. Account provisioning
 
 - APU **does not create accounts**. Accounts are provisioned in the existing web/ERP system.
-- `POST /api/v1/auth/register` self-registration is restricted to `SAFE_SELF_REGISTER_ROLES = {"PARENT", "STUDENT"}` — it exists, but enabling self-registration in APU is a future decision (documented, not decided).
+- `POST /api/v1/auth/register` self-registration is restricted to `SAFE_SELF_REGISTER_ROLES = {"PARENT", "STUDENT"}` — **decision (2026-08-09): APU keeps it disabled.** Admin-provisioned accounts are the enrollment control; see `APU_GAPS_AND_DEPENDENCIES.md` A5.
 - A user can log in only if:
   - `User.is_active` and not soft-deleted,
   - PARENT: a `Parent` row has `user_id == current_user.id` (`get_parent_for_user()`),

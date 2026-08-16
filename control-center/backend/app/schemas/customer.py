@@ -14,6 +14,8 @@ class CustomerCreate(BaseModel):
     accent_color: str = "#EC4899"
     tagline: str = ""
     features: str = "{}"
+    local_url: str = ""
+    local_url_label: str = ""
 
 class CustomerUpdate(BaseModel):
     name: str | None = None
@@ -29,6 +31,8 @@ class CustomerUpdate(BaseModel):
     accent_color: str | None = None
     tagline: str | None = None
     features: str | None = None
+    local_url: str | None = None
+    local_url_label: str | None = None
 
 class CustomerResponse(BaseModel):
     id: int
@@ -46,6 +50,8 @@ class CustomerResponse(BaseModel):
     accent_color: str
     tagline: str
     features: str
+    local_url: str
+    local_url_label: str
     created_at: datetime
     updated_at: datetime
 

@@ -10,10 +10,13 @@ interface HomeScreenProps {
   theme: SchoolTheme
   onSignOut: () => void
   onChangeSchool: () => void
-  onOpenPortal: (portal: "parent" | "student" | "announcements" | "teacher") => void
+  onOpenPortal: (portal: "parent" | "student" | "announcements" | "teacher" | "notifications" | "security") => void
 }
 
-type FeatureRoute = { key: string; portal: "parent" | "student" | "announcements" | "teacher" | null }
+type FeatureRoute = {
+  key: string
+  portal: "parent" | "student" | "announcements" | "teacher" | "notifications" | "security" | null
+}
 
 const ROLE_FEATURES: Record<string, FeatureRoute[]> = {
   PARENT: [
@@ -22,7 +25,8 @@ const ROLE_FEATURES: Record<string, FeatureRoute[]> = {
     { key: "featureResults", portal: "parent" },
     { key: "featureFees", portal: "parent" },
     { key: "featureAnnouncements", portal: "announcements" },
-    { key: "featureMessages", portal: null },
+    { key: "featureMessages", portal: "notifications" },
+    { key: "featureSecurity", portal: "security" },
   ],
   STUDENT: [
     { key: "featureAttendance", portal: "student" },
@@ -30,6 +34,8 @@ const ROLE_FEATURES: Record<string, FeatureRoute[]> = {
     { key: "featureExams", portal: "student" },
     { key: "featureSchedule", portal: "student" },
     { key: "featureAnnouncements", portal: "announcements" },
+    { key: "featureMessages", portal: "notifications" },
+    { key: "featureSecurity", portal: "security" },
   ],
   TEACHER: [
     { key: "featureAttendance", portal: "teacher" },
@@ -37,6 +43,8 @@ const ROLE_FEATURES: Record<string, FeatureRoute[]> = {
     { key: "featureExams", portal: "teacher" },
     { key: "featureSchedule", portal: "teacher" },
     { key: "featureAnnouncements", portal: "announcements" },
+    { key: "featureMessages", portal: "notifications" },
+    { key: "featureSecurity", portal: "security" },
   ],
 }
 

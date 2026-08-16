@@ -112,4 +112,4 @@ The global `CSRFMiddleware` (`backend/app/main.py`) requires **both** a `csrf_to
 - **Dependencies:** `expo-secure-store` (installed); `CONTROL_CENTER_URL` for school resolve only — auth is purely per-school.
 - **Assumptions:** login returns cookies we can parse for tokens; the backend's CSRF exemption list remains as verified.
 - **Risks:** CSRF cookie persistence across app restarts; cookie parsing if the backend switches to in-body tokens.
-- **Unresolved:** whether to enable PARENT/STUDENT self-registration in APU (`/auth/register`); whether MFA should be offered (not required) to the three APU roles.
+- **Unresolved:** whether MFA should be offered (not required) to the three APU roles. (PARENT/STUDENT self-registration is DECIDED — deferred: APU relies on admin-provisioned accounts as the enrollment control; see `APU_GAPS_AND_DEPENDENCIES.md` A5.)

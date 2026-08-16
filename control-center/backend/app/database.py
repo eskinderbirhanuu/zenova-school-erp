@@ -42,6 +42,8 @@ def _ensure_customer_branding_columns():
         "accent_color": "VARCHAR(20) DEFAULT '#EC4899'",
         "tagline": "VARCHAR(255) DEFAULT ''",
         "features": "TEXT DEFAULT '{}'",
+        "local_url": "VARCHAR(500) DEFAULT ''",
+        "local_url_label": "VARCHAR(255) DEFAULT ''",
     }
     with engine.begin() as conn:
         for col, ddl in new_columns.items():

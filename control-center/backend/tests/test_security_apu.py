@@ -96,6 +96,8 @@ def test_public_resolve_returns_branding():
             "primary_color": "#16A34A",
             "logo_url": "https://beta.zenova.et/logo.png",
             "features": '{"attendance": true, "finance": false}',
+            "local_url": "https://192.168.1.8:8443",
+            "local_url_label": "School LAN server",
         },
     )
     ok = client.post("/api/v1/public/schools/resolve", json={"code": "BETA"})
@@ -107,6 +109,8 @@ def test_public_resolve_returns_branding():
     assert school["api_url"] == "https://beta.zenova.et"
     assert school["branding"]["primary_color"] == "#16A34A"
     assert school["features"] == {"attendance": True, "finance": False}
+    assert school["local_url"] == "https://192.168.1.8:8443"
+    assert school["local_url_label"] == "School LAN server"
 
     missing = client.post("/api/v1/public/schools/resolve", json={"code": "NOPE123"})
     assert missing.status_code == 200

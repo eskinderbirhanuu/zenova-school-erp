@@ -122,6 +122,7 @@ One APU mobile app → many schools (TEACHER / PARENT / STUDENT).
 | [APU_NOTIFICATIONS.md](APU_NOTIFICATIONS.md) | Push channel design + permission fix |
 | [APU_DEPLOYMENT.md](APU_DEPLOYMENT.md) | Build/install pipeline, env vars, known gaps |
 | [APU_SECURITY.md](APU_SECURITY.md) | Applied security hardening (verified by tests) |
+| [APU_CERT_TRUST_POLICY.md](APU_CERT_TRUST_POLICY.md) | LAN certificate trust policy (self-signed certs, SPKI pinning) |
 | [APU_GAPS_AND_DEPENDENCIES.md](APU_GAPS_AND_DEPENDENCIES.md) | Classified backend/mobile/design gaps |
 | [APU_IMPLEMENTATION_PLAN.md](APU_IMPLEMENTATION_PLAN.md) | Phased build plan with verification gates |
 

@@ -60,8 +60,61 @@ export interface Exam {
   created_at?: string | null
 }
 
+export interface InvoiceLine {
+  description: string
+  amount: number
+}
+
+export interface StudentInvoice {
+  id: string
+  invoice_number: string
+  total_amount: number
+  paid_amount: number
+  balance: number
+  status: string
+  issue_date?: string | null
+  due_date?: string | null
+  lines: InvoiceLine[]
+}
+
+export interface StudentPayment {
+  id: string
+  payment_number: string
+  amount: number
+  method: string
+  payment_date?: string | null
+  reference?: string | null
+}
+
+export interface StudentFinance {
+  student_name: string
+  student_id: string
+  wallet_balance: number
+  total_billed: number
+  total_paid: number
+  outstanding_balance: number
+  invoices: StudentInvoice[]
+  payment_history: StudentPayment[]
+}
+
+export interface StudentDocumentItem {
+  id: string
+  filename: string
+  file_url: string
+  file_type?: string | null
+  created_at?: string | null
+}
+
 export function fetchStudentDashboard(baseUrl: string): Promise<StudentDashboard> {
   return apiGet<StudentDashboard>(baseUrl, "/student-portal/dashboard")
+}
+
+export function fetchStudentFinance(baseUrl: string): Promise<StudentFinance> {
+  return apiGet<StudentFinance>(baseUrl, "/student-portal/finance")
+}
+
+export function fetchStudentDocuments(baseUrl: string): Promise<StudentDocumentItem[]> {
+  return apiGet<StudentDocumentItem[]>(baseUrl, "/student-portal/documents")
 }
 
 export function fetchAssignments(baseUrl: string): Promise<AssignmentsResponse> {
