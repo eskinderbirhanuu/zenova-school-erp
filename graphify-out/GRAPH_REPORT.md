@@ -1,16 +1,16 @@
-# Graph Report - ZENOVA  (2026-08-09)
+# Graph Report - ZENOVA  (2026-08-10)
 
 ## Corpus Check
-- 1612 files · ~910,641 words
+- 1632 files · ~926,527 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 13858 nodes · 25434 edges · 1161 communities (1015 shown, 146 thin omitted)
-- Extraction: 79% EXTRACTED · 21% INFERRED · 0% AMBIGUOUS · INFERRED: 5285 edges (avg confidence: 0.58)
+- 14119 nodes · 26053 edges · 1174 communities (1028 shown, 146 thin omitted)
+- Extraction: 79% EXTRACTED · 21% INFERRED · 0% AMBIGUOUS · INFERRED: 5428 edges (avg confidence: 0.59)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bdc1be7c`
+- Built from commit: `8c2771d0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1029,23 +1029,35 @@
 - [[_COMMUNITY_Community 1154|Community 1154]]
 - [[_COMMUNITY_Community 1155|Community 1155]]
 - [[_COMMUNITY_Community 1156|Community 1156]]
-- [[_COMMUNITY_Community 1157|Community 1157]]
 - [[_COMMUNITY_Community 1158|Community 1158]]
 - [[_COMMUNITY_Community 1159|Community 1159]]
+- [[_COMMUNITY_Community 1161|Community 1161]]
+- [[_COMMUNITY_Community 1162|Community 1162]]
+- [[_COMMUNITY_Community 1163|Community 1163]]
+- [[_COMMUNITY_Community 1164|Community 1164]]
+- [[_COMMUNITY_Community 1165|Community 1165]]
+- [[_COMMUNITY_Community 1166|Community 1166]]
+- [[_COMMUNITY_Community 1167|Community 1167]]
+- [[_COMMUNITY_Community 1168|Community 1168]]
+- [[_COMMUNITY_Community 1169|Community 1169]]
+- [[_COMMUNITY_Community 1170|Community 1170]]
+- [[_COMMUNITY_Community 1172|Community 1172]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `User` - 280 edges
-2. `Card` - 215 edges
-3. `CardContent` - 214 edges
-4. `Permission` - 213 edges
+1. `User` - 283 edges
+2. `Permission` - 217 edges
+3. `Card` - 215 edges
+4. `CardContent` - 214 edges
 5. `_()` - 209 edges
 6. `CardHeader` - 198 edges
 7. `CardTitle` - 198 edges
 8. `Button` - 177 edges
-9. `NotFoundException` - 173 edges
-10. `HTTPException` - 170 edges
+9. `HTTPException` - 175 edges
+10. `NotFoundException` - 173 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `get_current_admin()` --calls--> `HTTPException`  [INFERRED]
+  license-server/app/api/v1/endpoints/auth.py → backend/app/main.py
 - `Announcement` --uses--> `Base`  [INFERRED]
   backend/app/models/communication.py → control-center/backend/app/database.py
 - `License` --uses--> `Base`  [INFERRED]
@@ -1053,8 +1065,6 @@
 - `Session` --uses--> `License`  [INFERRED]
   backend/app/services/backfill_tpm.py → control-center/backend/app/models/license.py
 - `HTTPAuthorizationCredentials` --uses--> `LoginRequest`  [INFERRED]
-  control-center/backend/app/api/v1/endpoints/auth.py → license-server/app/api/v1/endpoints/auth.py
-- `LoginRequest` --uses--> `LoginRequest`  [INFERRED]
   control-center/backend/app/api/v1/endpoints/auth.py → license-server/app/api/v1/endpoints/auth.py
 
 ## Import Cycles
@@ -1072,47 +1082,47 @@
 - 1-file cycle: `backend/app/services/teacher_service.py -> backend/app/services/teacher_service.py`
 - 1-file cycle: `license-server/app/services/license_service.py -> license-server/app/services/license_service.py`
 
-## Communities (1161 total, 146 thin omitted)
+## Communities (1174 total, 146 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.06
 Nodes (60): STEPS, MfaFlowProps, EVENT_TYPES, CodeItem, actionColors, DAYS, HOURS, actionColors (+52 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.05
-Nodes (52): Session, User, PasswordHistory, Protocol, Record a password hash and prune old entries beyond the limit., _record_password_history(), admin_generate_temp_password(), apply_recovery_password() (+44 more)
+Cohesion: 0.07
+Nodes (39): Session, User, admin_generate_temp_password(), apply_recovery_password(), approve_recovery_request(), can_initiator_reset(), emergency_apply(), _emergency_secret() (+31 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.35
-Nodes (9): Session, User, _build_result_map(), generate_report_card(), get_report_card(), list_report_cards(), ReportCard, compute_grade() (+1 more)
+Cohesion: 0.08
+Nodes (52): Session, GoodsReceipt, PurchaseOrder, PurchaseRequest, approve_payroll(), approve_purchase_request(), assign_fee(), _check_period() (+44 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.10
-Nodes (37): Session, approve_payroll(), approve_purchase_request(), assign_fee(), create_account(), create_budget(), create_budget_item(), create_fee_structure() (+29 more)
+Cohesion: 0.57
+Nodes (30): AccountCreate, AccountUpdate, PaymentCreate, UploadFile, BudgetCreate, BudgetItemCreate, FeeAssignmentCreate, FeeStructureCreate (+22 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.11
-Nodes (43): Base, Any, Decimal, Payment, Receipt, Session, DeclarativeBase, CardDesign (+35 more)
+Cohesion: 0.03
+Nodes (130): Base, Request, Decimal, Request, Session, User, PaymentCreate, Student (+122 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.10
-Nodes (41): Request, Session, User, Decimal, Session, daily_revenue_report(), monthly_revenue_report(), pay_platform_invoice() (+33 more)
+Cohesion: 0.16
+Nodes (30): Session, UploadFile, User, assign_student_nfc(), bulk_import_students(), create_student(), delete_student(), delete_student_document() (+22 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.10
-Nodes (31): ErrorState(), formatAge(), FreshnessBadge(), LoadingState(), PortalScreen(), PortalScreenProps, SectionCard(), styles (+23 more)
+Cohesion: 0.11
+Nodes (26): AssignmentsView(), DashboardView(), DocumentsView(), ExamsView(), FinanceView(), formatMoney(), PortalView, styles (+18 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.39
-Nodes (20): CorporateEmployee, Session, User, CorporateDepartmentCreate, CorporateDepartmentUpdate, CorporateEmployeeCreate, CorporateEmployeeResponse, CorporateEmployeeUpdate (+12 more)
+Cohesion: 0.09
+Nodes (32): create_license(), get_license(), list_licenses(), Session, User, activate_license(), approve_device_change_request(), get_all_device_change_history() (+24 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.05
-Nodes (93): Session, Session, Session, Session, Session, Session, log_audit(), log_audit_and_commit() (+85 more)
+Cohesion: 0.06
+Nodes (79): Session, Session, Session, Session, Session, log_audit(), log_audit_and_commit(), Add an audit row to the current session. Does NOT commit — caller owns the trans (+71 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.03
-Nodes (57): datetime, Session, Session, BadRequestException, SchoolTelegramBot, SchoolTelegramBot, create_staff(), deactivate_staff() (+49 more)
+Cohesion: 0.04
+Nodes (39): Session, BadRequestException, SchoolTelegramBot, connect_bot(), disconnect_bot(), get_bot_status(), handle_webhook(), send_telegram_message() (+31 more)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.04
@@ -1123,12 +1133,12 @@ Cohesion: 0.06
 Nodes (35): 10. Overall Assessment, 1. Scope and Methodology, 2. Coverage Summary, 3. Aggregate Scores by Layer, 4.1 Security — Hardcoded JWT Secret in `settings.py`, 4.2 Security — `eval()` in `uid_hash.py`, 4.3 Security — Weak Password Hashing, 4.4 Architecture — Duplicate Auth Dependencies (+27 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.10
-Nodes (17): Any, Session, PaymentGatewayConfig, _default_chapa_keys(), _get_headers(), _get_school_chapa_keys(), initialize_payment(), Chapa Payment Gateway Integration — supports per-school API keys. (+9 more)
+Cohesion: 0.04
+Nodes (93): Session, User, Session, User, Session, User, Session, User (+85 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.04
-Nodes (57): WebSocket, Session, Session, _archive_device_changes(), _enforce_grace_periods(), create_access_token(), create_password_reset_token(), create_refresh_token() (+49 more)
+Nodes (49): License, Session, Session, _enforce_grace_periods(), DeviceChangeRequest, Public verify endpoint — called by school servers (no admin token needed)., Verify a license key (no auth required - used before login), verify_license() (+41 more)
 
 ### Community 14 - "Community 14"
 Cohesion: 0.07
@@ -1147,8 +1157,8 @@ Cohesion: 0.07
 Nodes (28): Alerting Thresholds, Backup (automated daily), Backup disk full, Common Incidents, Database connection errors, Database Operations, Deployment, First-Time Deploy (+20 more)
 
 ### Community 18 - "Community 18"
-Cohesion: 0.10
-Nodes (17): RoleGuard(), ADMIN_NAV, AUDITOR_NAV, CAFETERIA_NAV, CORPORATE_NAV, FINANCE_NAV, HR_NAV, LIBRARY_NAV (+9 more)
+Cohesion: 0.12
+Nodes (11): RoleGuard(), ADMIN_NAV, AUDITOR_NAV, CAFETERIA_NAV, DIRECTOR_NAV, FINANCE_NAV, NavItem, PARENT_NAV (+3 more)
 
 ### Community 19 - "Community 19"
 Cohesion: 0.15
@@ -1156,11 +1166,11 @@ Nodes (12): PartnerTicker, PartnerTickerProps, styles, FALLBACK_PARTNERS, Partne
 
 ### Community 20 - "Community 20"
 Cohesion: 0.05
-Nodes (22): cleanUpNextTick(), drainQueue(), escapeBraces(), expandTop(), expectedException(), fail(), getMessage(), isArguments() (+14 more)
+Nodes (22): cleanUpNextTick(), drainQueue(), escapeBraces(), expandTop(), expectedException(), fail(), isArguments(), isNullOrUndefined() (+14 more)
 
 ### Community 21 - "Community 21"
 Cohesion: 0.03
-Nodes (145): AnimatedBackground(), DynamicAnimatedBackground, AnimationProps, FadeIn, FadeInUp, ScaleIn, stagger, StaggerContainer() (+137 more)
+Nodes (141): AnimatedBackground(), DynamicAnimatedBackground, AnimationProps, FadeIn, FadeInUp, ScaleIn, stagger, StaggerContainer() (+133 more)
 
 ### Community 22 - "Community 22"
 Cohesion: 0.17
@@ -1175,24 +1185,24 @@ Cohesion: 0.09
 Nodes (21): 1. In-process, 2. Local-substitutable, 3. Remote but owned (Ports & Adapters), 4. True external (Mock), Deepening, Dependency categories, Seam discipline, Testing strategy: replace, don't layer (+13 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.07
-Nodes (28): 2026-07-01 — Session 2: Phase 2 Hardening (7 Items), 2026-07-01 — Session 3: Sync, Trusted Networks, Enqueue, 2026-07-01 — Session 4: IDOR Audit, Indexes, Monitoring, Conflict Resolution, 2026-07-01 — Session 5: Background Worker, IDOR Sweep, Documentation, 75 DB tables received deleted_at, Alembic chain synchronized, Completed Work, Composite indexes (15) (+20 more)
+Cohesion: 0.05
+Nodes (40): 2026-07-01 — Session 1: DeepSeek V4 Flash Implementation (11 Tasks), 2026-07-01 — Session 2: Phase 2 Hardening (7 Items), 2026-07-01 — Session 3: Sync, Trusted Networks, Enqueue, 2026-07-01 — Session 4: IDOR Audit, Indexes, Monitoring, Conflict Resolution, 2026-07-01 — Session 5: Background Worker, IDOR Sweep, Documentation, 75 DB tables received deleted_at, Alembic chain synchronized, Completed Work (+32 more)
 
 ### Community 26 - "Community 26"
 Cohesion: 0.05
-Nodes (84): LicenseResponse, BaseModel, AccountCreate, AccountResponse, AccountUpdate, BudgetCreate, BudgetItemCreate, BudgetItemResponse (+76 more)
+Nodes (76): BaseModel, AcademicYearCreate, AcademicYearResponse, AcademicYearUpdate, BulkExamResultCreate, BulkPromotionCreate, ClassGradeCreate, ClassGradeResponse (+68 more)
 
 ### Community 27 - "Community 27"
-Cohesion: 0.08
-Nodes (51): Session, PurchaseOrder, PurchaseRequest, approve_payroll(), approve_purchase_request(), assign_fee(), _check_period(), create_account() (+43 more)
+Cohesion: 0.06
+Nodes (14): Tests for NFC v2 service — assign, scan, print requests., TestAssignEmployeeCard, TestAssignParentCard, TestAssignStaffCard, TestAssignStudentCard, TestCardPrintRequests, TestGetEmployeeByCard, TestGetParentByCard (+6 more)
 
 ### Community 28 - "Community 28"
-Cohesion: 0.64
-Nodes (28): AccountCreate, AccountUpdate, PaymentCreate, UploadFile, BudgetCreate, BudgetItemCreate, FeeAssignmentCreate, FeeStructureCreate (+20 more)
+Cohesion: 0.05
+Nodes (42): LicenseResponse, public_school_branding(), public_setup_status(), Public: Check if system setup is complete (no auth required), Public: Get school name + logo for login page (no auth required), ActivateInitializeRequest, ActivateInitializeResponse, ActivateValidateRequest (+34 more)
 
 ### Community 29 - "Community 29"
-Cohesion: 0.31
-Nodes (24): AuthContext, Session, create_category(), create_item(), create_supplier(), delete_category(), delete_supplier(), list_assets() (+16 more)
+Cohesion: 0.08
+Nodes (65): CorporateEmployee, Session, User, AuthContext, Session, Session, BookCategoryCreate, BookCreate (+57 more)
 
 ### Community 30 - "Community 30"
 Cohesion: 0.09
@@ -1200,15 +1210,15 @@ Nodes (19): ADR Format, Numbering, Optional sections, Template, What qualifies, 
 
 ### Community 31 - "Community 31"
 Cohesion: 0.05
-Nodes (46): create_license(), get_license(), list_licenses(), Session, User, Session, _backfill_tpm_data(), activate_license() (+38 more)
+Nodes (59): Request, Session, User, Decimal, Session, Session, daily_revenue_report(), monthly_revenue_report() (+51 more)
 
 ### Community 32 - "Community 32"
 Cohesion: 0.05
 Nodes (38): 1.1 WebGL animated background rendered on every authenticated page, 1.2 Dashboards render hardcoded demo data, 1.3 Recharts `ResponsiveContainer` instances + many `<Area>` series on each dashboard, §1 — Performance (the headline issues), 2.1 Two parallel navigation systems (drift risk), 2.2 Breadcrumbs are path-segment based, not semantic, 2.3 Command palette is nav-only, 2.4 Director sidebar duplicates all module nav (+30 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.20
-Nodes (29): AssignGradeRequest, AssignSectionRequest, Session, User, assign_teacher_grade(), assign_teacher_nfc(), assign_teacher_section(), assign_teacher_subjects() (+21 more)
+Cohesion: 0.13
+Nodes (44): Session, Session, Parent, Session, Student, CardPrintRequest, ConflictException, EmployeeCard (+36 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.17
@@ -1224,7 +1234,7 @@ Nodes (26): alwaysStrict, noImplicitAny, noImplicitThis, strictBindCallApply, st
 
 ### Community 38 - "Community 38"
 Cohesion: 0.07
-Nodes (41): _(), Ao(), At(), Bi(), bs(), ce(), ds(), Ee() (+33 more)
+Nodes (33): _(), Ao(), At(), Bi(), bs(), ca(), ce(), er() (+25 more)
 
 ### Community 39 - "Community 39"
 Cohesion: 0.11
@@ -1240,15 +1250,15 @@ Nodes (25): DesignSystemGenerator, _detect_page_type(), format_ascii_box(), form
 
 ### Community 42 - "Community 42"
 Cohesion: 0.07
-Nodes (25): datetime, Session, TeacherSectionAssignment, seed(), assign_grade(), assign_section(), create_teacher(), get_teacher_by_user_id() (+17 more)
+Nodes (24): datetime, Session, seed(), assign_grade(), assign_section(), create_teacher(), get_teacher_by_user_id(), list_teachers() (+16 more)
 
 ### Community 43 - "Community 43"
-Cohesion: 0.09
-Nodes (12): Attendance, bulk_mark_attendance(), get_attendance(), mark_attendance(), update_attendance(), MockAttendanceData, Tests for attendance service — mark, bulk, update, get., TestBulkMarkAttendance (+4 more)
+Cohesion: 0.04
+Nodes (35): date, Session, Attendance, LeaveBalance, LeaveType, approve_leave(), bulk_mark_attendance(), create_contract() (+27 more)
 
 ### Community 44 - "Community 44"
-Cohesion: 0.23
-Nodes (14): Request, Session, User, purge_old_sync(), receive_sync(), retry_failed(), sync_queue_list(), sync_status() (+6 more)
+Cohesion: 0.09
+Nodes (30): Session, User, Session, Returns (valid, message). Enforce strong passwords., validate_password_strength(), verify_password(), list_audit_logs(), AuditLog (+22 more)
 
 ### Community 45 - "Community 45"
 Cohesion: 0.08
@@ -1259,28 +1269,28 @@ Cohesion: 0.12
 Nodes (16): aliases, components, hooks, lib, ui, utils, iconLibrary, rsc (+8 more)
 
 ### Community 47 - "Community 47"
-Cohesion: 0.11
-Nodes (21): Announcement, fetchAnnouncements(), apiGet(), apiPost(), fetchParentDashboard(), fetchParentInvoices(), fetchParentPaymentDashboard(), fetchReceipts() (+13 more)
+Cohesion: 0.09
+Nodes (23): ChildCard(), formatMoney(), InvoicesView(), ParentPortal(), PayFlow(), PortalView, ReceiptsView(), styles (+15 more)
 
 ### Community 48 - "Community 48"
 Cohesion: 0.08
 Nodes (23): Changed: `branches` (add `parent_branch_id`), Changed: `role_permissions` (add scope support), Changed: `users` (add `department_id`), Database Tables (New + Changed), Entity Definitions, Executive Summary, Key Design Principle: Everything Is Configurable, Module Registry (+15 more)
 
 ### Community 49 - "Community 49"
-Cohesion: 0.32
-Nodes (13): Session, Student, bulk_create_students(), create_student(), delete_student(), get_student(), get_student_by_student_id(), promote_student() (+5 more)
+Cohesion: 0.21
+Nodes (8): useStudent(), StudentDetailPage(), AdminStudentDetailPage(), EmptyState(), EmptyStateProps, FieldProps, GenericDetailCard(), GenericDetailCardProps
 
 ### Community 50 - "Community 50"
 Cohesion: 0.14
 Nodes (13): 1. Backend Setup, 2. License Server Setup (Optional), 3. Frontend Setup, 4. Running Tests, 5. Project Structure, 6. Common Workflows, 7. Architecture Overview, 8. Code Conventions (+5 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.06
-Nodes (39): generate_license_key(), verify_license(), Session, activate_system(), base58_encode(), crc32_checksum(), create_branch(), create_branch_with_license() (+31 more)
+Cohesion: 0.14
+Nodes (33): AssignGradeRequest, AssignSectionRequest, Session, User, assign_teacher_grade(), assign_teacher_nfc(), assign_teacher_section(), assign_teacher_subjects() (+25 more)
 
 ### Community 52 - "Community 52"
 Cohesion: 0.09
-Nodes (12): approve_refund(), create_payment_session(), process_refund(), Create a new payment session for online payment., Approve a refund request., Process an approved refund., Tests for parent payment service — sessions, invoices, dashboard., TestApproveRefund (+4 more)
+Nodes (16): datetime, Session, create_staff(), deactivate_staff(), get_staff_by_id(), get_staff_by_user_id(), list_staff(), Create staff (User + StaffProfile) (+8 more)
 
 ### Community 53 - "Community 53"
 Cohesion: 0.10
@@ -1299,16 +1309,16 @@ Cohesion: 0.11
 Nodes (17): 1. Alembic Migration Orphan Branches, 2. SQLAlchemy 2.x `get_table_names()` Return Type, 3. Import Error in `currencies.py`, 4. Missing Import in `telegram.py`, 5. Next.js 16 Proxy Rename, 6. `passlib` / `bcrypt` Incompatibility, Build Notes, Deployment Target (+9 more)
 
 ### Community 57 - "Community 57"
-Cohesion: 0.04
-Nodes (82): Session, Session, Session, Parent, Session, Student, Canvas, CardPrintRequest (+74 more)
+Cohesion: 0.10
+Nodes (18): Any, Decimal, Session, PaymentGatewayConfig, _default_chapa_keys(), _get_headers(), _get_school_chapa_keys(), initialize_payment() (+10 more)
 
 ### Community 58 - "Community 58"
 Cohesion: 0.01
-Nodes (278): AdminAcademicYears(), SuperAdminAdmins(), AnnouncementsPage(), ZenovaLanding(), InventoryAssetsPage(), StudentAssignmentsPage(), SuperAdminBackups(), BillingPage() (+270 more)
+Nodes (290): AdminAcademicYears(), SuperAdminAdmins(), AnnouncementsPage(), ZenovaLanding(), InventoryAssetsPage(), StudentAssignmentsPage(), SuperAdminBackups(), BillingPage() (+282 more)
 
 ### Community 59 - "Community 59"
 Cohesion: 0.23
-Nodes (13): Session, Announcement, Message, Notification, create_announcement(), get_announcements(), get_messages(), get_notifications() (+5 more)
+Nodes (12): Session, Announcement, Message, Notification, create_announcement(), get_announcements(), get_messages(), get_notifications() (+4 more)
 
 ### Community 60 - "Community 60"
 Cohesion: 0.10
@@ -1331,36 +1341,36 @@ Cohesion: 0.05
 Nodes (36): §1 — App Structure, §2.1 — Service antipatterns, §2.2 — Service layering, §2 — Service Layer, §3.1 — Standalone sync worker (`workers/sync_worker.py`), §3.2 — In-process sync worker (`main.py:_start_sync_worker`), §3.3 — APScheduler (`core/scheduler.py`), §3.4 — Recommendation (+28 more)
 
 ### Community 65 - "Community 65"
-Cohesion: 0.09
-Nodes (54): Session, User, NfcAssignRequest, Session, User, get_school(), list_schools(), Session (+46 more)
+Cohesion: 0.07
+Nodes (65): Request, Session, User, Session, User, NfcAssignRequest, Session, User (+57 more)
 
 ### Community 66 - "Community 66"
-Cohesion: 0.14
-Nodes (15): AssignmentsView(), DashboardView(), ExamsView(), formatMoney(), PortalView, styles, Assignment, AssignmentItem (+7 more)
+Cohesion: 0.12
+Nodes (12): detect_environment(), get_active_environment(), get_effective_fingerprint_components(), get_environment_grace_days(), Get detected environment, cached per process., Collect only the components relevant for the current environment., Verify license against cloud license server., Detect if running in a VM, Docker container, or bare metal.      Returns one of: (+4 more)
 
 ### Community 67 - "Community 67"
 Cohesion: 0.31
 Nodes (7): date, Session, _handle_parent(), Full student registration: student + parent(s) + QR + audit, Smart parent linking: search first, create if not found, register_student(), RegistrationResult
 
 ### Community 68 - "Community 68"
-Cohesion: 0.13
-Nodes (15): HrAttendancePage(), ParentAttendance(), StudentAttendancePage(), TeacherAttendancePage(), HrContractsPage(), HrDashboard(), AdminDirectors(), HrEmployeesPage() (+7 more)
+Cohesion: 0.15
+Nodes (17): ds(), Ee(), Fe(), fi(), Go(), J(), ji(), Ke() (+9 more)
 
 ### Community 69 - "Community 69"
-Cohesion: 0.42
-Nodes (11): Session, User, create_staff(), deactivate_staff(), get_staff(), list_staff(), Create a staff account (DIRECTOR only), update_staff() (+3 more)
+Cohesion: 0.13
+Nodes (20): Session, _alert_new_device(), mfa_bootstrap_setup(), mfa_bootstrap_verify(), mfa_disable(), mfa_regenerate_backup_codes(), mfa_setup(), mfa_verify() (+12 more)
 
 ### Community 70 - "Community 70"
-Cohesion: 0.05
-Nodes (66): Decimal, Request, Session, User, Payment, Receipt, Session, Any (+58 more)
+Cohesion: 0.25
+Nodes (24): AttendanceUpdate, AuthContext, Session, ContractCreate, approve_leave(), create_contract(), create_leave_type(), create_review() (+16 more)
 
 ### Community 71 - "Community 71"
 Cohesion: 0.07
 Nodes (29): DeepSeek V4 Flash — Task List, P0 — Critical (do these first, in order), Suggested Execution Order (first pass), Task-01 — Secure the `/sync/receive` endpoint  (P0), Task-02 — Patch path traversal in backup endpoints  (P0), Task-03 — Remove license-key password reset  (P0), Task-04 — Fix parent-portal payment signature drift  (P0), Task-05 — Make `log_audit` non-committing  (P0) (+21 more)
 
 ### Community 72 - "Community 72"
-Cohesion: 0.16
-Nodes (5): make_mock_user(), Teacher role (no STUDENT_CREATE) gets 403 on student card assign., TestAuthLogin, TestMFABootstrap, TestNfcEndpoints
+Cohesion: 0.12
+Nodes (10): auth_client(), make_mock_db(), make_mock_user(), nfc_client(), API integration tests — auth flows, pagination contract, finance, NFC.  Uses Tes, Teacher role (no STUDENT_CREATE) gets 403 on student card assign., TestAuthLogin, TestMFABootstrap (+2 more)
 
 ### Community 73 - "Community 73"
 Cohesion: 0.12
@@ -1375,8 +1385,8 @@ Cohesion: 0.09
 Nodes (22): Access URLs, Automatic (recommended), Backup, Browser Support, Daily Operations, Default Login, Emergency, FAQ (+14 more)
 
 ### Community 76 - "Community 76"
-Cohesion: 0.78
-Nodes (29): AcademicYear, AcademicYearCreate, UploadFile, BulkExamResultCreate, BulkPromotionCreate, ClassGradeCreate, ClassGradeUpdate, ClassroomCreate (+21 more)
+Cohesion: 0.08
+Nodes (53): Session, Query, build_paginated_response(), paginate(), list_exam_types(), list_messages(), list_notifications(), approve_payroll() (+45 more)
 
 ### Community 77 - "Community 77"
 Cohesion: 0.10
@@ -1407,8 +1417,8 @@ Cohesion: 0.12
 Nodes (16): 10. Dependencies / assumptions / risks / unresolved, 1. WHAT are we building?, 2. WHY, 3.1 Login, 3.2 MFA (TOTP), 3.3 Refresh, 3.4 Logout, 3.5 Authoritative profile (+8 more)
 
 ### Community 84 - "Community 84"
-Cohesion: 0.12
-Nodes (12): deprecationWarning(), finish(), glob(), globSync(), inflight(), isArray(), isIgnored(), mark() (+4 more)
+Cohesion: 0.19
+Nodes (10): deprecationWarning(), finish(), globSync(), inflight(), isArray(), isIgnored(), ownProp(), readdirCb() (+2 more)
 
 ### Community 86 - "Community 86"
 Cohesion: 0.12
@@ -1452,15 +1462,15 @@ Nodes (26): §1 — Critical Vulnerabilities, §2 — High-Risk Vulnerabilities,
 
 ### Community 96 - "Community 96"
 Cohesion: 0.10
-Nodes (27): Session, User, User, get_role_permissions(), get_role_permissions_from_db(), get_user_permissions(), has_all_roles(), has_any_role() (+19 more)
+Nodes (22): Session, User, User, get_user_permissions(), has_all_roles(), has_any_role(), has_permission(), Get the union of all permissions from all roles assigned to a user. (+14 more)
 
 ### Community 97 - "Community 97"
 Cohesion: 0.08
 Nodes (25): 3D Animations, Accessibility Requirements, Buttons, Cards, Chart Palette, Color System, Component Rules, Dashboard Rules (+17 more)
 
 ### Community 98 - "Community 98"
-Cohesion: 0.41
-Nodes (12): NFCAssignRequest, Session, User, assign_nfc(), get_nfc_card(), get_nfc_history(), update_nfc_status(), validate_nfc() (+4 more)
+Cohesion: 0.13
+Nodes (7): CORPORATE_NAV, HR_NAV, LIBRARY_NAV, NavSection, ROLE_NAV_MAP, ROUTE_GROUP_ACCESS, RouteGroupShell()
 
 ### Community 99 - "Community 99"
 Cohesion: 0.06
@@ -1507,16 +1517,16 @@ Cohesion: 0.09
 Nodes (22): artifacts, backtrace, backtraceGraph, commands, files, nodes, compileGroups, dependencies (+14 more)
 
 ### Community 121 - "Community 121"
-Cohesion: 0.06
-Nodes (32): AcademicYearCreate, AcademicYearResponse, AcademicYearUpdate, BulkExamResultCreate, BulkPromotionCreate, ClassGradeCreate, ClassGradeResponse, ClassGradeUpdate (+24 more)
+Cohesion: 0.90
+Nodes (15): LoginRequest, Request, ResetPasswordRequest, Response, User, ForgotPasswordRequest, LoginRequest, MFABootstrapSetupRequest (+7 more)
 
 ### Community 122 - "Community 122"
 Cohesion: 0.15
 Nodes (15): BM25, detect_domain(), _load_csv(), Lowercase, split, remove punctuation, filter short words, Build BM25 index from documents, Score all documents against query, Load CSV and return list of dicts, Core search function using BM25 (+7 more)
 
 ### Community 123 - "Community 123"
-Cohesion: 0.16
-Nodes (16): aa(), ca(), er(), I(), Ir(), Ka(), la(), _o() (+8 more)
+Cohesion: 0.10
+Nodes (27): ErrorState(), formatAge(), FreshnessBadge(), LoadingState(), PortalScreen(), PortalScreenProps, SectionCard(), styles (+19 more)
 
 ### Community 124 - "Community 124"
 Cohesion: 0.13
@@ -1575,8 +1585,8 @@ Cohesion: 0.10
 Nodes (19): ADMIN (Level 80), AUDITOR (Level 40), CAFETERIA (Level 50), DIRECTOR (Level 60), FINANCE (Level 50), HR (Level 50), INVENTORY (Level 50), LIBRARY (Level 50) (+11 more)
 
 ### Community 138 - "Community 138"
-Cohesion: 0.06
-Nodes (47): AttendanceUpdate, AuthContext, Session, date, Session, ContractCreate, approve_leave(), create_contract() (+39 more)
+Cohesion: 0.17
+Nodes (9): _get_access_token(), _parse_credentials(), push_enabled(), Best-effort FCM push relay (Gap N2).  - Never raises: push is best-effort, the i, Send one push; return an error code if the token is stale., _send_to_fcm(), TestGetAccessToken, TestPushEnabled (+1 more)
 
 ### Community 139 - "Community 139"
 Cohesion: 0.08
@@ -1635,20 +1645,20 @@ Cohesion: 0.12
 Nodes (16): 10. `backend/app/services/id_service.py`, 11. `backend/app/api/v1/endpoints/auth.py` + `services/auth_service.py`, 12. `backend/app/api/v1/endpoints/students.py` (and similar), 13. `backend/app/core/security.py:15`, 14. `backend/app/main.py` (middleware order), 15. Tests, 1. `backend/app/core/audit.py`, 2. `backend/app/core/permissions.py` + `deps.py` (+8 more)
 
 ### Community 153 - "Community 153"
-Cohesion: 0.16
-Nodes (19): datetime, Session, User, _attendance_window_open(), export_attendance(), mark_attendance_bulk(), _notify_absence(), _now_ethiopia() (+11 more)
+Cohesion: 0.09
+Nodes (29): AttendanceBulkItem, datetime, Session, User, UploadFile, BytesIO, _attendance_window_open(), export_attendance() (+21 more)
 
 ### Community 154 - "Community 154"
-Cohesion: 0.25
-Nodes (16): CorporateEmployee, datetime, Session, CorporateDepartment, CorporateDepartment, create_department(), create_employee(), delete_employee() (+8 more)
+Cohesion: 0.36
+Nodes (12): AnnouncementCreate, MessageCreate, Announcement, PushDevice, NotificationPreference, NotificationPreferenceUpdate, PushDeviceRegister, NotificationPreferenceResponse (+4 more)
 
 ### Community 155 - "Community 155"
 Cohesion: 0.12
 Nodes (15): Backend (FastAPI + SQLAlchemy + PostgreSQL), Demo Licenses, Frontend (Next.js 16 + TypeScript + Tailwind v4 + Shadcn + Recharts), High Priority, Key Design Decisions, Known Issues 🐛, Login Credentials, Low Priority (+7 more)
 
 ### Community 156 - "Community 156"
-Cohesion: 0.06
-Nodes (28): 1. WHAT exists today (verified), 2. Environment variables (current), 3. Build & install pipeline, 4. Runtime configuration (desired — document only), 5. Release management (future), 6. Known gaps to close, APU Deployment, 1. WHAT are we building? (+20 more)
+Cohesion: 0.17
+Nodes (11): 10. Assumptions & risks, 1. Classification legend, 2. Authentication, 3. Notifications & messages, 4. Finance (Parent), 5. Student, 6. Teacher, 7. School resolution & network (+3 more)
 
 ### Community 157 - "Community 157"
 Cohesion: 0.08
@@ -1687,8 +1697,8 @@ Cohesion: 0.13
 Nodes (14): Bottleneck 10 — `log_audit` issues an extra COMMIT per mutation, Bottleneck 11 — `get_client_ip`/`decode_token` overhead per request, Bottleneck 12 — License status re-validation may block startup/requests, Bottleneck 1 — N+1 query explosion in student transcript, Bottleneck 2 — Parent dashboard issues ~7 queries per child, Bottleneck 3 — `trial_balance` runs one sub-query per account, Bottleneck 4 — COUNT()-based sequence numbers race and scan, Bottleneck 5 — Export endpoints load everything into memory (+6 more)
 
 ### Community 166 - "Community 166"
-Cohesion: 0.04
-Nodes (73): _start_sync_worker(), startup(), Session, activate_license(), start_scheduler(), has_c_extension(), Wrapper around the compiled C validation extension.  If the C extension (coreval, Verify a .lic file. Returns 0 on success, -1 on failure. (+65 more)
+Cohesion: 0.05
+Nodes (51): has_c_extension(), Wrapper around the compiled C validation extension.  If the C extension (coreval, Verify a .lic file. Returns 0 on success, -1 on failure., Pure-Python fallback., verify_lic_file(), _verify_lic_py(), get_license_public_key(), Return the RSA public key PEM for license signature verification. (+43 more)
 
 ### Community 167 - "Community 167"
 Cohesion: 0.14
@@ -1711,8 +1721,8 @@ Cohesion: 0.14
 Nodes (13): 1. Token Blacklist Called on Creation — `auth.py` (CRITICAL), 2. Wildcard CORS Overrides Strict Config — `main.py`, 3. Hard Delete in `academic_service.py`, 4. 54+ Models Missing `deleted_at`, 5. Missing Audit Log Parameters, Code Review Findings, Contradictions Found, Critical Issues (Must Fix) (+5 more)
 
 ### Community 172 - "Community 172"
-Cohesion: 0.07
-Nodes (21): process_chapa_payment(), Process Chapa payment callback., _make_db(), _make_invoice(), Verify with_for_update is called on the PaymentSession query., Verify that a second callback with the same Chapa reference is rejected., Verify that a session with status != 'pending' is rejected., Verify with_for_update is called on the Invoice query when session has invoice_i (+13 more)
+Cohesion: 0.17
+Nodes (11): InventoryCategoryCreate, InventoryCategoryResponse, InventoryCategoryUpdate, InventoryItemCreate, InventoryItemResponse, InventoryItemUpdate, StockMovementCreate, StockMovementResponse (+3 more)
 
 ### Community 173 - "Community 173"
 Cohesion: 0.15
@@ -1727,8 +1737,8 @@ Cohesion: 0.11
 Nodes (17): Adaptive Layout, Backend: Unified Dashboard API, Dashboard Engine, Executive Summary, Frontend: DashboardPage, Problem 1: 15 Dashboard Files, Problem 2: Adding a Role Requires a Dashboard, Problem 3: Role-Specific Layout Means Role-Specific Dashboard (+9 more)
 
 ### Community 176 - "Community 176"
-Cohesion: 0.11
-Nodes (28): ar(), be(), cr(), da(), Do(), Eo(), Et(), ga() (+20 more)
+Cohesion: 0.09
+Nodes (33): aa(), ar(), be(), cr(), da(), Do(), Eo(), Et() (+25 more)
 
 ### Community 177 - "Community 177"
 Cohesion: 0.33
@@ -1747,12 +1757,12 @@ Cohesion: 0.10
 Nodes (19): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+11 more)
 
 ### Community 181 - "Community 181"
-Cohesion: 0.05
-Nodes (120): ActivateInitializeRequest, ActivateValidateRequest, AttendanceBulkItem, InitializeBranchRequest, InitializeMainRequest, ResetPasswordRequest, Session, User (+112 more)
+Cohesion: 0.09
+Nodes (67): ActivateInitializeRequest, ActivateValidateRequest, InitializeBranchRequest, InitializeMainRequest, ResetPasswordRequest, Session, User, InitializeBranchRequest (+59 more)
 
 ### Community 182 - "Community 182"
-Cohesion: 0.09
-Nodes (21): dependencies, expo, expo-linear-gradient, expo-secure-store, expo-status-bar, react, react-native, @react-native-async-storage/async-storage (+13 more)
+Cohesion: 0.08
+Nodes (23): dependencies, expo, expo-device, expo-linear-gradient, expo-notifications, expo-secure-store, expo-status-bar, react (+15 more)
 
 ### Community 183 - "Community 183"
 Cohesion: 0.22
@@ -1771,8 +1781,8 @@ Cohesion: 0.08
 Nodes (25): 10 — LICENSE SYSTEM AUDIT, Anti-Tamper, Cloud License Server, Current Implementation, Environment Detection, Estimated Difficulty, Executive Summary, Hardware Fingerprinting (8 Components) (+17 more)
 
 ### Community 187 - "Community 187"
-Cohesion: 0.21
-Nodes (8): useStudent(), StudentDetailPage(), AdminStudentDetailPage(), EmptyState(), EmptyStateProps, FieldProps, GenericDetailCard(), GenericDetailCardProps
+Cohesion: 0.28
+Nodes (13): Session, User, purge_old_sync(), receive_sync(), retry_failed(), sync_queue_list(), sync_status(), trigger_sync() (+5 more)
 
 ### Community 188 - "Community 188"
 Cohesion: 0.51
@@ -1783,8 +1793,8 @@ Cohesion: 0.13
 Nodes (14): Architecture Review, File Reviewed, Final Score, Issue 1 — `is_superuser` Bypasses All Permission Checks, Issue 2 — `_ROLE_PERMISSION_VALUES` Uses `vars(Permission)` Introspection, Issue 3 — `require_permission` Returns the Entire User on Success, Issue 4 — `require_server_role` Doesn't Check User Authentication, Issue 5 — No Granular Permission Hierarchy or Inheritance (+6 more)
 
 ### Community 190 - "Community 190"
-Cohesion: 0.18
-Nodes (10): installer_status(), installer_whoami(), InitializeBranchRequest, InitializeBranchResponse, InitializeMainRequest, InitializeMainResponse, InitializeSuperAdminRequest, InitializeSuperAdminResponse (+2 more)
+Cohesion: 0.20
+Nodes (9): installer_whoami(), InitializeBranchRequest, InitializeBranchResponse, InitializeMainRequest, InitializeMainResponse, InitializeSuperAdminRequest, InitializeSuperAdminResponse, InstallerStatusResponse (+1 more)
 
 ### Community 191 - "Community 191"
 Cohesion: 0.22
@@ -1831,8 +1841,8 @@ Cohesion: 0.25
 Nodes (7): 1. Readiness Score, 2. Critical Blockers (must fix before any production deploy), 3. High-Risk Areas (fix before scale, block before "many schools"), 4. Recommended Improvements (hardening, not blockers), 5. Deployment Checklist (operator-facing), 6. Verdict, Production Readiness Report — ZENOVA School ERP
 
 ### Community 203 - "Community 203"
-Cohesion: 0.33
-Nodes (11): _apply_rotation(), create_backup(), delete_backup(), _encrypt_file(), _format_size(), list_backups(), _load_manifest(), Encrypt a file using age (modern) or GPG.          Uses age if available (prefer (+3 more)
+Cohesion: 0.26
+Nodes (14): Parent, Session, ParentStudentLink, create_parent(), delete_parent(), get_linked_parents(), get_linked_students(), get_parent() (+6 more)
 
 ### Community 205 - "Community 205"
 Cohesion: 0.15
@@ -1896,7 +1906,7 @@ Nodes (5): 5.1 Academic, 5.2 Financial, 5.3 HR, 5.4 Library, 5. Missing Business
 
 ### Community 221 - "Community 221"
 Cohesion: 0.16
-Nodes (25): LicenseActivateRequest, LicenseActivateResponse, LicenseKeyGenerate, LicenseVerifyRequest, LicenseVerifyResponse, SchoolRegister, SchoolResponse, activate() (+17 more)
+Nodes (25): LicenseActivateRequest, LicenseActivateResponse, LicenseKeyGenerate, LicenseVerifyRequest, LicenseVerifyResponse, LoginRequest, SchoolRegister, SchoolResponse (+17 more)
 
 ### Community 222 - "Community 222"
 Cohesion: 0.43
@@ -1991,8 +2001,8 @@ Cohesion: 0.50
 Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphify reference: incremental update and cluster-only
 
 ### Community 246 - "Community 246"
-Cohesion: 0.08
-Nodes (49): Session, UploadFile, BytesIO, bulk_create_exam_results(), bulk_promote_students(), check_conflicts(), create_academic_year(), create_class() (+41 more)
+Cohesion: 0.18
+Nodes (74): AcademicYear, AcademicYearCreate, Session, UploadFile, User, BulkExamResultCreate, BulkPromotionCreate, ClassGradeCreate (+66 more)
 
 ### Community 247 - "Community 247"
 Cohesion: 0.13
@@ -2159,16 +2169,16 @@ Cohesion: 0.14
 Nodes (13): Cross-Cutting, P0 — Critical (Must Fix Before Launch), P1 — High Priority (Next Release), P2 — Medium Priority (Sprint+1), P3 — Low Priority (Backlog), Payment System — Backend Bugs (🟢 Fixed), Payment System Features, Payment System — Remaining Critical Bugs (⚪ Pending) (+5 more)
 
 ### Community 307 - "Community 307"
-Cohesion: 0.09
-Nodes (72): LoginRequest, TokenResponse, login(), LoginRequest, Request, ResetPasswordRequest, Response, Session (+64 more)
+Cohesion: 0.11
+Nodes (23): login(), Session, get_redis(), Return the Redis client or None if unavailable. Logs warnings on failure., _check_brute_force(), _check_concurrent_sessions(), _clear_brute_force(), forgot_password() (+15 more)
 
 ### Community 308 - "Community 308"
-Cohesion: 0.30
-Nodes (15): Session, BookCategoryCreate, BookCreate, BookUpdate, BorrowingCreate, borrow_book(), create_book(), create_category() (+7 more)
+Cohesion: 0.22
+Nodes (12): Session, QRCode, QRCode, generate_card_qr_png(), Generate a QR code PNG image containing the card UID., _decrypt_token(), _generate_encrypted_token(), generate_qr() (+4 more)
 
 ### Community 309 - "Community 309"
-Cohesion: 0.31
-Nodes (8): LibraryBooksPage(), LibraryDashboard(), useBooks(), useBorrowings(), useLibraryCategories(), DirectorLibrary(), LibraryReturnsPage(), libraryService
+Cohesion: 0.09
+Nodes (26): LibraryBooksPage(), LibraryBorrowPage(), ParentChildrenPage(), getSeason(), LibraryDashboard(), RegistrarDashboard(), DocumentsPage(), useBooks() (+18 more)
 
 ### Community 310 - "Community 310"
 Cohesion: 0.09
@@ -2183,12 +2193,12 @@ Cohesion: 0.13
 Nodes (30): a(), Ae(), B(), Bo(), Br(), ci(), dr(), e() (+22 more)
 
 ### Community 313 - "Community 313"
-Cohesion: 0.05
-Nodes (60): app_exception_handler(), CSRFMiddleware, http_exception_handler(), Centralized handler for all application-level exceptions., Handler for plain HTTPException (not subclasses already caught above)., Return a clean 422 response for request validation failures., Catch-all exception handler to prevent stack trace leaks.      In non-developmen, validation_exception_handler() (+52 more)
+Cohesion: 0.07
+Nodes (20): Session, User, Request, Response, get_current_user(), ForbiddenException, Centralized application exceptions with FastAPI exception_handlers support.  All, RequestEntityTooLargeException (+12 more)
 
 ### Community 314 - "Community 314"
 Cohesion: 0.03
-Nodes (56): MONTHS, PlatformAdminPage(), CardData, ReportCardDetailPage(), SubjectGrade, alertBadgeClass, AlertCenterCardProps, alertColorMap (+48 more)
+Nodes (55): MONTHS, PlatformAdminPage(), CardData, ReportCardDetailPage(), SubjectGrade, alertBadgeClass, AlertCenterCardProps, alertColorMap (+47 more)
 
 ### Community 315 - "Community 315"
 Cohesion: 0.18
@@ -2199,8 +2209,8 @@ Cohesion: 0.18
 Nodes (11): 6.10 የፀረ-ስርቂ ጥበቃ (Anti-Piracy), 6.1 የፍቃድ አይነቶች, 6.2 የፍቃድ ቁልፍ ቅርፀት, 6.3 የሃርድዌር አሻራ (Hardware Fingerprinting), 6.4 የመስመር ውጭ የጸጋ ጊዜ, 6.5 TPM ውህደት, 6.6 የተጠቃሚ ማረጋገጫ (Authentication), 6.7 የፍቃድ አሰጣጥ (RBAC) (+3 more)
 
 ### Community 317 - "Community 317"
-Cohesion: 0.23
-Nodes (19): AnnouncementCreate, Session, _ensure_notification_prefs(), get_notification_preferences(), list_messages(), list_notifications(), mark_all_read(), mark_message_read() (+11 more)
+Cohesion: 0.30
+Nodes (12): Session, _ensure_notification_prefs(), get_notification_preferences(), list_device_tokens(), mark_all_read(), mark_message_read(), mark_read(), _require_push_enabled() (+4 more)
 
 ### Community 318 - "Community 318"
 Cohesion: 0.24
@@ -2323,8 +2333,8 @@ Cohesion: 0.25
 Nodes (7): Card Tiers, Card UID Format, Deployment Notes, NFC Hardware Recommendations, Premium — MIFARE DESFire EV2/EV3, Recommended Readers, Standard — MIFARE Classic 1K (S50)
 
 ### Community 348 - "Community 348"
-Cohesion: 0.04
-Nodes (43): lifespan(), Session, User, Session, Session, User, Session, User (+35 more)
+Cohesion: 0.27
+Nodes (5): register_device_token(), _make_user(), Tests for Gap N2 — FCM/APNs push channel (device-token registration + relay)., TestDeviceTokenEndpoints, TestPreferencePushFlag
 
 ### Community 349 - "Community 349"
 Cohesion: 0.13
@@ -2383,8 +2393,8 @@ Cohesion: 0.11
 Nodes (18): 14 — TESTING AUDIT, Additional Test Files (not in `tests/` directory), Current Implementation, Estimated Difficulty, Executive Summary, High, Issues, Low (+10 more)
 
 ### Community 374 - "Community 374"
-Cohesion: 0.30
-Nodes (14): Session, User, create_parent(), delete_parent(), get_parent(), get_parent_id_card(), link_parent(), list_parents() (+6 more)
+Cohesion: 0.15
+Nodes (10): Protocol, EmailResetProvider, Future: send password reset via email.      To implement:         1. Subclass th, Send a reset link to the user's email. Return True on success., Future: send password reset via SMS.      To implement:         1. Subclass this, Send a reset code via SMS. Return True on success., Future: 2FA-backed password reset.      To implement:         1. Subclass this p, Verify a 2FA code and reset the password. Return True on success. (+2 more)
 
 ### Community 375 - "Community 375"
 Cohesion: 0.11
@@ -2423,8 +2433,8 @@ Cohesion: 0.14
 Nodes (13): File Reviewed, Final Score, Issue 1 — `_compute_dashboard_overview` Has Heavy Duplication, Issue 2 — `recent_activity` Limit Is Hardcoded, Issue 3 — `dashboard_trends` Runs 3+ Aggregate Queries, Issue 4 — Grade/Staff/Attendance/Analytics Endpoints Have No Permission Check, Issue 5 — Overview Cached at 60s but Trend Data Is Re-Computed Per Request, Issue 6 — Alert Severity Levels Are Not Documented in Schema (+5 more)
 
 ### Community 385 - "Community 385"
-Cohesion: 0.18
-Nodes (14): Session, User, _build_attendance_summary(), _build_fees(), _build_grades(), get_linked_student_ids(), parent_invoices(), parent_make_payment() (+6 more)
+Cohesion: 0.15
+Nodes (15): Session, User, _build_attendance_summary(), _build_fees(), _build_grades(), get_linked_student_ids(), parent_invoices(), parent_make_payment() (+7 more)
 
 ### Community 386 - "Community 386"
 Cohesion: 0.15
@@ -2447,16 +2457,16 @@ Cohesion: 0.18
 Nodes (11): A01: Broken Access Control, A02: Cryptographic Failures, A03: Injection, A04: Insecure Design, A05: Security Misconfiguration, A06: Vulnerable & Outdated Components, A07: Identification & Authentication Failures, A08: Software & Data Integrity Failures (+3 more)
 
 ### Community 391 - "Community 391"
-Cohesion: 0.14
-Nodes (29): an(), de(), di(), Ei(), en(), fs(), ge(), Gr() (+21 more)
+Cohesion: 0.15
+Nodes (27): an(), de(), di(), Ei(), en(), fs(), ge(), Gr() (+19 more)
 
 ### Community 392 - "Community 392"
 Cohesion: 0.22
 Nodes (14): admin_dashboard(), admin_schools(), Admin dashboard endpoints., Session, School, Session, SchoolTier, authenticate_school() (+6 more)
 
 ### Community 393 - "Community 393"
-Cohesion: 0.20
-Nodes (8): 07 — AUTHENTICATION AUDIT, Estimated Difficulty, Executive Summary, Priority, Production Readiness: Authentication, Recommended Improvements, Strengths, Weaknesses
+Cohesion: 0.18
+Nodes (11): 07 — AUTHENTICATION AUDIT, Estimated Difficulty, Executive Summary, Issues, Low, Medium, Priority, Production Readiness: Authentication (+3 more)
 
 ### Community 394 - "Community 394"
 Cohesion: 0.20
@@ -2471,20 +2481,16 @@ Cohesion: 0.15
 Nodes (13): AI Audit Series (GLM-5.2, 2026-06-30), APU Multi-School Docs, Core Rules, Demo Licenses, Documentation Index, Known Issues, Login Credentials, Network Access (from phone) (+5 more)
 
 ### Community 397 - "Community 397"
-Cohesion: 0.22
+Cohesion: 0.18
 Nodes (9): 06 — SECURITY AUDIT (OWASP), Estimated Difficulty, Executive Summary, High (Resolved in Code), Priority, Production Readiness: Security, Recommended Improvements, Security Issues (+1 more)
 
 ### Community 398 - "Community 398"
 Cohesion: 0.14
 Nodes (13): File Reviewed, Final Score, Issue 1 — Default Password "changeme123" Hardcoded, Issue 2 — Indentation Inconsistency on Lines 42-43, Issue 3 — `update_teacher` Has No Permission Check, Issue 4 — `assign_teacher_subjects` Uses Set for Existing Subjects, Issue 5 — `get_my_students` Grade Map Is Constructed with `grades.get(s.grade_id, s.grade_id or "")`, Issue 6 — No Pagination on List Endpoints (+5 more)
 
-### Community 399 - "Community 399"
-Cohesion: 0.13
-Nodes (17): DEFAULT_CONFIG, Portal, Stage, styles, ParentPortal(), clearCsrfCache(), validateSession(), FALLBACK_CONFIG (+9 more)
-
 ### Community 400 - "Community 400"
-Cohesion: 0.16
-Nodes (22): arrayToHash(), debuglog(), _deepEqual(), deprecate(), _extend(), format(), formatArray(), formatError() (+14 more)
+Cohesion: 0.14
+Nodes (23): arrayToHash(), _deepEqual(), _extend(), format(), formatArray(), formatError(), formatPrimitive(), formatProperty() (+15 more)
 
 ### Community 401 - "Community 401"
 Cohesion: 0.14
@@ -2516,11 +2522,11 @@ Nodes (13): Architecture Review, File Reviewed, Final Score, Issue 1 — `gender
 
 ### Community 408 - "Community 408"
 Cohesion: 0.15
-Nodes (12): 1. WHAT are we building?, 2. WHY, 3.1 Flow, 3.2 Resolve response shape (verified, `control-center/backend/app/api/v1/endpoints/partners.py`), 3.3 Remote config (version gates), 3. HOW it works (verified), 4. APU app behavior, 5. Local / LAN endpoint (future requirement) (+4 more)
+Nodes (12): 1. WHAT are we building?, 2. WHY, 3.1 Flow, 3.2 Resolve response shape (verified, `control-center/backend/app/api/v1/endpoints/partners.py`), 3.3 Remote config (version gates), 3. HOW it works (verified), 4. APU app behavior, 5. Local / LAN endpoint (implemented — 2026-08-09) (+4 more)
 
 ### Community 409 - "Community 409"
-Cohesion: 0.12
-Nodes (15): LoginRequest, TokenResponse, ForgotPasswordRequest, LoginAuditResponse, MFABackupCodesResponse, MFABootstrapSetupRequest, MFABootstrapVerifyRequest, MFADisableRequest (+7 more)
+Cohesion: 0.13
+Nodes (14): LoginRequest, TokenResponse, ForgotPasswordRequest, LoginAuditResponse, MFABootstrapSetupRequest, MFABootstrapVerifyRequest, MFADisableRequest, MFALoginRequest (+6 more)
 
 ### Community 410 - "Community 410"
 Cohesion: 0.14
@@ -2815,8 +2821,8 @@ Cohesion: 0.17
 Nodes (12): 6.10 Use React DOM Resource Hints, 6.11 Use useTransition Over Manual Loading States, 6.1 Animate SVG Wrapper Instead of SVG Element, 6.2 CSS content-visibility for Long Lists, 6.3 Hoist Static JSX Elements, 6.4 Optimize SVG Precision, 6.5 Prevent Hydration Mismatch Without Flickering, 6.6 Suppress Expected Hydration Mismatches (+4 more)
 
 ### Community 489 - "Community 489"
-Cohesion: 0.33
-Nodes (7): Session, customer_heartbeats(), dashboard(), record_heartbeat(), HeartbeatRequest, Customer, Heartbeat
+Cohesion: 0.07
+Nodes (48): useCachedResource(), useI18n(), AnnouncementsScreen(), NotificationsScreen(), ParentView(), StudentPortal(), AttendanceView(), DAY_KEYS (+40 more)
 
 ### Community 490 - "Community 490"
 Cohesion: 0.18
@@ -3075,24 +3081,24 @@ Cohesion: 0.22
 Nodes (8): Batch Report — Standard shadcn/ui Boilerplate Components, Files Reviewed, Final Score (all files), Issue 1 — `form.tsx` Inline String Concatenation, Issue 2 — `checkbox.tsx` No Radix Primitive, Issue 3 — `form.tsx` `error.message` Cast, Issues, Notable Details
 
 ### Community 554 - "Community 554"
-Cohesion: 0.05
-Nodes (41): Session, User, verify_password(), AuditLog, authenticate_student_parent(), authenticate_user(), _check_password_history(), create_access_token() (+33 more)
+Cohesion: 0.19
+Nodes (4): decode_token(), Try RS256 first, fall back to HS256 for backward compatibility., TestTokenManagement, TestTokenLifecycle
 
 ### Community 555 - "Community 555"
-Cohesion: 0.16
-Nodes (18): Cn(), dt(), Fn(), gn(), ja(), kn(), lt(), Me() (+10 more)
+Cohesion: 0.13
+Nodes (22): Cn(), dt(), Fn(), gn(), ja(), kn(), li(), lt() (+14 more)
 
 ### Community 556 - "Community 556"
 Cohesion: 0.22
 Nodes (15): datetime, activate_license(), create_license(), generate_license_key(), verify_license(), Session, LicenseStatus, SchoolLicense (+7 more)
 
 ### Community 557 - "Community 557"
-Cohesion: 0.25
-Nodes (11): childrenIgnored(), ignoreMap(), isAbsolute(), join(), makeAbs(), normalize(), normalizeArray(), relative() (+3 more)
+Cohesion: 0.14
+Nodes (13): childrenIgnored(), glob(), ignoreMap(), isAbsolute(), join(), makeAbs(), mark(), normalize() (+5 more)
 
 ### Community 558 - "Community 558"
-Cohesion: 0.26
-Nodes (14): Parent, Session, ParentStudentLink, create_parent(), delete_parent(), get_linked_parents(), get_linked_students(), get_parent() (+6 more)
+Cohesion: 0.15
+Nodes (12): AttendanceBulkItem, AttendanceCreate, AttendanceUpdate, ContractCreate, ContractResponse, LeaveBalanceResponse, LeaveRequestCreate, LeaveRequestResponse (+4 more)
 
 ### Community 559 - "Community 559"
 Cohesion: 0.25
@@ -3135,8 +3141,8 @@ Cohesion: 0.39
 Nodes (6): build_linux(), build_windows(), find_msvc_version(), main(), C extension builder for core license validation. Compiles coreval.c into .pyd (W, write_embedded_key()
 
 ### Community 569 - "Community 569"
-Cohesion: 0.14
-Nodes (13): AttendanceBulkItem, AttendanceBulkResponse, AttendanceCreate, AttendanceUpdate, ContractCreate, ContractResponse, LeaveBalanceResponse, LeaveRequestCreate (+5 more)
+Cohesion: 0.23
+Nodes (15): Session, User, get_role_permissions(), get_role_permissions_from_db(), Fetch permissions from role_permissions table.      Returns None if no DB-backed, Get permissions for a role.      Checks role_permissions DB table first; falls b, assign_role(), get_role_permissions_endpoint() (+7 more)
 
 ### Community 570 - "Community 570"
 Cohesion: 0.22
@@ -3311,8 +3317,8 @@ Cohesion: 0.33
 Nodes (4): CACHE, openAttendanceDB(), PRECACHE_URLS, syncAttendance()
 
 ### Community 613 - "Community 613"
-Cohesion: 0.16
-Nodes (8): collectNonEnumProps(), EventEmitter(), isFunction(), isNumber(), log(), pad(), replacer(), timestamp()
+Cohesion: 0.20
+Nodes (7): collectNonEnumProps(), debuglog(), deprecate(), EventEmitter(), isFunction(), isUndefined(), replacer()
 
 ### Community 614 - "Community 614"
 Cohesion: 0.29
@@ -3659,8 +3665,8 @@ Cohesion: 0.40
 Nodes (4): ADR-003: Frontend Data Fetching with React Query, Consequences, Context, Decision
 
 ### Community 700 - "Community 700"
-Cohesion: 0.50
-Nodes (3): _ensure_customer_branding_columns(), init_db(), Idempotently add branding columns to an existing customers table.      create_al
+Cohesion: 0.33
+Nodes (11): _apply_rotation(), create_backup(), delete_backup(), _encrypt_file(), _format_size(), list_backups(), _load_manifest(), Encrypt a file using age (modern) or GPG.          Uses age if available (prefer (+3 more)
 
 ### Community 701 - "Community 701"
 Cohesion: 0.13
@@ -3711,8 +3717,8 @@ Cohesion: 0.40
 Nodes (5): 8.1 Do Not Put Effect Events in Dependency Arrays, 8.2 Initialize App Once, Not Per Mount, 8.3 Store Event Handlers in Refs, 8.4 useEffectEvent for Stable Callback Refs, 8. Advanced Patterns
 
 ### Community 713 - "Community 713"
-Cohesion: 0.15
-Nodes (12): BulkAssignItem, BulkAssignResult, CardPrintRequestCreate, CardPrintRequestResponse, EmployeeCardResponse, NfcAssignRequest, NfcScanLogResponse, NfcScanRequest (+4 more)
+Cohesion: 0.07
+Nodes (27): _start_sync_worker(), startup(), Session, Session, _archive_device_changes(), _backfill_tpm_data(), _cleanup_stale_sessions(), _daily_fee_calculation() (+19 more)
 
 ### Community 714 - "Community 714"
 Cohesion: 0.50
@@ -3727,28 +3733,28 @@ Cohesion: 0.50
 Nodes (3): File Reviewed, Final Score, Issues
 
 ### Community 717 - "Community 717"
-Cohesion: 0.27
-Nodes (10): create_license(), get_license(), list_licenses(), Session, deactivate_license(), generate_license_key(), validate_license(), LicenseCreate (+2 more)
+Cohesion: 0.17
+Nodes (14): create_license(), get_license(), list_licenses(), Session, LicenseResponse, deactivate_license(), generate_license_key(), validate_license() (+6 more)
 
 ### Community 718 - "Community 718"
-Cohesion: 0.03
-Nodes (96): AcademicPage(), LibraryBorrowPage(), CardDesignPage(), ParentChildrenPage(), getSeason(), loadTimetable(), loadUngraded(), RegistrarDashboard() (+88 more)
+Cohesion: 0.05
+Nodes (71): AcademicPage(), CardDesignPage(), loadTimetable(), loadUngraded(), TeacherDashboard(), DepartmentsPage(), GradeEntryPage(), Student (+63 more)
 
 ### Community 720 - "Community 720"
 Cohesion: 0.50
 Nodes (3): File-System Paths, Import Paths, Prefer Statically Analyzable Paths
 
 ### Community 722 - "Community 722"
-Cohesion: 0.13
-Nodes (36): PaymentCreate, Session, User, Session, UploadFile, User, Session, _exists() (+28 more)
+Cohesion: 0.28
+Nodes (11): styles, Tab, apiPost(), fetchMessages(), fetchNotifications(), markAllNotificationsRead(), markMessageRead(), markNotificationRead() (+3 more)
 
 ### Community 724 - "Community 724"
 Cohesion: 0.15
 Nodes (12): 1. WHAT are we building?, 2. WHY, 3.1 Entities, 3.2 Lifecycle, 3.3 Backoff & concurrency, 3. HOW it works (design), 4. Conflict handling (document only), 5. Idempotency (reuse) (+4 more)
 
 ### Community 725 - "Community 725"
-Cohesion: 0.17
-Nodes (11): APU API Integration, Auth (all reuse — `auth.py`), Dashboard (all roles — `dashboard.py`), Notifications & messages (`communication.py`), Parent (all reuse — `parent_portal.py`, `parent_payments.py`), Server infrastructure (NOT for APU), Shared reads (reuse — `academic.py`, `announcements.py`, `communication.py`), Student (reuse + one gap — `student_portal.py`) (+3 more)
+Cohesion: 0.22
+Nodes (8): 1. WHAT are we building?, 2. WHY are we building it?, 3. HOW will it work?, 4. WHAT existing ZENOVA component will it reuse?, 5. Principles, 6. Related documents, 7. Dependencies, Assumptions, Risks, APU Overview
 
 ### Community 726 - "Community 726"
 Cohesion: 0.19
@@ -3763,8 +3769,8 @@ Cohesion: 0.17
 Nodes (11): 1. WHAT are we building?, 2. WHY, 3.1 Base URL, 3.2 Parent flows (verified endpoints), 3.3 Student flows (verified), 3.4 Offline behavior (cloud roles), 3. HOW it works, 4. Security for cloud mode (+3 more)
 
 ### Community 729 - "Community 729"
-Cohesion: 0.12
-Nodes (22): shutdown(), Session, User, Request, Session, User, close_redis(), _cleanup_stale_sessions() (+14 more)
+Cohesion: 0.29
+Nodes (7): useNotificationPreferences(), Channel, CHANNELS, DEFAULT_PREFS, EVENTS, NotificationPrefs, ParentNotifications()
 
 ### Community 733 - "Community 733"
 Cohesion: 0.22
@@ -3775,32 +3781,32 @@ Cohesion: 0.43
 Nodes (6): Session, _backup_status(), health_check(), readyz(), _sync_status(), _system_checks()
 
 ### Community 853 - "Community 853"
-Cohesion: 0.43
-Nodes (5): generate_fingerprint(), generate_sync_secret(), get_server_identity(), is_already_registered(), save_server_identity()
+Cohesion: 0.22
+Nodes (8): 1. Control Center (`control-center/`), 2. School ERP (`school-erp/`), 3. License Server (`license-server/`), Build Flow, Customer Installation Flow, License Validation, Three-Part System, ZENOVA Architecture
 
 ### Community 858 - "Community 858"
-Cohesion: 0.16
-Nodes (15): Root(), DEFAULT_FEATURES, FeatureRoute, HomeScreen(), HomeScreenProps, ROLE_FEATURES, roleLabel(), styles (+7 more)
+Cohesion: 0.09
+Nodes (26): am, en, I18nContext, I18nContextValue, I18nProvider(), Language, translations, Root() (+18 more)
 
 ### Community 859 - "Community 859"
 Cohesion: 0.13
 Nodes (28): Session, _audit_trail_summary(), _borrowing_statistics(), _cafeteria_inventory_usage(), _compliance_report(), _enrollment_summary(), _error_log_summary(), _fee_collection_rate() (+20 more)
 
 ### Community 860 - "Community 860"
-Cohesion: 0.26
-Nodes (9): CONTROL_CENTER_URL, SchoolSelectScreen(), SchoolSelectScreenProps, styles, ResolvedSchool, ResolveResult, resolveSchool(), School (+1 more)
+Cohesion: 0.08
+Nodes (35): CONTROL_CENTER_URL, DEFAULT_CONFIG, Portal, Stage, styles, SchoolSelectScreen(), SchoolSelectScreenProps, styles (+27 more)
 
 ### Community 861 - "Community 861"
 Cohesion: 0.19
 Nodes (14): ae(), ce(), constructor(), fe(), ie(), ke(), le(), ne() (+6 more)
 
 ### Community 862 - "Community 862"
-Cohesion: 0.32
-Nodes (10): Session, User, connect_telegram_bot(), disconnect_telegram_bot(), get_telegram_bot_status(), telegram_webhook(), TelegramBotConnectRequest, TelegramBotResponse (+2 more)
+Cohesion: 0.18
+Nodes (7): send_notification(), Regression: Notification.school_id NOT NULL but never populated -> 500 after com, Defensive: caller may omit school_id (super-admin/system) — column is nullable n, TestSendNotificationSchoolId, Gap N3 — WebSocket notification push must reach PARENT/STUDENT.      The WS endp, The WS handler only validates token type + sub — no permission gate., TestN3WsPushForAllRoles
 
 ### Community 863 - "Community 863"
-Cohesion: 0.22
-Nodes (12): Session, QRCode, QRCode, generate_card_qr_png(), Generate a QR code PNG image containing the card UID., _decrypt_token(), _generate_encrypted_token(), generate_qr() (+4 more)
+Cohesion: 0.23
+Nodes (11): TokenResponse, create_school_token(), get_current_admin(), get_current_school(), Authentication endpoints for license server admin., Dependency for school-scoped endpoints.      Returns the school id (`sub`) only, school_login(), verify_admin() (+3 more)
 
 ### Community 864 - "Community 864"
 Cohesion: 0.25
@@ -3840,7 +3846,7 @@ Nodes (15): balanced(), braceExpand(), expand(), filter(), globUnescape(), isMat
 
 ### Community 873 - "Community 873"
 Cohesion: 0.15
-Nodes (12): 13.1 ሚና እና ሃላፊነት, 13.2 ዋና ዋና ተግባራት, 13.3 የቤተ-መጻሕፍት ዳሽቦርድ, 15.1 ሚና እና ሃላፊነት, 15.2 ዋና ዋና ተግባራት, 15.3 የመደብር ዳሽቦርድ, 22.1 የተሟላ የአንድ ቀን ሂደት, 22.2 የተለያዩ ባለድርሻ አካላት የቀኑ መጨረሻ ሪፖርቶች (+4 more)
+Nodes (12): 14.1 ሚና እና ሃላፊነት, 14.2 ዋና ዋና ተግባራት, 14.3 የካፍቴሪያ ዳሽቦርድ, 17.1 QR ኮድ ምንድን ነው?, 17.2 የQR ኮድ አጠቃቀም, 17.3 የQR ኮድ ትውልድ (Generation), 22.1 የተሟላ የአንድ ቀን ሂደት, 22.2 የተለያዩ ባለድርሻ አካላት የቀኑ መጨረሻ ሪፖርቶች (+4 more)
 
 ### Community 874 - "Community 874"
 Cohesion: 0.25
@@ -3875,8 +3881,8 @@ Cohesion: 0.33
 Nodes (10): a(), c(), f(), l(), m(), n(), o(), r() (+2 more)
 
 ### Community 882 - "Community 882"
-Cohesion: 0.11
-Nodes (23): Session, User, Query, build_paginated_response(), paginate(), list_exam_types(), list_audit_logs(), list_events() (+15 more)
+Cohesion: 0.29
+Nodes (8): Toaster(), Toast, ToastActionElement, ToastClose, ToastProps, ToastTitle, toastVariants, ToastViewport
 
 ### Community 883 - "Community 883"
 Cohesion: 0.18
@@ -3891,8 +3897,8 @@ Cohesion: 0.18
 Nodes (11): 🎯 ማጠቃለያ (Summary), ምዕራፍ 3 — ሱፐር አድሚን (Super Admin), 📈 የሪፖርት ዓይነቶች (Report Types), 👑 የሱፐር አድሚን ሚና, ⚙️ የሱፐር አድሚን ተግባራት ዝርዝር, 📊 የሱፐር አድሚን ዳሽቦርድ ምስላዊ ንድፍ (Dashboard Wireframe), የሲስተም ክትትል, 🔄 የትምህርት ቤት ምዝገባ ሂደት (School Registration Flow) (+3 more)
 
 ### Community 886 - "Community 886"
-Cohesion: 0.50
-Nodes (3): RoleResponse, UserResponse, UserUpdate
+Cohesion: 0.05
+Nodes (60): activate_license(), generate_license_key(), verify_license(), Session, get_password_hash(), initialize_main(), Public: Activate school with MAIN license key. Creates school + admin., _ensure_roles() (+52 more)
 
 ### Community 887 - "Community 887"
 Cohesion: 0.20
@@ -4079,8 +4085,8 @@ Cohesion: 0.33
 Nodes (6): 🎯 ማጠቃለያ (Summary), ምዕራፍ 21 — የውሂብ ጎታ ዝምድና (Database Relationships), 📋 ዋና ዋና የውሂብ ጎታ ሠንጠረዦች (Main Database Tables), 🔗 የውሂብ ፍሰት ዝምድና (Data Flow Relationships), 🗄️ የዳታቤዝ አካላት ዝምድና ካርታ, 🏗️ የዳታቤዝ ዝምድና ዲያግራም (Entity Relationship Diagram)
 
 ### Community 934 - "Community 934"
-Cohesion: 0.17
-Nodes (11): 10. Assumptions & risks, 1. Classification legend, 2. Authentication, 3. Notifications & messages, 4. Finance (Parent), 5. Student, 6. Teacher, 7. School resolution & network (+3 more)
+Cohesion: 0.24
+Nodes (12): Session, Book, BookBorrowing, BookCategory, borrow_book(), create_book(), create_category(), get_books() (+4 more)
 
 ### Community 935 - "Community 935"
 Cohesion: 0.40
@@ -4143,12 +4149,12 @@ Cohesion: 0.50
 Nodes (4): 12.1 ሚና እና ሃላፊነት, 12.2 ዋና ዋና ተግባራት, 12.3 የተማሪ ዳሽቦርድ, ምዕራፍ ፲፪ — ተማሪ (Student)
 
 ### Community 953 - "Community 953"
-Cohesion: 0.24
-Nodes (10): Request, _cache_key(), cache_response(), _get_cached(), get_cached_or_compute(), invalidate_cache(), Sync helper: return cached JSON Response or compute via func and cache it., Decorator for async endpoints. Caches GET responses in Redis.      Usage: (+2 more)
+Cohesion: 0.04
+Nodes (32): _ensure_customer_branding_columns(), init_db(), Idempotently add branding columns to an existing customers table.      create_al, lifespan(), Session, Session, Session, Session (+24 more)
 
 ### Community 954 - "Community 954"
-Cohesion: 0.12
-Nodes (5): AuthContext, get_auth_context(), Core authentication dependencies — safe for use from other core modules without, Consolidated authentication context — user + permissions + shortcuts.          P, Consolidated auth dependency — returns an ``AuthContext`` with user + permission
+Cohesion: 0.13
+Nodes (15): HrAttendancePage(), ParentAttendance(), StudentAttendancePage(), TeacherAttendancePage(), HrContractsPage(), HrDashboard(), AdminDirectors(), HrEmployeesPage() (+7 more)
 
 ### Community 955 - "Community 955"
 Cohesion: 0.50
@@ -4175,8 +4181,8 @@ Cohesion: 0.29
 Nodes (6): CorporateDashboardResponse, CorporateDepartmentCreate, CorporateDepartmentResponse, CorporateDepartmentUpdate, CorporateEmployeeCreate, CorporateEmployeeUpdate
 
 ### Community 985 - "Community 985"
-Cohesion: 0.25
-Nodes (7): OrderCreate, OrderItemCreate, OrderResponse, OrderStatusUpdate, ProductCreate, ProductResponse, ProductUpdate
+Cohesion: 0.07
+Nodes (24): APU API Integration, Auth (all reuse — `auth.py`), Dashboard (all roles — `dashboard.py`), Notifications & messages (`communication.py`), Parent (all reuse — `parent_portal.py`, `parent_payments.py`), Server infrastructure (NOT for APU), Shared reads (reuse — `academic.py`, `announcements.py`, `communication.py`), Student (reuse + one gap — `student_portal.py`) (+16 more)
 
 ### Community 986 - "Community 986"
 Cohesion: 0.33
@@ -4199,8 +4205,8 @@ Cohesion: 0.17
 Nodes (11): 1. WHAT are the roles?, 2. WHY only three roles?, 3. HOW does role determination work?, 4. Role-specific capabilities, 5. Account provisioning, 6. Dependencies / assumptions / risks, APU User Roles, Exact role strings (verified) (+3 more)
 
 ### Community 991 - "Community 991"
-Cohesion: 0.29
-Nodes (6): NFCAssignRequest, NFCHistoryResponse, NFCResponse, NFCStatusUpdate, NFCValidateRequest, NFCValidateResponse
+Cohesion: 0.25
+Nodes (16): CorporateEmployee, datetime, Session, CorporateDepartment, CorporateDepartment, create_department(), create_employee(), delete_employee() (+8 more)
 
 ### Community 992 - "Community 992"
 Cohesion: 0.33
@@ -4247,8 +4253,8 @@ Cohesion: 0.29
 Nodes (7): API Reference, Authentication, Background Jobs, Conventions, Overview, Response Format, Third-party Integration Status
 
 ### Community 1003 - "Community 1003"
-Cohesion: 0.22
-Nodes (15): Any, Session, Customer, list_partners(), list_schools(), _load_partners(), _load_remote_config(), Public APU school resolution.      Given a school code (or domain), return the s (+7 more)
+Cohesion: 0.29
+Nodes (9): Session, CustomerCreate, CustomerUpdate, create_customer(), delete_customer(), get_customer(), list_customers(), update_customer() (+1 more)
 
 ### Community 1004 - "Community 1004"
 Cohesion: 0.50
@@ -4256,15 +4262,15 @@ Nodes (4): Key Functions, Permission Engine, Permission Keys, Resolution Order
 
 ### Community 1005 - "Community 1005"
 Cohesion: 0.17
-Nodes (11): InventoryCategoryCreate, InventoryCategoryResponse, InventoryCategoryUpdate, InventoryItemCreate, InventoryItemResponse, InventoryItemUpdate, StockMovementCreate, StockMovementResponse (+3 more)
+Nodes (13): WebSocket, create_access_token(), create_password_reset_token(), create_refresh_token(), decode_access_token(), issue_password_recovery_code(), Validate a recovery code for a specific user. Constant-time on the signature., Dedicated password-reset token. Distinct `type` so it can NEVER be used as an (+5 more)
 
 ### Community 1006 - "Community 1006"
-Cohesion: 0.25
-Nodes (7): BookCategoryCreate, BookCategoryResponse, BookCreate, BookResponse, BookUpdate, BorrowingCreate, BorrowingResponse
+Cohesion: 0.48
+Nodes (6): Session, get_attendance_summary(), get_grade_distribution(), get_overview_totals(), get_staff_distribution(), get_trends()
 
 ### Community 1007 - "Community 1007"
-Cohesion: 0.17
-Nodes (12): 2026-07-01 — Session 1: DeepSeek V4 Flash Implementation (11 Tasks), Task-01: Secure /sync/receive endpoint, Task-02: Patch path traversal in backup endpoints, Task-03: Remove license-key password reset, Task-04: Fix parent-portal payment signature drift, Task-05: Make log_audit non-committing, Task-06: Lock rows in cafeteria order, Task-08: Close IDOR in promote_student + tenant-filter sweep (+4 more)
+Cohesion: 0.33
+Nodes (7): Session, Notification, _prefs_allow_push(), send_push(), _make_device(), _make_notification(), TestSendPush
 
 ### Community 1008 - "Community 1008"
 Cohesion: 0.50
@@ -4283,12 +4289,12 @@ Cohesion: 0.18
 Nodes (10): 1. WHAT are we building?, 2. WHY, 3.1 Today (verified), 3.2 Proposed APU connectivity model (document only), 3.3 Hybrid deployment documentation points (for `APU_DEPLOYMENT.md` / `APU_SYNC_ARCHITECTURE.md`), 3. HOW it works, 4. Local network security, 5. WHAT it reuses (+2 more)
 
 ### Community 1014 - "Community 1014"
-Cohesion: 0.40
-Nodes (4): AnnouncementCreate, AnnouncementResponse, MessageCreate, NotificationResponse
+Cohesion: 0.13
+Nodes (20): Session, User, _build_result_map(), generate_report_card(), get_report_card(), list_report_cards(), Student IDs the current user may see report cards for.      Returns ``None`` for, Raise 404 (not 403, to avoid leaking card existence) when the user does     not (+12 more)
 
 ### Community 1015 - "Community 1015"
-Cohesion: 0.29
-Nodes (6): PromoteRequest, StudentCreate, StudentResponse, StudentSearchResult, StudentUpdate, TransferRequest
+Cohesion: 0.25
+Nodes (7): Request, get_client_ip(), get_user_agent(), Core authentication dependencies — safe for use from other core modules without, require_csrf(), logout(), register()
 
 ### Community 1016 - "Community 1016"
 Cohesion: 0.50
@@ -4340,19 +4346,19 @@ Nodes (14): Session, Session, Currency, Config, CurrencyListResponse, CurrencyRe
 
 ### Community 1028 - "Community 1028"
 Cohesion: 0.20
-Nodes (9): APU Implementation Plan, Future cycles (NOT implemented — must not be fabricated), Phase 0 — Foundation (DONE), Phase 1 — Parent & Student read path (MOBILE only) — DONE, Phase 2 — Teacher path (MOBILE + one backend tidy), Phase 3 — Notifications (BACKEND + MOBILE), Phase 4 — Local teacher mode (DESIGN decision first), Phase 5 — Hardening & release (+1 more)
+Nodes (9): APU Implementation Plan, Future cycles (NOT implemented — must not be fabricated), Phase 0 — Foundation (DONE), Phase 1 — Parent & Student read path (MOBILE only) — DONE, Phase 2 — Teacher path (MOBILE + one backend tidy), Phase 3 — Notifications (BACKEND + MOBILE) — DONE, Phase 4 — Local teacher mode (DESIGN decision first), Phase 5 — Hardening & release (+1 more)
 
 ### Community 1029 - "Community 1029"
 Cohesion: 0.67
 Nodes (3): 2. Product Structure, Product A — ZENOVA Control Center, Product B — ZENOVA School ERP
 
 ### Community 1030 - "Community 1030"
-Cohesion: 0.22
-Nodes (8): 1. Control Center (`control-center/`), 2. School ERP (`school-erp/`), 3. License Server (`license-server/`), Build Flow, Customer Installation Flow, License Validation, Three-Part System, ZENOVA Architecture
+Cohesion: 0.24
+Nodes (10): Request, _cache_key(), cache_response(), _get_cached(), get_cached_or_compute(), invalidate_cache(), Sync helper: return cached JSON Response or compute via func and cache it., Decorator for async endpoints. Caches GET responses in Redis.      Usage: (+2 more)
 
 ### Community 1031 - "Community 1031"
-Cohesion: 0.15
-Nodes (15): MFAScreen(), MFAScreenProps, Phase, styles, ApiError, SessionExpiredError, extractCookie(), login() (+7 more)
+Cohesion: 0.16
+Nodes (16): MFAScreen(), MFAScreenProps, Phase, styles, apiSend(), clearCsrfCache(), validateSession(), extractCookie() (+8 more)
 
 ### Community 1032 - "Community 1032"
 Cohesion: 0.25
@@ -4363,12 +4369,12 @@ Cohesion: 0.83
 Nodes (3): downgrade(), _table_exists(), upgrade()
 
 ### Community 1034 - "Community 1034"
-Cohesion: 0.38
-Nodes (9): Session, User, _build_assignments(), _build_attendance_summary(), _build_exam_results(), _build_schedule(), _build_wallet(), student_portal_dashboard() (+1 more)
+Cohesion: 0.22
+Nodes (15): Any, Session, Customer, list_partners(), list_schools(), _load_partners(), _load_remote_config(), Public APU school resolution.      Given a school code (or domain), return the s (+7 more)
 
 ### Community 1036 - "Community 1036"
-Cohesion: 0.25
-Nodes (5): _limit_for(), rate_limit(), Core rate-limiting dependency — safe for use from other core modules without cir, Resolve per-prefix limits from settings when available, else defaults., TestRateLimiter
+Cohesion: 0.15
+Nodes (12): BulkAssignItem, BulkAssignResult, CardPrintRequestCreate, CardPrintRequestResponse, EmployeeCardResponse, NfcAssignRequest, NfcScanLogResponse, NfcScanRequest (+4 more)
 
 ### Community 1037 - "Community 1037"
 Cohesion: 0.36
@@ -4379,12 +4385,12 @@ Cohesion: 0.50
 Nodes (4): 5.1 corporate.py — N+1 query on department relationship, 5.2 licenses.py — inefficient `total=len(licenses)`, 5.3 support_tickets.py — unnecessary separate User query, 5. Performance Issues
 
 ### Community 1039 - "Community 1039"
-Cohesion: 0.29
-Nodes (10): Decimal, Session, Notification services — SMS, Email, and Push for payment confirmations and alert, Send SMS via Africa's Talking or similar provider., Send payment confirmation via available channels., Notify school admin of new platform invoice., _send_email(), send_payment_confirmation() (+2 more)
+Cohesion: 0.33
+Nodes (9): Decimal, Notification services — SMS, Email, and Push for payment confirmations and alert, Send SMS via Africa's Talking or similar provider., Send payment confirmation via available channels., Notify school admin of new platform invoice., _send_email(), send_payment_confirmation(), send_platform_invoice_notification() (+1 more)
 
 ### Community 1040 - "Community 1040"
-Cohesion: 0.29
-Nodes (8): Toaster(), Toast, ToastActionElement, ToastClose, ToastProps, ToastTitle, toastVariants, ToastViewport
+Cohesion: 0.17
+Nodes (19): Session, User, _build_assignments(), _build_attendance_summary(), _build_exam_results(), _build_schedule(), _build_wallet(), _get_student_for_user() (+11 more)
 
 ### Community 1041 - "Community 1041"
 Cohesion: 0.67
@@ -4399,16 +4405,20 @@ Cohesion: 0.28
 Nodes (4): _admin_headers(), Security + APU public-endpoint tests for the ZENOVA Control Center.  Covers: - A, test_admin_endpoints_work_with_token(), test_public_resolve_returns_branding()
 
 ### Community 1044 - "Community 1044"
-Cohesion: 0.33
-Nodes (7): Session, UploadFile, download_update(), latest_update(), list_updates(), upload_update(), Update
+Cohesion: 0.32
+Nodes (13): Session, Student, bulk_create_students(), create_student(), delete_student(), get_student(), get_student_by_student_id(), promote_student() (+5 more)
 
 ### Community 1045 - "Community 1045"
 Cohesion: 0.24
-Nodes (7): DIRECTOR_NAV, RoleLayout(), LegacyLayout(), LoginForm(), LoginPage(), SuperAdminLogin(), useAuth()
+Nodes (7): SUPER_ADMIN_NAV, RoleLayout(), LegacyLayout(), LoginForm(), LoginPage(), SuperAdminLogin(), useAuth()
 
 ### Community 1046 - "Community 1046"
 Cohesion: 0.67
 Nodes (3): 2.1 telegram.py — missing `import json`, 2.2 webauthn.py — `__import__()` hack for datetime, 2. Missing Imports (Blocking Bugs)
+
+### Community 1047 - "Community 1047"
+Cohesion: 0.15
+Nodes (12): 1. Principles, 2. Trust tiers (in order of preference), 3.1 How trust is established (TOFU + out-of-band confirmation), 3.2 What gets pinned, 3.3 Scope boundaries (mandatory), 3. Tier 2 design: per-school public-key pinning, 4. Tier 3 design: explicit HTTP on a trusted LAN, 5. What is explicitly rejected (+4 more)
 
 ### Community 1048 - "Community 1048"
 Cohesion: 0.25
@@ -4427,32 +4437,32 @@ Cohesion: 0.67
 Nodes (3): 9.1 licenses.py — soft-delete pattern inconsistency, 9.2 platform_commission.py — old-style type hints, 9. Inconsistent Patterns Fixed
 
 ### Community 1058 - "Community 1058"
-Cohesion: 0.25
-Nodes (7): am, en, I18nContext, I18nContextValue, I18nProvider(), Language, translations
+Cohesion: 0.24
+Nodes (5): Session, generate_id(), Generate auto-incrementing ID: {PREFIX}-{YEAR}-{SEQUENCE:05d}, Tests for id_service — retry logic on first-insert race conditions., TestGenerateId
 
 ### Community 1059 - "Community 1059"
-Cohesion: 0.25
-Nodes (7): APU Multi-School Architecture, Boot flow (APU app), Components, Key source files, Public vs protected endpoints (Control Center), Remote config, School branding
+Cohesion: 0.12
+Nodes (11): authenticate_user(), get_user_by_email(), get_user_by_id(), _make_user(), Tests for auth flow — login, token lifecycle, rate limiting., make_user(), Tests for auth_service — authentication, token management, user creation, passwo, TestAuthenticateUser (+3 more)
 
 ### Community 1066 - "Community 1066"
 Cohesion: 0.18
 Nodes (7): Config, get_settings(), Settings, BaseSettings, Settings, Config, Settings
 
 ### Community 1067 - "Community 1067"
-Cohesion: 0.50
-Nodes (3): AnnouncementCreate, AnnouncementResponse, AnnouncementUpdate
+Cohesion: 0.25
+Nodes (5): _limit_for(), rate_limit(), Core rate-limiting dependency — safe for use from other core modules without cir, Resolve per-prefix limits from settings when available, else defaults., TestRateLimiter
 
 ### Community 1068 - "Community 1068"
-Cohesion: 0.25
-Nodes (7): [1.0.0-apu-docs] — 2026-08-09, [1.0.0-apu-phase1] — 2026-08-09, [1.0.0-dryrun-superadmin] — 2026-08-08, APU documentation phase (architecture only — no code), APU Phase 1 — Parent & Student read path (mobile-app only, no backend change), Changelog, Super-admin installer verified end-to-end (production dry-run VM)
+Cohesion: 0.10
+Nodes (19): [1.0.0-apu-a5] - 2026-08-09, [1.0.0-apu-docs] — 2026-08-09, [1.0.0-apu-phase1] — 2026-08-09, [1.0.0-apu-phase2] — 2026-08-09, [1.0.0-apu-phase3] — 2026-08-09, [1.0.0-apu-r2] — 2026-08-09, [1.0.0-apu-r4] - 2026-08-09, [1.0.0-apu-s1-s2] — 2026-08-09 (+11 more)
 
 ### Community 1069 - "Community 1069"
 Cohesion: 0.83
 Nodes (3): _column_exists(), downgrade(), upgrade()
 
 ### Community 1070 - "Community 1070"
-Cohesion: 0.29
-Nodes (7): useNotificationPreferences(), Channel, CHANNELS, DEFAULT_PREFS, EVENTS, NotificationPrefs, ParentNotifications()
+Cohesion: 0.27
+Nodes (10): Session, NFCCard, assign_nfc(), get_nfc_history(), Assign an NFC card to a person, Validate an NFC card by UID, Update NFC card status, Get NFC assignment history (+2 more)
 
 ### Community 1071 - "Community 1071"
 Cohesion: 0.25
@@ -4463,48 +4473,56 @@ Cohesion: 0.27
 Nodes (10): MonitoringReport, monitoring_dashboard(), School monitoring endpoints — receive health reports from local servers., report_monitoring(), school_monitoring(), Session, MonitoringEvent, School (+2 more)
 
 ### Community 1075 - "Community 1075"
-Cohesion: 0.40
-Nodes (4): Config, CustomerCreate, CustomerResponse, CustomerUpdate
+Cohesion: 0.29
+Nodes (6): create_access_token(), login(), LoginRequest, Admin-only auth dependency. Requires `Authorization: Bearer <token>`., verify_token(), HTTPAuthorizationCredentials
 
 ### Community 1076 - "Community 1076"
-Cohesion: 0.29
-Nodes (9): Session, CustomerCreate, CustomerUpdate, create_customer(), delete_customer(), get_customer(), list_customers(), update_customer() (+1 more)
+Cohesion: 0.40
+Nodes (9): Session, User, connect_telegram_bot(), disconnect_telegram_bot(), get_telegram_bot_status(), telegram_webhook(), TelegramBotConnectRequest, TelegramBotResponse (+1 more)
+
+### Community 1077 - "Community 1077"
+Cohesion: 0.33
+Nodes (7): Session, customer_heartbeats(), dashboard(), record_heartbeat(), HeartbeatRequest, Customer, Heartbeat
+
+### Community 1078 - "Community 1078"
+Cohesion: 0.22
+Nodes (5): Regression tests for the §3 dry-run 500 fixes.  Two genuine INT_001 (HTTP 500) b, Regression: create_employee called the service WITHOUT db -> TypeError -> 500., Regression: imported from app.core.notifications which has no send_notification., TestAlertNewDevice, TestCorporateCreateEmployeeEndpoint
 
 ### Community 1079 - "Community 1079"
-Cohesion: 0.54
-Nodes (6): Session, User, get_settings(), update_settings(), SchoolSettings, SchoolSettingsUpdate
-
-### Community 1080 - "Community 1080"
-Cohesion: 0.48
-Nodes (6): Session, get_attendance_summary(), get_grade_distribution(), get_overview_totals(), get_staff_distribution(), get_trends()
-
-### Community 1081 - "Community 1081"
-Cohesion: 0.40
-Nodes (4): LicenseResponse, Config, LicenseCreate, LicenseValidateRequest
-
-### Community 1082 - "Community 1082"
-Cohesion: 0.16
-Nodes (8): Session, Session, generate_id(), Generate auto-incrementing ID: {PREFIX}-{YEAR}-{SEQUENCE:05d}, Tests for id_service — retry logic on first-insert race conditions., TestGenerateId, next_sequence_number(), Race-free document-number generator using the locked NumberSequence table.
-
-### Community 1085 - "Community 1085"
 Cohesion: 0.40
 Nodes (4): QRGenerateRequest, QRHistoryResponse, QRResponse, QRValidateResponse
+
+### Community 1080 - "Community 1080"
+Cohesion: 0.25
+Nodes (7): 1. WHAT exists today (verified), 2. Environment variables (current), 3. Build & install pipeline, 4. Runtime configuration (desired — document only), 5. Release management (future), 6. Known gaps to close, APU Deployment
+
+### Community 1081 - "Community 1081"
+Cohesion: 0.08
+Nodes (16): OrderCreate, OrderItemCreate, OrderResponse, OrderStatusUpdate, ProductCreate, ProductResponse, ProductUpdate, HeartbeatRequest (+8 more)
+
+### Community 1082 - "Community 1082"
+Cohesion: 0.57
+Nodes (7): Canvas, _draw_back(), _draw_front(), _draw_zenova_watermark(), generate_card_pdf(), _get_person_info(), _load_logo()
+
+### Community 1085 - "Community 1085"
+Cohesion: 0.50
+Nodes (3): RoleResponse, UserResponse, UserUpdate
 
 ### Community 1086 - "Community 1086"
 Cohesion: 0.25
 Nodes (8): [0.9.5] — 2026-07-11, Anti-Enumeration, Card UID Uniqueness, License Server Auth, MFA Enforcement, NFC Card school_id, RBAC, Testing
 
 ### Community 1087 - "Community 1087"
-Cohesion: 0.57
-Nodes (6): Session, User, create_announcement(), delete_announcement(), get_announcement(), list_announcements()
+Cohesion: 0.25
+Nodes (7): 1. Readiness Score, 2. Critical Blockers — ALL RESOLVED, 3. High-Risk Areas (fix before scale, block before "many schools"), 4. Recommended Improvements (hardening, not blockers), 5. Deployment Checklist (operator-facing), 6. Verdict, Production Readiness Report — ZENOVA School ERP
 
 ### Community 1088 - "Community 1088"
-Cohesion: 0.38
-Nodes (6): Session, create_event(), delete_event(), update_event(), EventCreate, EventUpdate
+Cohesion: 0.25
+Nodes (4): CachedResource, ApiError, SessionExpiredError, readCachedFeedEntry()
 
 ### Community 1092 - "Community 1092"
-Cohesion: 0.48
-Nodes (6): Session, create_ticket(), get_ticket(), list_tickets(), ticket_counts(), update_ticket()
+Cohesion: 0.33
+Nodes (5): AnnouncementCreate, AnnouncementResponse, MessageCreate, MessageResponse, NotificationResponse
 
 ### Community 1143 - "Community 1143"
 Cohesion: 0.50
@@ -4514,13 +4532,13 @@ Nodes (3): name, private, version
 Cohesion: 0.29
 Nodes (7): [0.9.4] — 2026-07-10, Cleanup, Code Health, Encryption & Security, Finance Security Deep Audit — 5 Critical Gaps Fixed, Precision, Precision
 
-### Community 1146 - "Community 1146"
-Cohesion: 0.67
-Nodes (3): Issues, Low, Medium
+### Community 1147 - "Community 1147"
+Cohesion: 0.26
+Nodes (6): _is_token_blacklisted(), _blacklist_token(), refresh_token(), reset_password(), Tests for token blacklist — _blacklist_token, _is_token_blacklisted, logout blac, TestTokenBlacklist
 
 ### Community 1148 - "Community 1148"
-Cohesion: 0.67
-Nodes (5): Session, User, CardDesignCreate, get_card_design(), save_card_design()
+Cohesion: 0.50
+Nodes (4): [0.9.3] — 2026-07-07, Files Modified, Security & Audit, Suggested Git Commit
 
 ### Community 1149 - "Community 1149"
 Cohesion: 0.33
@@ -4531,52 +4549,84 @@ Cohesion: 0.40
 Nodes (5): [0.9.0] — 2026-07-01, Configuration, Correctness, Multi-Tenant Isolation, Security
 
 ### Community 1151 - "Community 1151"
-Cohesion: 0.50
-Nodes (4): [0.9.3] — 2026-07-07, Files Modified, Security & Audit, Suggested Git Commit
+Cohesion: 0.18
+Nodes (5): Tests for Corporate service — departments, employees, dashboard., TestCreateDepartment, TestCreateEmployee, TestDashboard, TestListEmployees
 
 ### Community 1152 - "Community 1152"
 Cohesion: 0.50
 Nodes (4): [1.0.0-apu] — 2026-08-08, APU multi-school mobile app, Control Center APU public API, Security hardening
 
 ### Community 1153 - "Community 1153"
-Cohesion: 0.50
-Nodes (4): 14.1 ሚና እና ሃላፊነት, 14.2 ዋና ዋና ተግባራት, 14.3 የካፍቴሪያ ዳሽቦርድ, ምዕራፍ ፲፬ — ካፍቴሪያ (Cafeteria)
+Cohesion: 0.25
+Nodes (7): BookCategoryCreate, BookCategoryResponse, BookCreate, BookResponse, BookUpdate, BorrowingCreate, BorrowingResponse
 
 ### Community 1154 - "Community 1154"
-Cohesion: 0.50
-Nodes (4): 17.1 QR ኮድ ምንድን ነው?, 17.2 የQR ኮድ አጠቃቀም, 17.3 የQR ኮድ ትውልድ (Generation), ምዕራፍ ፲፯ — የQR ኮድ ሥርዓት (QR Code System)
+Cohesion: 0.57
+Nodes (6): Session, User, create_announcement(), delete_announcement(), get_announcement(), list_announcements()
 
 ### Community 1155 - "Community 1155"
+Cohesion: 0.33
+Nodes (6): Session, enqueue_failed_webhook(), process_retry_queue(), Webhook retry with dead-letter queue for failed payment webhooks., Record a failed webhook for retry., Process all pending webhooks due for retry. Returns processed session IDs.
+
+### Community 1156 - "Community 1156"
+Cohesion: 0.43
+Nodes (5): generate_fingerprint(), generate_sync_secret(), get_server_identity(), is_already_registered(), save_server_identity()
+
+### Community 1158 - "Community 1158"
+Cohesion: 0.29
+Nodes (6): NFCAssignRequest, NFCHistoryResponse, NFCResponse, NFCStatusUpdate, NFCValidateRequest, NFCValidateResponse
+
+### Community 1161 - "Community 1161"
+Cohesion: 0.40
+Nodes (4): Config, CustomerCreate, CustomerResponse, CustomerUpdate
+
+### Community 1162 - "Community 1162"
+Cohesion: 0.50
+Nodes (3): shutdown(), close_redis(), stop_scheduler()
+
+### Community 1163 - "Community 1163"
+Cohesion: 0.50
+Nodes (4): 13.1 ሚና እና ሃላፊነት, 13.2 ዋና ዋና ተግባራት, 13.3 የቤተ-መጻሕፍት ዳሽቦርድ, ምዕራፍ ፲፫ — ቤተ-መጻሕፍት (Library)
+
+### Community 1164 - "Community 1164"
+Cohesion: 0.50
+Nodes (4): 15.1 ሚና እና ሃላፊነት, 15.2 ዋና ዋና ተግባራት, 15.3 የመደብር ዳሽቦርድ, ምዕራፍ ፲፭ — መደብር (Store)
+
+### Community 1166 - "Community 1166"
+Cohesion: 0.50
+Nodes (3): AnnouncementCreate, AnnouncementResponse, AnnouncementUpdate
+
+### Community 1167 - "Community 1167"
+Cohesion: 0.12
+Nodes (35): app_exception_handler(), CSRFMiddleware, http_exception_handler(), Centralized handler for all application-level exceptions., Handler for plain HTTPException (not subclasses already caught above)., Return a clean 422 response for request validation failures., Catch-all exception handler to prevent stack trace leaks.      In non-developmen, validation_exception_handler() (+27 more)
+
+### Community 1168 - "Community 1168"
 Cohesion: 0.50
 Nodes (3): EventCreate, EventResponse, EventUpdate
 
-### Community 1156 - "Community 1156"
+### Community 1169 - "Community 1169"
 Cohesion: 0.50
 Nodes (3): ReportCardDetail, ReportCardResponse, SubjectGrade
 
-### Community 1157 - "Community 1157"
-Cohesion: 0.50
-Nodes (3): StaffCreate, StaffListResult, StaffUpdate
-
 ## Knowledge Gaps
-- **6005 isolated node(s):** `$schema`, `plugin`, `@opencode-ai/plugin`, `Request`, `Request` (+6000 more)
+- **6045 isolated node(s):** `$schema`, `plugin`, `@opencode-ai/plugin`, `Request`, `Request` (+6040 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **146 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Path` connect `Community 197` to `Community 568`, `Community 20`, `Community 853`, `Community 166`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
-- **Why does `get_server_identity()` connect `Community 853` to `Community 313`, `Community 44`, `Community 197`, `Community 415`?**
+- **Why does `Path` connect `Community 197` to `Community 568`, `Community 1156`, `Community 20`, `Community 166`?**
   _High betweenness centrality (0.018) - this node is a cross-community bridge._
-- **Why does `User` connect `Community 181` to `Community 385`, `Community 2`, `Community 1027`, `Community 4`, `Community 5`, `Community 1`, `Community 7`, `Community 1032`, `Community 9`, `Community 138`, `Community 1034`, `Community 395`, `Community 13`, `Community 147`, `Community 153`, `Community 31`, `Community 33`, `Community 34`, `Community 166`, `Community 294`, `Community 554`, `Community 42`, `Community 44`, `Community 49`, `Community 307`, `Community 51`, `Community 1079`, `Community 313`, `Community 57`, `Community 59`, `Community 954`, `Community 317`, `Community 1087`, `Community 65`, `Community 1092`, `Community 69`, `Community 70`, `Community 722`, `Community 729`, `Community 859`, `Community 348`, `Community 862`, `Community 96`, `Community 98`, `Community 882`, `Community 374`, `Community 1148`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
-- **Are the 274 inferred relationships involving `User` (e.g. with `ActivateInitializeRequest` and `ActivateValidateRequest`) actually correct?**
-  _`User` has 274 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 212 inferred relationships involving `Permission` (e.g. with `AcademicYear` and `AcademicYearCreate`) actually correct?**
-  _`Permission` has 212 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `User` connect `Community 12` to `Community 385`, `Community 1154`, `Community 1027`, `Community 4`, `Community 5`, `Community 1`, `Community 7`, `Community 1032`, `Community 395`, `Community 13`, `Community 1167`, `Community 1040`, `Community 147`, `Community 1044`, `Community 153`, `Community 154`, `Community 29`, `Community 31`, `Community 33`, `Community 34`, `Community 1059`, `Community 166`, `Community 294`, `Community 42`, `Community 554`, `Community 44`, `Community 51`, `Community 307`, `Community 181`, `Community 1076`, `Community 52`, `Community 569`, `Community 953`, `Community 187`, `Community 313`, `Community 317`, `Community 59`, `Community 1082`, `Community 65`, `Community 66`, `Community 69`, `Community 70`, `Community 713`, `Community 859`, `Community 96`, `Community 1015`, `Community 1014`, `Community 246`, `Community 886`, `Community 121`, `Community 374`?**
+  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+- **Why does `get_server_identity()` connect `Community 1156` to `Community 313`, `Community 187`, `Community 197`, `Community 415`?**
+  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+- **Are the 277 inferred relationships involving `User` (e.g. with `ActivateInitializeRequest` and `ActivateValidateRequest`) actually correct?**
+  _`User` has 277 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 216 inferred relationships involving `Permission` (e.g. with `AcademicYear` and `AcademicYearCreate`) actually correct?**
+  _`Permission` has 216 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `BM25 ranking algorithm for text search`, `Lowercase, split, remove punctuation, filter short words`, `Build BM25 index from documents` to the rest of the system?**
-  _6441 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _6501 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.05521072665546449 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0550283984627419 - nodes in this community are weakly interconnected._
