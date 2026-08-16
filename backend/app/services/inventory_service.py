@@ -9,6 +9,7 @@ from app.core.audit import log_audit
 def create_category(db: Session, school_id: str, data, user_id: str):
     cat = InventoryCategory(name=data.name, description=data.description, school_id=school_id)
     db.add(cat)
+    db.flush()
     log_audit(db, user_id, "INVENTORY_CATEGORY_CREATED", "inventory_category", cat.id, f"Category '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(cat)
@@ -30,6 +31,7 @@ def create_item(db: Session, school_id: str, data, user_id: str):
         unit_price=Decimal(str(data.unit_price)), school_id=school_id,
     )
     db.add(item)
+    db.flush()
     log_audit(db, user_id, "INVENTORY_ITEM_CREATED", "inventory_item", item.id, f"Item '{data.name}' (SKU: {data.sku}) created", school_id=school_id)
     db.commit()
     db.refresh(item)
@@ -90,6 +92,7 @@ def record_movement(db: Session, school_id: str, data, user_id: str):
     elif data.movement_type == "adjustment_down":
         item.quantity -= qty
     db.add(movement)
+    db.flush()
     log_audit(db, user_id, "STOCK_MOVEMENT", "stock_movement", movement.id,
               f"{data.movement_type}: {qty} of item {data.item_id}", school_id=school_id)
     db.commit()
@@ -107,6 +110,7 @@ def get_movements(db: Session, school_id: str, item_id: str = None):
 def create_supplier(db: Session, school_id: str, data, user_id: str):
     s = Supplier(name=data.name, contact_person=data.contact_person, phone=data.phone, email=data.email, address=data.address, school_id=school_id)
     db.add(s)
+    db.flush()
     log_audit(db, user_id, "SUPPLIER_CREATED", "supplier", s.id, f"Supplier '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(s)

@@ -11,10 +11,56 @@ from app.models.class_ import ClassGrade
 from app.models.academic_year import Semester
 from app.schemas.report_card import ReportCardResponse, ReportCardDetail
 from app.utils.grading import compute_grade, compute_subject_grades
+from app.core.permissions import has_permission, Permission
 from datetime import datetime
 import uuid
 
 router = APIRouter(tags=["report-cards"])
+
+
+def _resolve_accessible_student_ids(db: Session, current_user: User) -> set[str] | None:
+    """Student IDs the current user may see report cards for.
+
+    Returns ``None`` for staff who can view any student in their school
+    (STUDENT_VIEW), otherwise the specific students owned by the account: the
+    student themself (``Student.user_id``) and any children of a linked parent
+    (``Parent.user_id`` + ``ParentStudentLink``). (Gap P1 ownership gate.)
+    """
+    if current_user.is_superuser or has_permission(current_user, Permission.STUDENT_VIEW):
+        return None
+
+    from app.models.parent import Parent
+    from app.models.parent_student_link import ParentStudentLink
+
+    ids: set[str] = set()
+
+    student = db.query(Student).filter(
+        Student.user_id == current_user.id,
+        Student.school_id == current_user.school_id,
+    ).first()
+    if student:
+        ids.add(student.id)
+
+    parent = db.query(Parent).filter(
+        Parent.user_id == current_user.id,
+        Parent.school_id == current_user.school_id,
+    ).first()
+    if parent:
+        links = db.query(ParentStudentLink).filter(
+            ParentStudentLink.parent_id == parent.id,
+        ).all()
+        ids.update(l.student_id for l in links)
+
+    return ids
+
+
+def _require_card_access(db: Session, current_user: User, card: ReportCard) -> None:
+    """Raise 404 (not 403, to avoid leaking card existence) when the user does
+    not own the report card. (Gap P1 ownership gate.)"""
+    accessible = _resolve_accessible_student_ids(db, current_user)
+    if accessible is None or card.student_id in accessible:
+        return
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report card not found")
 
 
 def _build_result_map(results, exams):
@@ -45,6 +91,11 @@ def list_report_cards(
         q = q.filter(ReportCard.student_id == student_id)
     if semester_id:
         q = q.filter(ReportCard.semester_id == semester_id)
+    accessible = _resolve_accessible_student_ids(db, current_user)
+    if accessible is not None:
+        if not accessible:
+            return []
+        q = q.filter(ReportCard.student_id.in_(accessible))
     cards = q.order_by(ReportCard.generated_at.desc()).all()
     return [
         ReportCardResponse(
@@ -63,6 +114,11 @@ def generate_report_card(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Gap P1: report-card generation is a staff write action. Any authenticated
+    # user (PARENT/STUDENT etc.) must not be able to mint cards.
+    if not (current_user.is_superuser or has_permission(current_user, Permission.STUDENT_VIEW)):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to generate report cards")
+
     student = db.query(Student).filter(
         Student.id == student_id,
         Student.school_id == current_user.school_id,
@@ -146,6 +202,8 @@ def get_report_card(
     ).first()
     if not card:
         raise HTTPException(status_code=404, detail="Report card not found")
+
+    _require_card_access(db, current_user, card)
 
     student = db.query(Student).filter(Student.id == card.student_id).first()
     semester = db.query(Semester).filter(Semester.id == card.semester_id).first()

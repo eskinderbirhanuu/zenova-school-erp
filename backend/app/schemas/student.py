@@ -45,7 +45,7 @@ class StudentResponse(BaseModel):
     id: str
     student_id: str
     first_name: str
-    middle_name: str
+    middle_name: str | None
     last_name: str
     gender: str
     date_of_birth: date

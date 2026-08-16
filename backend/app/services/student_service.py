@@ -52,6 +52,7 @@ def create_student(
         registered_by=registered_by,
     )
     db.add(student)
+    db.flush()
     log_audit(
         db=db,
         table_name="students",
@@ -87,6 +88,7 @@ def create_student(
             f"Student {student_id} ({first_name} {last_name}) has been enrolled.",
             notification_type="student_enrolled",
             reference_type="student", reference_id=student.id,
+            school_id=school_id,
         )
 
     return student

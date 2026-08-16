@@ -13,8 +13,8 @@ def compute_subject_grades(result_map: dict, subject_map: dict) -> tuple[list[di
     total_pct = 0.0
     count = 0
     for subj_id, scores in result_map.items():
-        avg = sum(s["score"] for s in scores) / len(scores)
-        max_avg = sum(s["max_score"] for s in scores) / len(scores)
+        avg = float(sum(s["score"] for s in scores) / len(scores))
+        max_avg = float(sum(s["max_score"] for s in scores) / len(scores))
         pct = round((avg / max_avg) * 100, 1) if max_avg > 0 else 0
         letter = compute_grade(pct)
         subject_grades.append({

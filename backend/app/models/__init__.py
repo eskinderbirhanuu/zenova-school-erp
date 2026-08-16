@@ -45,6 +45,7 @@ from app.models.inventory_asset import InventoryAsset
 from app.models.contract import EmployeeContract
 from app.models.leave import LeaveType, LeaveRequest, LeaveBalance
 from app.models.attendance import Attendance
+from app.models.attendance_batch import AttendanceBatch
 from app.models.performance import PerformanceReview
 from app.models.recruitment import JobPosting
 from app.models.library import BookCategory, Book, BookBorrowing
@@ -85,3 +86,4 @@ from app.models.payment_session import PaymentSession
 from app.models.receipt import Receipt, ReceiptLine
 from app.models.refund import Refund
 from app.models.webauthn_credential import WebAuthnCredential
+from app.models.push_device import PushDevice

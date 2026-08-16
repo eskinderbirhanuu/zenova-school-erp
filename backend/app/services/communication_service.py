@@ -11,6 +11,7 @@ def create_announcement(db: Session, school_id: str, data, user_id: str):
     a = Announcement(title=data.title, message=data.message, target_roles=data.target_roles,
                      priority=data.priority, school_id=school_id, created_by=user_id)
     db.add(a)
+    db.flush()
     log_audit(db, user_id, "ANNOUNCEMENT_CREATED", "announcement", a.id, f"'{data.title}'", school_id=school_id)
     db.commit()
     db.refresh(a)
@@ -41,20 +42,37 @@ def mark_all_read(db: Session, user_id: str):
 
 
 def send_notification(db: Session, user_id: str, title: str, message: str = None,
-                      notification_type: str = None, reference_type: str = None, reference_id: str = None):
+                      notification_type: str = None, reference_type: str = None, reference_id: str = None,
+                      school_id: str = None):
     n = Notification(user_id=user_id, title=title, message=message,
-                     notification_type=notification_type, reference_type=reference_type, reference_id=reference_id)
+                     notification_type=notification_type, reference_type=reference_type,
+                     reference_id=reference_id, school_id=school_id)
     db.add(n); db.commit(); db.refresh(n)
     try:
         from app.services.notification_manager import notification_manager
         import asyncio
-        asyncio.ensure_future(notification_manager.push(user_id, {
-            "id": n.id, "title": n.title, "message": n.message,
-            "notification_type": n.notification_type, "is_read": n.is_read,
-            "created_at": str(n.created_at),
-        }))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = None
+        if loop is None:
+            logger.debug("No event loop — skipping WS push for notification %s", n.id)
+        else:
+            loop.create_task(notification_manager.push(user_id, {
+                "id": n.id, "title": n.title, "message": n.message,
+                "notification_type": n.notification_type, "is_read": n.is_read,
+                "created_at": str(n.created_at),
+            }))
     except Exception:
         logger.warning("Real-time push failed for notification %s", n.id, exc_info=True)
+    try:
+        from app.services.fcm_relay import send_push
+        send_push(db, n)
+    except Exception:
+        logger.warning("FCM relay failed for notification %s", n.id, exc_info=True)
     return n
 
 
@@ -63,7 +81,8 @@ def send_message(db: Session, sender_id: str, recipient_id: str, subject: str, m
                 message=message, school_id=school_id)
     db.add(m)
     n = Notification(user_id=recipient_id, title=subject, message=message,
-                     notification_type="message", reference_type="message", reference_id=m.id)
+                     notification_type="message", reference_type="message", reference_id=m.id,
+                     school_id=school_id)
     db.add(n)
     db.commit()
     db.refresh(m)

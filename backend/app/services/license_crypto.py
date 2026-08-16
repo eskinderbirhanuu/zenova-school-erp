@@ -705,7 +705,10 @@ def validate_license_at_startup(db: Session) -> dict:
             if license_record.offline_grace_start is None:
                 license_record.offline_grace_start = now
                 db.commit()
-            grace_days = (now - license_record.offline_grace_start).days
+            grace_start = license_record.offline_grace_start
+            if grace_start.tzinfo is None:
+                grace_start = grace_start.replace(tzinfo=timezone.utc)
+            grace_days = (now - grace_start).days
             if grace_days <= max_grace:
                 return {
                     "valid": True,
@@ -732,7 +735,10 @@ def validate_license_at_startup(db: Session) -> dict:
         license_record.offline_grace_start = now
         db.commit()
 
-    grace_days = (now - license_record.offline_grace_start).days
+    grace_start = license_record.offline_grace_start
+    if grace_start.tzinfo is None:
+        grace_start = grace_start.replace(tzinfo=timezone.utc)
+    grace_days = (now - grace_start).days
     if grace_days > max_grace:
         return {
             "valid": False,

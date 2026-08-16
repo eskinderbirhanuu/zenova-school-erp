@@ -10,6 +10,7 @@ def create_event(db: Session, data, school_id: str, user_id: str):
                event_date=data.event_date, end_date=data.end_date, location=data.location,
                school_id=school_id, created_by=user_id)
     db.add(ev)
+    db.flush()
     log_audit(db, user_id, "CREATE", "event", ev.id, f"Event '{data.title}'", school_id=school_id)
     db.commit()
     db.refresh(ev)

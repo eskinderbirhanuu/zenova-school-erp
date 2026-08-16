@@ -6,12 +6,17 @@ from app.schemas.communication import (
     NotificationResponse,
     MessageCreate, MessageResponse,
 )
-from app.schemas.notification import NotificationPreferenceResponse, NotificationPreferenceUpdate
+from app.schemas.notification import (
+    NotificationPreferenceResponse, NotificationPreferenceUpdate,
+    PushDeviceRegister, PushDeviceResponse,
+)
 from app.core.pagination import paginate, build_paginated_response
 from app.models.communication import Notification, Message
+from app.models.push_device import PushDevice
 from app.services import communication_service
 from app.models.user import User
 from app.models.notification_preference import NotificationPreference
+from app.config import settings
 
 router = APIRouter()
 ADMIN = [require_permission(Permission.SETTINGS_MANAGE)]
@@ -28,6 +33,12 @@ _ALL_PERMS = [
 ALL = _ALL_PERMS
 MESSAGING = _ALL_PERMS
 
+# Gap N1: notification/message READS are strictly user-scoped
+# (Notification.user_id / Message.recipient_id == current_user.id), so any
+# authenticated user — including PARENT/STUDENT with empty permission sets —
+# may read their own items. Writes stay permission-gated.
+AUTHENTICATED = [Depends(get_current_user)]
+
 
 def _ensure_notification_prefs(db: Session, user_id: str) -> NotificationPreference:
     pref = db.query(NotificationPreference).filter(NotificationPreference.user_id == user_id).first()
@@ -39,7 +50,7 @@ def _ensure_notification_prefs(db: Session, user_id: str) -> NotificationPrefere
     return pref
 
 
-@router.get("/notifications", dependencies=ALL)
+@router.get("/notifications", dependencies=AUTHENTICATED)
 def list_notifications(
     unread_only: bool = Query(False),
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
@@ -57,13 +68,13 @@ def list_notifications(
     )
 
 
-@router.post("/notifications/{notification_id}/read", dependencies=ALL)
+@router.post("/notifications/{notification_id}/read", dependencies=AUTHENTICATED)
 def mark_read(notification_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     communication_service.mark_notification_read(db, notification_id, current_user.id)
     return {"message": "Marked as read"}
 
 
-@router.post("/notifications/read-all", dependencies=ALL)
+@router.post("/notifications/read-all", dependencies=AUTHENTICATED)
 def mark_all_read(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     communication_service.mark_all_read(db, current_user.id)
     return {"message": "All marked as read"}
@@ -88,7 +99,7 @@ def send_message(data: MessageCreate, db: Session = Depends(get_db), current_use
     )
 
 
-@router.get("/messages", dependencies=MESSAGING)
+@router.get("/messages", dependencies=AUTHENTICATED)
 def list_messages(
     include_sent: bool = Query(False),
     page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
@@ -119,7 +130,7 @@ def list_messages(
     )
 
 
-@router.post("/messages/{message_id}/read", dependencies=MESSAGING)
+@router.post("/messages/{message_id}/read", dependencies=AUTHENTICATED)
 def mark_message_read(message_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     communication_service.mark_message_read(db, message_id, current_user.id)
     return {"message": "Message marked as read"}
@@ -135,6 +146,8 @@ def update_notification_preferences(data: NotificationPreferenceUpdate, db: Sess
     pref = _ensure_notification_prefs(db, current_user.id)
     if data.email_on is not None:
         pref.email_on = data.email_on
+    if data.push_on is not None:
+        pref.push_on = data.push_on
     if data.telegram_on is not None:
         pref.telegram_on = data.telegram_on
     if data.sms_on is not None:
@@ -142,3 +155,69 @@ def update_notification_preferences(data: NotificationPreferenceUpdate, db: Sess
     db.commit()
     db.refresh(pref)
     return pref
+
+
+# --- Gap N2: FCM/APNs push channel ---------------------------------------
+# Feature-gated by FEATURE_PUSH (policy: disabled → reject API calls).
+def _require_push_enabled():
+    if not settings.feature_push:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Push channel is disabled")
+
+
+@router.post("/notifications/device-token", response_model=PushDeviceResponse, dependencies=AUTHENTICATED)
+def register_device_token(
+    data: PushDeviceRegister,
+    db: Session = Depends(get_db), current_user=Depends(get_current_user),
+):
+    _require_push_enabled()
+    if not data.token or len(data.token) > 512:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid device token")
+    device = (
+        db.query(PushDevice)
+        .filter(PushDevice.user_id == current_user.id, PushDevice.token == data.token)
+        .first()
+    )
+    if device:
+        device.is_active = True
+        device.deleted_at = None
+        device.platform = data.platform
+        db.commit()
+        db.refresh(device)
+        return device
+    device = PushDevice(
+        user_id=current_user.id,
+        school_id=current_user.school_id,
+        platform=data.platform,
+        token=data.token,
+    )
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    return device
+
+
+@router.get("/notifications/device-tokens", response_model=list[PushDeviceResponse], dependencies=AUTHENTICATED)
+def list_device_tokens(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    _require_push_enabled()
+    return (
+        db.query(PushDevice)
+        .filter(PushDevice.user_id == current_user.id, PushDevice.deleted_at.is_(None))
+        .order_by(PushDevice.created_at.desc())
+        .all()
+    )
+
+
+@router.delete("/notifications/device-token/{token}", dependencies=AUTHENTICATED)
+def unregister_device_token(token: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    _require_push_enabled()
+    device = (
+        db.query(PushDevice)
+        .filter(PushDevice.user_id == current_user.id, PushDevice.token == token)
+        .first()
+    )
+    if not device:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device token not found")
+    device.is_active = False
+    device.deleted_at = None
+    db.commit()
+    return {"message": "Device token unregistered"}

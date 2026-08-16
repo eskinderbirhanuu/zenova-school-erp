@@ -18,6 +18,7 @@ def create_contract(db: Session, data, user_id: str, school_id: str):
         notes=data.notes, created_by=user_id,
     )
     db.add(c)
+    db.flush()
     log_audit(db, user_id, "CONTRACT_CREATED", "employee_contract", c.id, f"Contract for staff {data.staff_profile_id}", school_id=school_id)
     db.commit()
     db.refresh(c)
@@ -53,6 +54,7 @@ def terminate_contract(db: Session, contract_id: str, end_date: date, user_id: s
 def create_leave_type(db: Session, school_id: str, data, user_id: str):
     lt = LeaveType(name=data.name, default_days=data.default_days, is_paid=data.is_paid, school_id=school_id)
     db.add(lt)
+    db.flush()
     log_audit(db, user_id, "LEAVE_TYPE_CREATED", "leave_type", lt.id, f"Leave type '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(lt)
@@ -89,6 +91,7 @@ def request_leave(db: Session, data, user_id: str, school_id: str, include_delet
         start_date=data.start_date, end_date=data.end_date, days=days, reason=data.reason,
     )
     db.add(lr)
+    db.flush()
     log_audit(db, user_id, "LEAVE_REQUESTED", "leave_request", lr.id, f"Leave requested for {days} days", school_id=school_id)
     db.commit()
     db.refresh(lr)
@@ -267,6 +270,7 @@ def create_performance_review(db: Session, data, user_id: str, school_id: str):
         period=data.period, rating=data.rating, comments=data.comments,
     )
     db.add(pr)
+    db.flush()
     log_audit(db, user_id, "PERFORMANCE_REVIEW_CREATED", "performance_review", pr.id, f"Review for staff {data.staff_profile_id}", school_id=school_id)
     db.commit()
     db.refresh(pr)

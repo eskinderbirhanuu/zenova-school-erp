@@ -212,12 +212,15 @@ def _track_device(db: Session, user_id: str, fingerprint: str, ip: str, request:
 
 
 def _alert_new_device(db: Session, user_id: str, fingerprint: str, ip: str, request: Request) -> None:
-    from app.core.notifications import send_notification
+    from app.services.communication_service import send_notification
 
+    user = db.query(User).filter(User.id == user_id).first()
     send_notification(
         db, user_id, "NEW_DEVICE_LOGIN",
         f"New device logged into your account from {ip}",
-        {"fingerprint": fingerprint[-8:], "ip": ip, "user_agent": request.headers.get("user-agent", "")},
+        notification_type="device_login",
+        reference_type="device",
+        school_id=user.school_id if user else None,
     )
 
 

@@ -83,6 +83,7 @@ def notify_parents_of_absence(
             notification_type="attendance",
             reference_type="attendance",
             reference_id=student_id,
+            school_id=school_id,
         )
 
         if pref and pref.email_on and user.email:
@@ -97,13 +98,23 @@ def notify_parents_of_absence(
         if pref and pref.telegram_on and pref.telegram_chat_id and bot:
             try:
                 import asyncio
-                asyncio.ensure_future(send_telegram_message(
-                    bot.bot_token,
-                    pref.telegram_chat_id,
-                    f"Absence Notification\n\n"
-                    f"{student.first_name} {student.last_name} ({class_name})\n"
-                    f"was marked absent on {date}.\n\n"
-                    f"Please contact the school if you have any questions.",
-                ))
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = None
+                if loop is None:
+                    logger.debug("No event loop — skipping telegram message for student")
+                else:
+                    loop.create_task(send_telegram_message(
+                        bot.bot_token,
+                        pref.telegram_chat_id,
+                        f"Absence Notification\n\n"
+                        f"{student.first_name} {student.last_name} ({class_name})\n"
+                        f"was marked absent on {date}.\n\n"
+                        f"Please contact the school if you have any questions.",
+                    ))
             except Exception:
                 logger.warning("Telegram notification failed for student", exc_info=True)

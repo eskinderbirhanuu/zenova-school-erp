@@ -46,6 +46,7 @@ def assign_student_card(
     _school_id = db.query(Student.school_id).filter(Student.id == student_id).scalar()
     card = StudentCard(student_id=student_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
+    db.flush()
     log_audit(
         db=db, user_id=assigned_by or "system",
         table_name="student_cards", record_id=card.id,
@@ -73,6 +74,7 @@ def assign_staff_card(
     _school_id = db.query(StaffProfile.school_id).filter(StaffProfile.id == staff_profile_id).scalar()
     card = StaffCard(staff_profile_id=staff_profile_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
+    db.flush()
     log_audit(
         db=db, user_id=assigned_by or "system",
         table_name="staff_cards", record_id=card.id,
@@ -100,6 +102,7 @@ def assign_parent_card(
     _school_id = db.query(Parent.school_id).filter(Parent.id == parent_id).scalar()
     card = ParentCard(parent_id=parent_id, school_id=_school_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
+    db.flush()
     log_audit(
         db=db, user_id=assigned_by or "system",
         table_name="parent_cards", record_id=card.id,
@@ -126,6 +129,7 @@ def assign_employee_card(
     _ensure_unique_card_uid(db, uid_hash)
     card = EmployeeCard(employee_id=employee_id, card_uid=uid_hash, card_tier=card_tier)
     db.add(card)
+    db.flush()
     log_audit(
         db=db, user_id=assigned_by or "system",
         table_name="employee_cards", record_id=card.id,
@@ -342,6 +346,7 @@ def request_card_print(
         school_id=school_id,
     )
     db.add(req)
+    db.flush()
     log_audit(
         db=db, user_id=requested_by or "system",
         table_name="card_print_requests", record_id=req.id,

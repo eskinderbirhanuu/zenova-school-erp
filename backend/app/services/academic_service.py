@@ -23,6 +23,7 @@ def get_academic_years(db: Session, school_id: str, include_deleted: bool = Fals
 def create_academic_year(db: Session, school_id: str, data, user_id: str):
     year = AcademicYear(name=data.name, start_date=data.start_date, end_date=data.end_date, school_id=school_id)
     db.add(year)
+    db.flush()
     log_audit(db, user_id, "CREATE", "academic_year", year.id, f"Academic year '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(year)
@@ -41,8 +42,9 @@ def set_current_academic_year(db: Session, year_id: str, school_id: str, user_id
 
 
 def create_semester(db: Session, school_id: str, data, user_id: str):
-    semester = Semester(name=data.name, academic_year_id=data.academic_year_id, start_date=data.start_date, end_date=data.end_date)
+    semester = Semester(name=data.name, academic_year_id=data.academic_year_id, start_date=data.start_date, end_date=data.end_date, school_id=school_id)
     db.add(semester)
+    db.flush()
     log_audit(db, user_id, "CREATE", "semester", semester.id, f"Semester '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(semester)
@@ -62,6 +64,7 @@ def get_semesters(db: Session, school_id: str, academic_year_id: str, include_de
 def create_class_grade(db: Session, school_id: str, data, user_id: str):
     cls = ClassGrade(name=data.name, code=data.code, school_id=school_id)
     db.add(cls)
+    db.flush()
     log_audit(db, user_id, "CREATE", "class", cls.id, f"Class grade '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(cls)
@@ -101,6 +104,7 @@ def delete_class_grade(db: Session, class_id: str, user_id: str, school_id: str)
 def create_section(db: Session, school_id: str, data, user_id: str):
     sec = Section(name=data.name, class_id=data.class_id, capacity=data.capacity, school_id=school_id)
     db.add(sec)
+    db.flush()
     log_audit(db, user_id, "CREATE", "section", sec.id, f"Section '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(sec)
@@ -140,6 +144,7 @@ def delete_section(db: Session, section_id: str, user_id: str, school_id: str):
 def create_subject(db: Session, school_id: str, data, user_id: str):
     sub = Subject(name=data.name, code=data.code, class_id=data.class_id, is_optional=data.is_optional, school_id=school_id)
     db.add(sub)
+    db.flush()
     log_audit(db, user_id, "CREATE", "subject", sub.id, f"Subject '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(sub)
@@ -181,6 +186,7 @@ def delete_subject(db: Session, subject_id: str, user_id: str, school_id: str):
 def create_classroom(db: Session, school_id: str, data, user_id: str):
     room = Classroom(name=data.name, capacity=data.capacity, school_id=school_id)
     db.add(room)
+    db.flush()
     log_audit(db, user_id, "CREATE", "classroom", room.id, f"Classroom '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(room)
@@ -260,6 +266,7 @@ def create_timetable_entry(db: Session, school_id: str, data, user_id: str):
         school_id=school_id,
     )
     db.add(entry)
+    db.flush()
     log_audit(db, user_id, "CREATE", "timetable_entry", entry.id, "Timetable entry created", school_id=school_id)
     db.commit()
     db.refresh(entry)
@@ -314,6 +321,7 @@ def get_timetable(db: Session, school_id: str, section_id: str, include_deleted:
 def create_exam_type(db: Session, school_id: str, data, user_id: str):
     et = ExamType(name=data.name, weight=data.weight, school_id=school_id)
     db.add(et)
+    db.flush()
     log_audit(db, user_id, "CREATE", "exam_type", et.id, f"Exam type '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(et)
@@ -335,6 +343,7 @@ def create_exam(db: Session, school_id: str, data, user_id: str):
         max_score=data.max_score, school_id=school_id,
     )
     db.add(exam)
+    db.flush()
     log_audit(db, user_id, "CREATE", "exam", exam.id, f"Exam '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(exam)
@@ -373,6 +382,7 @@ def get_exams(db: Session, school_id: str, class_id: str = None, subject_id: str
 def create_exam_result(db: Session, school_id: str, data, user_id: str):
     result = ExamResult(exam_id=data.exam_id, student_id=data.student_id, score=data.score, remarks=data.remarks, entered_by=user_id, school_id=school_id)
     db.add(result)
+    db.flush()
     log_audit(db, user_id, "CREATE", "exam_result", result.id, f"Result recorded for exam {data.exam_id}", school_id=school_id)
     db.commit()
     db.refresh(result)
@@ -387,6 +397,7 @@ def bulk_create_exam_results(db: Session, school_id: str, results_list: list, us
         db.add(r)
         created.append(r)
         student_ids.add(data.student_id)
+    db.flush()
     log_audit(db, user_id, "BULK_CREATE", "exam_result", ",".join(r.id for r in created[:10]), f"{len(created)} results recorded", school_id=school_id)
     db.commit()
     for r in created:
@@ -411,6 +422,7 @@ def bulk_create_exam_results(db: Session, school_id: str, results_list: list, us
                     f"Your child's results for {exam_name} have been posted. Check the parent portal.",
                     notification_type="exam_results",
                     reference_type="exam", reference_id=first_exam_id,
+                    school_id=school_id,
                 )
 
     return created
@@ -447,6 +459,7 @@ def promote_student(db: Session, school_id: str, student_id: str, to_class_id: s
     pr = PromotionRecord(student_id=student_id, from_class_id=from_class_id, to_class_id=to_class_id, academic_year_id=academic_year_id, promoted_by=user_id, school_id=school_id)
     student.grade_id = to_class_id
     db.add(pr)
+    db.flush()
     log_audit(db, user_id, "CREATE", "promotion", pr.id, f"Student {student_id} promoted from {from_class_id} to {to_class_id}", school_id=school_id)
     db.commit()
     db.refresh(pr)

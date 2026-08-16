@@ -26,7 +26,10 @@ def enforce_offline_grace_periods(db: Session) -> int:
     for lic in licenses:
         env = lic.runtime_environment or get_active_environment()
         max_grace = get_environment_grace_days(env)
-        grace_days = (now - lic.offline_grace_start).days
+        grace_start = lic.offline_grace_start
+        if grace_start.tzinfo is None:
+            grace_start = grace_start.replace(tzinfo=timezone.utc)
+        grace_days = (now - grace_start).days
 
         if grace_days > max_grace:
             lic.status = LicenseStatus.EXPIRED

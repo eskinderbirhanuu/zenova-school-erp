@@ -244,6 +244,7 @@ def create_school(db: Session, name: str, code: str, address: str | None = None,
         logo_url=logo_url,
     )
     db.add(school)
+    db.flush()
     log_audit(
         db=db,
         user_id="system",
@@ -276,6 +277,7 @@ def create_branch(db: Session, school_id: str, name: str, code: str,
         school_id=school_id,
     )
     db.add(branch)
+    db.flush()
     log_audit(
         db=db,
         user_id="system",

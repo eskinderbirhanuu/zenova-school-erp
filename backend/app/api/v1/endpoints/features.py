@@ -9,4 +9,5 @@ router = APIRouter(tags=["features"])
 def get_features():
     return {
         "chapa": settings.feature_chapa,
+        "push": settings.feature_push,
     }

@@ -10,7 +10,7 @@ class AuditLog(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=True, index=True)
     table_name = Column(String(100), nullable=False, index=True)
-    record_id = Column(String(36), nullable=False, index=True)
+    record_id = Column(String(36), nullable=True, index=True)
     action = Column(String(50), nullable=False, index=True)
     old_data = Column(JSON, nullable=True)
     new_data = Column(JSON, nullable=True)

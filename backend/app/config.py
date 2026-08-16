@@ -78,6 +78,10 @@ class Settings(BaseSettings):
     chapa_api_url: str = "https://api.chapa.co/v1"
     feature_chapa: bool = False
 
+    feature_push: bool = False
+    fcm_project_id: str = ""
+    fcm_credentials_json: str = ""
+
     payment_gateway: str = "chapa"
     payment_currency: str = "ETB"
     payment_platform_email: str = "platform@zenova.com"

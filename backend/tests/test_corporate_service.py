@@ -32,6 +32,7 @@ class TestCreateEmployee:
         scalar_mock = MagicMock()
         scalar_mock.scalar.return_value = "ZNV-EMP-000005"
         db.query.return_value = scalar_mock
+        db.query.return_value.filter.return_value.first.return_value = None
 
         emp = corporate_service.create_employee(
             db=db, full_name="John Doe", email="john@zenova.com",
@@ -44,6 +45,16 @@ class TestCreateEmployee:
         assert emp.employee_id.startswith("ZNV-EMP-")
         assert db.add.called
         assert db.commit.called
+
+    def test_create_employee_duplicate_email_raises(self):
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = MagicMock()
+
+        with pytest.raises(ConflictException, match="already exists"):
+            corporate_service.create_employee(
+                db=db, full_name="John Doe", email="john@zenova.com",
+                user_id="user-123",
+            )
 
 
 class TestListEmployees:

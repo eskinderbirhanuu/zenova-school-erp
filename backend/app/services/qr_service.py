@@ -74,6 +74,7 @@ def generate_qr(
         branch_id=branch_id,
     )
     db.add(qr)
+    db.flush()
     log_audit(
         db=db,
         user_id=user_id or "system",

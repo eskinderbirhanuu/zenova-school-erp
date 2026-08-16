@@ -29,6 +29,7 @@ def assign_nfc(
         assigned_by=assigned_by,
     )
     db.add(nfc)
+    db.flush()
     log_audit(
         db=db,
         user_id=assigned_by or "system",

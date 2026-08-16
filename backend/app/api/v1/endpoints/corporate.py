@@ -88,6 +88,7 @@ def create_employee(
     current_user: User = require_permission(Permission.CORPORATE_EMPLOYEE_CREATE),
 ):
     emp = corporate_service.create_employee(
+        db=db,
         **data.model_dump(),
         created_by=current_user.id,
     )

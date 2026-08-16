@@ -118,6 +118,7 @@ class AttendanceResponse(BaseModel):
     school_id: str
     marked_by: Optional[str] = None
     created_at: Optional[datetime] = None
+    student_name: Optional[str] = None
 
 
 class PerformanceReviewCreate(BaseModel):

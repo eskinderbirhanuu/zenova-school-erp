@@ -42,6 +42,7 @@ def create_account(db: Session, school_id: str, data, user_id: str):
         parent_id=data.parent_id, school_id=school_id, description=data.description,
     )
     db.add(acct)
+    db.flush()
     log_audit(db, user_id, "ACCOUNT_CREATED", "account", acct.id, f"Account '{data.name}' ({data.account_number}) created", school_id=school_id)
     db.commit()
     db.refresh(acct)
@@ -160,6 +161,7 @@ def get_journal_lines(db: Session, entry_id: str, school_id: str, include_delete
 def create_fee_type(db: Session, school_id: str, data, user_id: str):
     ft = FeeType(name=data.name, frequency=data.frequency, school_id=school_id, account_id=data.account_id)
     db.add(ft)
+    db.flush()
     log_audit(db, user_id, "FEE_TYPE_CREATED", "fee_type", ft.id, f"Fee type '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(ft)
@@ -204,6 +206,7 @@ def create_fee_structure(db: Session, data, user_id: str, school_id: str):
         raise NotFoundException("Fee type not found")
     fs = FeeStructure(fee_type_id=data.fee_type_id, school_id=school_id, class_id=data.class_id, amount=Decimal(str(data.amount)), due_date=data.due_date)
     db.add(fs)
+    db.flush()
     log_audit(db, user_id, "FEE_STRUCTURE_CREATED", "fee_structure", fs.id, "Fee structure created", school_id=school_id)
     db.commit()
     db.refresh(fs)
@@ -231,6 +234,7 @@ def assign_fee(db: Session, data, user_id: str, school_id: str):
         school_id=school_id, is_waived=data.is_waived,
     )
     db.add(fa)
+    db.flush()
     log_audit(db, user_id, "FEE_ASSIGNED", "fee_assignment", fa.id, f"Fee assigned to student {data.student_id}", school_id=school_id)
     db.commit()
     db.refresh(fa)
@@ -295,6 +299,7 @@ def create_invoice(db: Session, school_id: str, data, user_id: str):
                 f"A new invoice of ${total} is due on {data.due_date}.",
                 notification_type="invoice_created",
                 reference_type="invoice", reference_id=str(invoice.id),
+                school_id=school_id,
             )
 
     return invoice
@@ -535,6 +540,7 @@ def create_scholarship(db: Session, data, user_id: str, school_id: str, approved
         school_id=school_id, approved_by=approved_by,
     )
     db.add(s)
+    db.flush()
     log_audit(db, user_id, "SCHOLARSHIP_CREATED", "scholarship", s.id, f"Scholarship for student {data.student_id}", school_id=school_id)
     db.commit()
     db.refresh(s)
@@ -555,6 +561,7 @@ def get_scholarships(db: Session, school_id: str, student_id: str = None, academ
 def create_period(db: Session, school_id: str, data, user_id: str):
     p = AccountingPeriod(name=data.name, start_date=data.start_date, end_date=data.end_date, school_id=school_id)
     db.add(p)
+    db.flush()
     log_audit(db, user_id, "PERIOD_CREATED", "accounting_period", p.id, f"Period '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(p)
@@ -600,6 +607,7 @@ def get_periods(db: Session, school_id: str, include_deleted: bool = False):
 def create_payroll_run(db: Session, school_id: str, data, user_id: str):
     pr = PayrollRun(name=data.name, period_start=data.period_start, period_end=data.period_end, school_id=school_id, created_by=user_id)
     db.add(pr)
+    db.flush()
     log_audit(db, user_id, "PAYROLL_CREATED", "payroll_run", pr.id, f"Payroll '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(pr)
@@ -627,6 +635,7 @@ def approve_payroll(db: Session, run_id: str, user_id: str, school_id: str):
 def create_budget(db: Session, school_id: str, data, user_id: str):
     b = Budget(name=data.name, academic_year_id=data.academic_year_id, school_id=school_id, created_by=user_id)
     db.add(b)
+    db.flush()
     log_audit(db, user_id, "BUDGET_CREATED", "budget", b.id, f"Budget '{data.name}' created", school_id=school_id)
     db.commit()
     db.refresh(b)
@@ -646,6 +655,7 @@ def create_budget_item(db: Session, budget_id: str, data, user_id: str, school_i
         raise NotFoundException("Budget not found")
     bi = BudgetItem(budget_id=budget_id, school_id=school_id, account_id=data.account_id, description=data.description, planned_amount=Decimal(str(data.planned_amount)))
     db.add(bi)
+    db.flush()
     budget.total_amount = Decimal(str(budget.total_amount)) + Decimal(str(data.planned_amount))
     log_audit(db, user_id, "BUDGET_ITEM_CREATED", "budget_item", bi.id, "Budget item created", school_id=school_id)
     db.commit()
@@ -670,6 +680,7 @@ def create_purchase_request(db: Session, school_id: str, data, user_id: str):
         school_id=school_id,
     )
     db.add(pr)
+    db.flush()
     log_audit(db, user_id, "PURCHASE_REQUEST_CREATED", "purchase_request", pr.id, f"PR {pr.pr_number} created", school_id=school_id)
     db.commit()
     db.refresh(pr)
@@ -702,6 +713,7 @@ def create_purchase_order(db: Session, school_id: str, data, user_id: str):
         school_id=school_id, created_by=user_id,
     )
     db.add(po)
+    db.flush()
     log_audit(db, user_id, "PURCHASE_ORDER_CREATED", "purchase_order", po.id, f"PO {po.po_number} created", school_id=school_id)
     db.commit()
     db.refresh(po)

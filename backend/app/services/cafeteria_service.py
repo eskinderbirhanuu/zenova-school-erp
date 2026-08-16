@@ -11,6 +11,7 @@ def create_product(db: Session, school_id: str, data, user_id: str):
     p = CafeteriaProduct(name=data.name, price=Decimal(str(data.price)), category=data.category,
                          stock=data.stock, school_id=school_id)
     db.add(p)
+    db.flush()
     log_audit(db, user_id, "CAFETERIA_PRODUCT_CREATED", "cafeteria_product", p.id, f"Product '{data.name}'", school_id=school_id)
     db.commit()
     db.refresh(p)

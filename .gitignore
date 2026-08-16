@@ -51,6 +51,10 @@ control-center/frontend/node_modules/
 # Release artifacts
 zenova-*.zip
 zenova-*.tar.gz
+deploy/*.tar
+
+# Graphify cache (regenerated, not source)
+graphify-out/cache/
 
 # Temp
 *.raw

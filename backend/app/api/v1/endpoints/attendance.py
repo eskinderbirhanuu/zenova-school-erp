@@ -1,13 +1,16 @@
+import json
 from datetime import date, datetime, time, timezone, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.deps import get_current_user
 from app.core.permissions import require_permission, Permission
 from app.models.attendance import Attendance
+from app.models.attendance_batch import AttendanceBatch
 from app.models.user import User
 from app.models.student import Student
 from app.models.school import School
+from app.models.section import Section
 from app.schemas.hr import AttendanceBulkItem, AttendanceBulkResponse, AttendanceResponse, AttendanceUpdate
 from app.services.hr_service import get_attendance as hr_get_attendance
 from app.services.notification_service import notify_parents_of_absence
@@ -39,15 +42,32 @@ router = APIRouter(tags=["attendance"])
 @router.post("/attendance/bulk", response_model=AttendanceBulkResponse, status_code=status.HTTP_201_CREATED)
 def mark_attendance_bulk(
     records: list[AttendanceBulkItem],
+    x_idempotency_key: str | None = Header(None, alias="X-Idempotency-Key"),
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.ATTENDANCE_MARK),
 ):
     """Mark attendance for multiple students/staff in bulk.
     Accessible by TEACHER, HR, ADMIN roles.
-    Attendance window: 2 ጠዋት–4 ጠዋት (08:00–10:00 Ethiopian time / UTC+3)."""
+    Attendance window: 2 ጠዋት–4 ጠዋት (08:00–10:00 Ethiopian time / UTC+3).
+
+    Accepts an optional `X-Idempotency-Key` header so an offline client can
+    replay a queued bulk without double-marking (Gap T3): a repeat key returns
+    the stored response instead of reprocessing."""
     school_id = current_user.school_id
     if not school_id:
         raise HTTPException(status_code=400, detail="User has no school association")
+
+    if x_idempotency_key:
+        existing = db.query(AttendanceBatch).filter(
+            AttendanceBatch.school_id == school_id,
+            AttendanceBatch.idempotency_key == x_idempotency_key,
+        ).first()
+        if existing:
+            try:
+                stored = json.loads(existing.response)
+                return AttendanceBulkResponse(**stored)
+            except (ValueError, TypeError):
+                pass
 
     if not _attendance_window_open():
         raise HTTPException(
@@ -104,7 +124,18 @@ def mark_attendance_bulk(
         if item.status == "absent" and item.student_id:
             _notify_absence(db, item.student_id, str(item.date), school_id)
 
-    return AttendanceBulkResponse(created=created, errors=errors)
+    response = AttendanceBulkResponse(created=created, errors=errors)
+
+    if x_idempotency_key:
+        db.add(AttendanceBatch(
+            school_id=school_id,
+            idempotency_key=x_idempotency_key,
+            response=response.model_dump_json(),
+            created_by=current_user.id,
+        ))
+        db.commit()
+
+    return response
 
 
 @router.get("/attendance")
@@ -112,13 +143,16 @@ def query_attendance(
     date_filter: str | None = Query(None, alias="date"),
     student_id: str | None = Query(None),
     staff_profile_id: str | None = Query(None),
+    section_id: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     """List attendance records with optional filters.
-    Accessible by TEACHER, HR, ADMIN, DIRECTOR roles."""
+    Accessible by TEACHER, HR, ADMIN, DIRECTOR roles.
+    `section_id` (Gap fixMark) restricts to attendance for students in a section
+    so a teacher can load today's marks for a class and correct them."""
     from app.core.pagination import paginate, build_paginated_response
     school_id = current_user.school_id
     if not school_id:
@@ -133,6 +167,25 @@ def query_attendance(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format (use YYYY-MM-DD)")
 
+    if section_id:
+        section = db.query(Section).filter(
+            Section.id == section_id,
+            Section.school_id == school_id,
+        ).first()
+        if not section:
+            raise HTTPException(status_code=404, detail="Section not found")
+        student_ids = [
+            s.id for s in db.query(Student.id).filter(
+                Student.section_id == section_id,
+                Student.school_id == school_id,
+                Student.deleted_at.is_(None),
+            ).all()
+        ]
+        if student_ids:
+            q = q.filter(Attendance.student_id.in_(student_ids))
+        else:
+            return build_paginated_response(items=[], total=0, page=1, page_size=page_size, total_pages=0)
+
     if student_id:
         q = q.filter(Attendance.student_id == student_id)
     if staff_profile_id:
@@ -141,6 +194,13 @@ def query_attendance(
     q = q.order_by(Attendance.date.desc(), Attendance.created_at.desc())
     paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
     records = paginated_q.all()
+
+    student_ids_in_records = {r.student_id for r in records if r.student_id}
+    student_names = {}
+    if student_ids_in_records:
+        students = db.query(Student).filter(Student.id.in_(student_ids_in_records)).all()
+        student_names = {s.id: f"{s.first_name} {s.last_name}".strip() for s in students}
+
     return build_paginated_response(
         items=[
             AttendanceResponse(
@@ -148,6 +208,7 @@ def query_attendance(
                 date=r.date, check_in=r.check_in, check_out=r.check_out,
                 status=r.status, reason=r.reason, school_id=r.school_id,
                 marked_by=r.marked_by, created_at=r.created_at,
+                student_name=student_names.get(r.student_id) if r.student_id else None,
             )
             for r in records
         ],

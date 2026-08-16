@@ -22,6 +22,7 @@ def create_department(
         raise ConflictException("Department name or code already exists", code=ErrorCode.CONFLICT_GENERIC)
     dept = CorporateDepartment(name=name, code=code, description=description)
     db.add(dept)
+    db.flush()
     log_audit(
         db=db, user_id=user_id or "system",
         table_name="corporate_departments", record_id=dept.id,
@@ -79,6 +80,11 @@ def create_employee(
     employment_type: str = "full-time",
     created_by: str | None = None,
 ) -> CorporateEmployee:
+    existing = db.query(CorporateEmployee).filter(
+        (CorporateEmployee.email == email) | (CorporateEmployee.user_id == user_id)
+    ).first()
+    if existing:
+        raise ConflictException("Employee with this email or user already exists", code=ErrorCode.CONFLICT_GENERIC)
     emp_id = _generate_employee_id(db)
 
     emp = CorporateEmployee(
@@ -95,6 +101,7 @@ def create_employee(
         created_by=created_by,
     )
     db.add(emp)
+    db.flush()
     log_audit(
         db=db, user_id=created_by or "system",
         table_name="corporate_employees", record_id=emp.id,

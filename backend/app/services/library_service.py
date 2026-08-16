@@ -9,6 +9,7 @@ from app.core.audit import log_audit
 def create_category(db: Session, school_id: str, data, user_id: str):
     c = BookCategory(name=data.name, school_id=school_id)
     db.add(c)
+    db.flush()
     log_audit(db, user_id, "BOOK_CATEGORY_CREATED", "book_category", c.id, f"Category '{data.name}'", school_id=school_id)
     db.commit()
     db.refresh(c)
@@ -27,6 +28,7 @@ def create_book(db: Session, school_id: str, data, user_id: str):
              year=data.year, category_id=data.category_id, total_quantity=data.total_quantity,
              available_quantity=data.total_quantity, shelf_location=data.shelf_location, school_id=school_id)
     db.add(b)
+    db.flush()
     log_audit(db, user_id, "BOOK_CREATED", "book", b.id, f"Book '{data.title}'", school_id=school_id)
     db.commit()
     db.refresh(b)
@@ -65,6 +67,7 @@ def borrow_book(db: Session, school_id: str, data, user_id: str):
                        due_date=data.due_date, status="borrowed", school_id=school_id, created_by=user_id)
     book.available_quantity -= 1
     db.add(br)
+    db.flush()
     log_audit(db, user_id, "BOOK_BORROWED", "book_borrowing", br.id, f"Book '{book.title}' borrowed", school_id=school_id)
     db.commit()
     db.refresh(br)

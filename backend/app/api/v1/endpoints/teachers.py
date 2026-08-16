@@ -292,13 +292,19 @@ def get_teacher_subjects(
 
 @router.get("/teachers/me/students")
 def get_my_students(
+    section_id: str | None = None,
+    subject_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     from app.models.teacher_profile import TeacherProfile
     from app.models.teacher_grade_assignment import TeacherGradeAssignment
+    from app.models.teacher_section_assignment import TeacherSectionAssignment
+    from app.models.teacher_subject import TeacherSubject
     from app.models.student import Student
     from app.models.class_ import ClassGrade
+    from app.models.section import Section
+    from app.models.subject import Subject
     profile = db.query(TeacherProfile).filter(
         TeacherProfile.user_id == current_user.id,
         TeacherProfile.school_id == current_user.school_id,
@@ -315,11 +321,52 @@ def get_my_students(
         return []
 
     grades = {g.id: g.name for g in db.query(ClassGrade).filter(ClassGrade.id.in_(grade_ids)).all()}
-    students = db.query(Student).filter(
+
+    # Optional section filter (Gap T1): restrict to a section the teacher is
+    # assigned to, then to the students in it. Scoped to the teacher's grades.
+    if section_id:
+        section_ok = db.query(TeacherSectionAssignment.id).filter(
+            TeacherSectionAssignment.teacher_id == profile.id,
+            TeacherSectionAssignment.section_id == section_id,
+            TeacherSectionAssignment.school_id == current_user.school_id,
+        ).first()
+        if not section_ok:
+            raise HTTPException(status_code=403, detail="Section not assigned to you")
+
+    # Optional subject filter (Gap T1): restrict to the class of the subject and
+    # require the subject is assigned to the teacher.
+    if subject_id:
+        subject_ok = db.query(TeacherSubject.id).filter(
+            TeacherSubject.teacher_profile_id == profile.id,
+            TeacherSubject.subject_id == subject_id,
+            TeacherSubject.school_id == current_user.school_id,
+        ).first()
+        if not subject_ok:
+            raise HTTPException(status_code=403, detail="Subject not assigned to you")
+        subj = db.query(Subject).filter(
+            Subject.id == subject_id,
+            Subject.school_id == current_user.school_id,
+        ).first()
+        if not subj:
+            raise HTTPException(status_code=404, detail="Subject not found")
+        grade_ids = [subj.class_id]
+
+    q = db.query(Student).filter(
         Student.school_id == current_user.school_id,
         Student.grade_id.in_(grade_ids),
         Student.deleted_at.is_(None),
-    ).order_by(Student.first_name).all()
+    )
+    if section_id:
+        q = q.filter(Student.section_id == section_id)
+
+    students = q.order_by(Student.first_name).all()
+
+    section_ids = {s.section_id for s in students if s.section_id}
+    sections = db.query(Section).filter(
+        Section.school_id == current_user.school_id,
+        Section.id.in_(section_ids),
+    ).all() if section_ids else []
+    section_names = {sc.id: sc.name for sc in sections}
 
     return [
         {
@@ -328,6 +375,8 @@ def get_my_students(
             "first_name": s.first_name,
             "last_name": s.last_name,
             "grade_name": grades.get(s.grade_id, s.grade_id or ""),
+            "section_id": s.section_id,
+            "section_name": section_names.get(s.section_id) or "",
             "status": s.status,
         }
         for s in students

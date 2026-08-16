@@ -11,6 +11,9 @@ from app.models.assignment import Assignment
 from app.models.timetable import TimetableEntry
 from app.models.classroom import Classroom
 from app.models.wallet import Wallet
+from app.models.invoice import Invoice, InvoiceLine
+from app.models.payment import Payment
+from app.models.student_document import StudentDocument
 from datetime import date, datetime, timezone
 from sqlalchemy import func
 
@@ -158,3 +161,106 @@ def student_portal_dashboard(
         "upcoming_assignments": assignments_list,
         "wallet_balance": wallet_balance,
     }
+
+
+def _get_student_for_user(db: Session, current_user: User) -> Student:
+    student = db.query(Student).filter(
+        Student.user_id == current_user.id,
+        Student.school_id == current_user.school_id,
+    ).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    return student
+
+
+@router.get("/student-portal/finance")
+def student_portal_finance(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Gap S1: student's own fee/invoice + payment history (ownership-scoped)."""
+    student = _get_student_for_user(db, current_user)
+
+    invoices = db.query(Invoice).filter(
+        Invoice.student_id == student.id,
+        Invoice.school_id == current_user.school_id,
+        Invoice.deleted_at.is_(None),
+    ).order_by(Invoice.due_date.desc()).all()
+
+    invoice_ids = [inv.id for inv in invoices]
+    lines_by_invoice: dict[str, list] = {}
+    if invoice_ids:
+        for line in db.query(InvoiceLine).filter(InvoiceLine.invoice_id.in_(invoice_ids)).all():
+            lines_by_invoice.setdefault(line.invoice_id, []).append(line)
+
+    total_billed = sum(float(inv.total_amount) for inv in invoices)
+    total_paid = sum(float(inv.paid_amount) for inv in invoices)
+    outstanding = total_billed - total_paid
+
+    payments = db.query(Payment).filter(
+        Payment.student_id == student.id,
+        Payment.school_id == current_user.school_id,
+        Payment.deleted_at.is_(None),
+    ).order_by(Payment.payment_date.desc()).limit(20).all()
+
+    return {
+        "student_name": f"{student.first_name} {student.last_name}",
+        "student_id": student.student_id,
+        "wallet_balance": _build_wallet(db, student.id),
+        "total_billed": round(total_billed, 2),
+        "total_paid": round(total_paid, 2),
+        "outstanding_balance": round(outstanding, 2),
+        "invoices": [
+            {
+                "id": inv.id,
+                "invoice_number": inv.invoice_number,
+                "total_amount": float(inv.total_amount),
+                "paid_amount": float(inv.paid_amount),
+                "balance": round(float(inv.total_amount) - float(inv.paid_amount), 2),
+                "status": inv.status,
+                "issue_date": inv.issue_date.isoformat() if inv.issue_date else None,
+                "due_date": inv.due_date.isoformat() if inv.due_date else None,
+                "lines": [
+                    {"description": line.description, "amount": float(line.amount)}
+                    for line in lines_by_invoice.get(inv.id, [])
+                ],
+            }
+            for inv in invoices
+        ],
+        "payment_history": [
+            {
+                "id": p.id,
+                "payment_number": p.payment_number,
+                "amount": float(p.amount),
+                "method": p.payment_method,
+                "payment_date": p.payment_date.isoformat() if p.payment_date else None,
+                "reference": p.reference,
+            }
+            for p in payments
+        ],
+    }
+
+
+@router.get("/student-portal/documents")
+def student_portal_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Gap S2: student's own documents (metadata only, read-only, ownership-scoped)."""
+    student = _get_student_for_user(db, current_user)
+
+    docs = db.query(StudentDocument).filter(
+        StudentDocument.student_id == student.id,
+        StudentDocument.deleted_at.is_(None),
+    ).order_by(StudentDocument.created_at.desc()).all()
+
+    return [
+        {
+            "id": doc.id,
+            "filename": doc.filename,
+            "file_url": doc.file_url,
+            "file_type": doc.file_type,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+        }
+        for doc in docs
+    ]

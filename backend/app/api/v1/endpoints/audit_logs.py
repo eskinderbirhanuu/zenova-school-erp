@@ -43,7 +43,7 @@ def list_audit_logs(
                 "action": log.action,
                 "user": users_map.get(log.user_id, "System"),
                 "resource": log.table_name or "",
-                "details": f"{log.action} on {log.table_name} (record: {log.record_id[:8]}...)" if log.table_name else "",
+                "details": f"{log.action} on {log.table_name} (record: {log.record_id[:8]}...)" if log.table_name and log.record_id else (f"{log.action} on {log.table_name}" if log.table_name else ""),
                 "ip_address": log.ip_address or "",
                 "created_at": log.created_at.isoformat() if log.created_at else None,
             }
