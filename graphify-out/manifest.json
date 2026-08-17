@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "backend/app/api/v1/endpoints/auth.py": {
-    "mtime": 1786286718.0500839,
-    "ast_hash": "b0c02b7673377675b7d446c1240ea1a6",
+    "mtime": 1786472262.7546985,
+    "ast_hash": "b0bf9cc8e45448445e4579c929938e88",
     "semantic_hash": ""
   },
   "backend/app/api/v1/endpoints/branches.py": {
@@ -470,8 +470,8 @@
     "semantic_hash": ""
   },
   "backend/app/schemas/student.py": {
-    "mtime": 1783383605.6195107,
-    "ast_hash": "fc981eecbdda2c71218ded88f830c795",
+    "mtime": 1786875642.7712243,
+    "ast_hash": "c4a19c23a4a33f0714aeb2ae650c4249",
     "semantic_hash": ""
   },
   "backend/app/schemas/teacher.py": {
@@ -490,8 +490,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/academic_service.py": {
-    "mtime": 1786286575.047387,
-    "ast_hash": "cb8bd406ae1149db686fb0fdf0ab8d35",
+    "mtime": 1786878138.603695,
+    "ast_hash": "4f8f0b909de7bedcf948c52df250eaef",
     "semantic_hash": ""
   },
   "backend/app/services/auth_service.py": {
@@ -505,8 +505,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/communication_service.py": {
-    "mtime": 1786347030.8703814,
-    "ast_hash": "ce13cdc5fcaef478d7e0128a8a1f8ff1",
+    "mtime": 1786472932.2855573,
+    "ast_hash": "43fdb0255ee0436091eee4cb8aee317d",
     "semantic_hash": ""
   },
   "backend/app/services/event_service.py": {
@@ -1680,8 +1680,8 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1786349745.528011,
-    "ast_hash": "a8223d0a81b3b71bfd79b62f0053946c",
+    "mtime": 1786879945.951693,
+    "ast_hash": "c550deeed65f15a0d2cd41343fc7ab85",
     "semantic_hash": ""
   },
   "backend/docker-compose.yml": {
@@ -2115,8 +2115,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/license_crypto.py": {
-    "mtime": 1785232875.0465908,
-    "ast_hash": "a712b2708d218732c12fb46e03cd4621",
+    "mtime": 1786877060.9939847,
+    "ast_hash": "67bea885bda2a152054701942dacc985",
     "semantic_hash": ""
   },
   "backend/app/services/license_validator.py": {
@@ -2135,8 +2135,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/notification_service.py": {
-    "mtime": 1786286644.7175746,
-    "ast_hash": "de4e10eaeadb5de77ba30f44e19b255d",
+    "mtime": 1786472945.5081258,
+    "ast_hash": "79cbfb0cc597fa61eebcfcca24fd2f93",
     "semantic_hash": ""
   },
   "backend/app/services/support_ticket_service.py": {
@@ -2170,8 +2170,8 @@
     "semantic_hash": ""
   },
   "backend/app/utils/grading.py": {
-    "mtime": 1783383607.0738616,
-    "ast_hash": "203ae73265f48c02d67456e4490ba04c",
+    "mtime": 1786878658.4489179,
+    "ast_hash": "8b6c14bd745668297de7c938d42b71e2",
     "semantic_hash": ""
   },
   "backend/app/workers/__init__.py": {
@@ -3355,8 +3355,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/corporate_service.py": {
-    "mtime": 1786272714.292559,
-    "ast_hash": "dbc6706a002d64783f0fffb9d7fc4e3d",
+    "mtime": 1786877469.6448627,
+    "ast_hash": "57544ef19335efb4eb3d105ca2207f5b",
     "semantic_hash": ""
   },
   "backend/app/services/device_review_service.py": {
@@ -3365,8 +3365,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/grace_period_enforcer.py": {
-    "mtime": 1783603130.7734435,
-    "ast_hash": "0aa558f5ee441b34e17462f939dc4549",
+    "mtime": 1786875914.3820164,
+    "ast_hash": "3e712ed501d615838691a09a80c486e9",
     "semantic_hash": ""
   },
   "backend/app/services/heartbeat_service.py": {
@@ -3415,8 +3415,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_corporate_service.py": {
-    "mtime": 1784224319.036392,
-    "ast_hash": "b33e3d8d4918e4072a95c3cfa949a313",
+    "mtime": 1786877545.004223,
+    "ast_hash": "c6c26d0d98c43e39fceb007f5d8d9e3f",
     "semantic_hash": ""
   },
   "backend/tests/test_id_service.py": {
@@ -8945,8 +8945,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/fcm_relay.py": {
-    "mtime": 1786347001.0802915,
-    "ast_hash": "bda911a690697e6b1846f7b1d16e538b",
+    "mtime": 1786472350.6277156,
+    "ast_hash": "d48747b13a6853186cc147c56955dda5",
     "semantic_hash": ""
   },
   "backend/tests/test_fcm_push.py": {
