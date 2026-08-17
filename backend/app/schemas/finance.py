@@ -1,5 +1,5 @@
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import date, datetime
 
@@ -19,6 +19,7 @@ class AccountUpdate(BaseModel):
 
 
 class AccountResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     account_number: str
     name: str
@@ -79,6 +80,7 @@ class FeeTypeUpdate(BaseModel):
 
 
 class FeeTypeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     frequency: str
@@ -95,6 +97,7 @@ class FeeStructureCreate(BaseModel):
 
 
 class FeeStructureResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     fee_type_id: str
     class_id: Optional[str] = None
@@ -112,6 +115,7 @@ class FeeAssignmentCreate(BaseModel):
 
 
 class FeeAssignmentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     student_id: str
     fee_structure_id: str
@@ -202,6 +206,7 @@ class ScholarshipCreate(BaseModel):
 
 
 class ScholarshipResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     student_id: str
     scholarship_type: str
@@ -218,6 +223,7 @@ class PeriodCreate(BaseModel):
 
 
 class PeriodResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     start_date: date
@@ -236,6 +242,7 @@ class PayrollRunCreate(BaseModel):
 
 
 class PayrollRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     period_start: date
@@ -268,6 +275,7 @@ class BudgetCreate(BaseModel):
 
 
 class BudgetResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     academic_year_id: str
@@ -284,6 +292,7 @@ class BudgetItemCreate(BaseModel):
 
 
 class BudgetItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     budget_id: str
     account_id: str

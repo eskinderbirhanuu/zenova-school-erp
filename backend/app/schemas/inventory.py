@@ -1,5 +1,5 @@
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 
@@ -43,6 +43,7 @@ class InventoryItemUpdate(BaseModel):
 
 
 class InventoryItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     sku: str
     name: str
@@ -65,6 +66,7 @@ class StockMovementCreate(BaseModel):
 
 
 class StockMovementResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     item_id: str
     movement_type: str

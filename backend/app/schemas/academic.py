@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import date, time, datetime
 
@@ -17,6 +17,7 @@ class AcademicYearUpdate(BaseModel):
 
 
 class AcademicYearResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     start_date: date
@@ -34,6 +35,7 @@ class SemesterCreate(BaseModel):
 
 
 class SemesterResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     academic_year_id: str
@@ -53,6 +55,7 @@ class ClassGradeUpdate(BaseModel):
 
 
 class ClassGradeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     code: str
@@ -72,6 +75,7 @@ class SectionUpdate(BaseModel):
 
 
 class SectionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     class_id: str
@@ -93,6 +97,7 @@ class SubjectUpdate(BaseModel):
 
 
 class SubjectResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     code: str
@@ -112,6 +117,7 @@ class ClassroomUpdate(BaseModel):
 
 
 class ClassroomResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     capacity: Optional[int] = None
@@ -139,6 +145,7 @@ class TimetableEntryUpdate(BaseModel):
 
 
 class TimetableEntryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     day_of_week: int
     start_time: time
@@ -156,6 +163,7 @@ class ExamTypeCreate(BaseModel):
 
 
 class ExamTypeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     weight: Optional[float] = None
@@ -179,6 +187,7 @@ class ExamUpdate(BaseModel):
 
 
 class ExamResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     exam_type_id: str
@@ -203,6 +212,7 @@ class ExamResultUpdate(BaseModel):
 
 
 class ExamResultResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     exam_id: str
     student_id: str
@@ -219,6 +229,7 @@ class PromotionCreate(BaseModel):
 
 
 class PromotionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     student_id: str
     from_class_id: str

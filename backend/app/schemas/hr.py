@@ -1,5 +1,5 @@
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import date, datetime, time
 
@@ -16,6 +16,7 @@ class ContractCreate(BaseModel):
 
 
 class ContractResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     staff_profile_id: str
     contract_type: str
@@ -54,6 +55,7 @@ class LeaveRequestCreate(BaseModel):
 
 
 class LeaveRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     staff_profile_id: str
     leave_type_id: str
@@ -129,6 +131,7 @@ class PerformanceReviewCreate(BaseModel):
 
 
 class PerformanceReviewResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     staff_profile_id: str
     reviewer_id: str

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 
@@ -16,6 +16,7 @@ class AnnouncementResponse(BaseModel):
 
 
 class NotificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str; user_id: str; title: str; message: Optional[str] = None
     notification_type: Optional[str] = None; reference_type: Optional[str] = None
     reference_id: Optional[str] = None; is_read: bool

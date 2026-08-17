@@ -1,5 +1,5 @@
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 
@@ -10,6 +10,7 @@ class ProductCreate(BaseModel):
 
 
 class ProductResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str; name: str; price: Decimal; category: Optional[str] = None
     stock: int; school_id: str; created_at: Optional[datetime] = None
 
@@ -37,6 +38,7 @@ class OrderCreate(BaseModel):
 
 
 class OrderResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str; customer_type: str; customer_id: Optional[str] = None
     total: Decimal; status: str; payment_method: Optional[str] = None
     school_id: str; created_by: str; created_at: Optional[datetime] = None

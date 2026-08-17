@@ -32,6 +32,7 @@ class QRValidateResponse(BaseModel):
 
 
 class QRHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     uuid: str
     reference_type: str

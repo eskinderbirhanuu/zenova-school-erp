@@ -1,5 +1,5 @@
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import date, datetime
 
@@ -29,6 +29,7 @@ class BookUpdate(BaseModel):
 
 
 class BookResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str; isbn: Optional[str] = None; title: str; author: Optional[str] = None
     publisher: Optional[str] = None; year: Optional[int] = None; category_id: Optional[str] = None
     total_quantity: int; available_quantity: int; shelf_location: Optional[str] = None
@@ -41,6 +42,7 @@ class BorrowingCreate(BaseModel):
 
 
 class BorrowingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str; book_id: str; borrower_type: str; borrower_id: str
     borrow_date: date; due_date: date; return_date: Optional[date] = None
     status: str; fine_amount: Decimal; school_id: str; created_by: str; created_at: Optional[datetime] = None
