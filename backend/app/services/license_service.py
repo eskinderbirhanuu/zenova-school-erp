@@ -119,10 +119,14 @@ def verify_license(db: Session, key: str) -> dict:
     if license_record.status == LicenseStatus.EXPIRED:
         return {"valid": False, "message": "License has expired"}
 
-    if license_record.valid_until and license_record.valid_until < datetime.now(timezone.utc):
-        license_record.status = LicenseStatus.EXPIRED
-        db.commit()
-        return {"valid": False, "message": "License has expired"}
+    if license_record.valid_until:
+        valid_until = license_record.valid_until
+        if valid_until.tzinfo is None:
+            valid_until = valid_until.replace(tzinfo=timezone.utc)
+        if valid_until < datetime.now(timezone.utc):
+            license_record.status = LicenseStatus.EXPIRED
+            db.commit()
+            return {"valid": False, "message": "License has expired"}
 
     return {
         "valid": True,
