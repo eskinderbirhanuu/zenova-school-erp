@@ -25,6 +25,7 @@ interface TeacherPortalProps {
   theme: SchoolTheme
   onBack: () => void
   onSessionExpired: () => void
+  initialView?: PortalView
 }
 
 type PortalView = "subjects" | "roster" | "timetable" | "attendance" | "marksheet"
@@ -46,9 +47,9 @@ const DAY_KEYS: Record<number, TKey> = {
 
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6]
 
-export default function TeacherPortal({ schoolUrl, theme, onBack, onSessionExpired }: TeacherPortalProps) {
+export default function TeacherPortal({ schoolUrl, theme, onBack, onSessionExpired, initialView }: TeacherPortalProps) {
   const { t } = useI18n()
-  const [view, setView] = useState<PortalView>("subjects")
+  const [view, setView] = useState<PortalView>(initialView ?? "subjects")
   const [selectedSubject, setSelectedSubject] = useState<string>("")
   const [selectedSection, setSelectedSection] = useState<string>("")
   const [pendingCount, setPendingCount] = useState(0)

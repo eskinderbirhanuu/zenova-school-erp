@@ -24,6 +24,10 @@ interface NotificationsScreenProps {
   theme: SchoolTheme
   onBack: () => void
   onSessionExpired: () => void
+  /** Open a deep-linked destination when the user taps a notification. */
+  onOpenNotification?: (n: Notification) => void
+  /** Initial tab (used when deep-linked to messages). */
+  initialTab?: Tab
 }
 
 const NOTIFICATIONS_CACHE = "zenova.cache.notifications"
@@ -36,9 +40,11 @@ export default function NotificationsScreen({
   theme,
   onBack,
   onSessionExpired,
+  onOpenNotification,
+  initialTab = "notifications",
 }: NotificationsScreenProps) {
   const { t } = useI18n()
-  const [tab, setTab] = useState<Tab>("notifications")
+  const [tab, setTab] = useState<Tab>(initialTab)
 
   const notifications = useCachedResource(
     useCallback(() => fetchNotifications(schoolUrl, false), [schoolUrl]),
@@ -55,15 +61,17 @@ export default function NotificationsScreen({
 
   const handleMarkNotificationRead = useCallback(
     async (n: Notification) => {
-      if (n.is_read) return
-      try {
-        await markNotificationRead(schoolUrl, n.id)
-        notifications.reload()
-      } catch {
-        // Non-fatal; the item stays unread.
+      if (!n.is_read) {
+        try {
+          await markNotificationRead(schoolUrl, n.id)
+          notifications.reload()
+        } catch {
+          // Non-fatal; the item stays unread.
+        }
       }
+      if (onOpenNotification) onOpenNotification(n)
     },
-    [schoolUrl, notifications],
+    [schoolUrl, notifications, onOpenNotification],
   )
 
   const handleMarkAllRead = useCallback(async () => {

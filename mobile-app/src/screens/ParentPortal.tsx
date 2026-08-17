@@ -21,6 +21,7 @@ interface ParentPortalProps {
   theme: SchoolTheme
   onBack: () => void
   onSessionExpired: () => void
+  initialView?: PortalView
 }
 
 type PortalView = "dashboard" | "invoices" | "receipts" | "pay"
@@ -29,8 +30,8 @@ const DASHBOARD_CACHE = "zenova.cache.parent.dashboard"
 const PAYMENTS_CACHE = "zenova.cache.parent.payments"
 const RECEIPTS_CACHE = "zenova.cache.parent.receipts"
 
-export default function ParentPortal({ schoolUrl, schoolName, theme, onBack, onSessionExpired }: ParentPortalProps) {
-  const [view, setView] = useState<PortalView>("dashboard")
+export default function ParentPortal({ schoolUrl, schoolName, theme, onBack, onSessionExpired, initialView }: ParentPortalProps) {
+  const [view, setView] = useState<PortalView>(initialView ?? "dashboard")
 
   return (
     <ParentView

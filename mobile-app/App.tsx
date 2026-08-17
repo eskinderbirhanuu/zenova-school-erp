@@ -31,6 +31,8 @@ import NotificationsScreen from "./src/screens/NotificationsScreen"
 import TeacherPortal from "./src/screens/TeacherPortal"
 import SecurityScreen from "./src/screens/SecurityScreen"
 import { colors } from "./src/theme/colors"
+import { resolveNotificationTarget, resolvePushTarget, type DeepLinkTarget } from "./src/services/deepLink"
+import type { Notification } from "./src/services/notifications"
 
 type Stage = "booting" | "school" | "login" | "mfa" | "home" | "portal" | "update"
 type Portal = "parent" | "student" | "announcements" | "teacher" | "notifications" | "security"
@@ -61,6 +63,7 @@ function Root() {
   const [mfaToken, setMfaToken] = useState<string | null>(null)
   const [mfaSetupRequired, setMfaSetupRequired] = useState(false)
   const [remoteConfig, setRemoteConfig] = useState<RemoteConfig>(DEFAULT_CONFIG)
+  const [deepLink, setDeepLink] = useState<DeepLinkTarget>(null)
 
   useEffect(() => {
     ;(async () => {
@@ -167,17 +170,50 @@ function Root() {
 
   const handleOpenPortal = useCallback((p: Portal) => {
     setPortal(p)
+    setDeepLink(null)
     setStage("portal")
   }, [])
 
+  const handleOpenNotification = useCallback(
+    (n: Notification) => {
+      const target = resolveNotificationTarget(roleName, n)
+      if (!target) return
+      setPortal(target.portal)
+      setDeepLink(target)
+      setStage("portal")
+    },
+    [roleName],
+  )
+
   const handleClosePortal = useCallback(() => {
     setPortal("announcements")
+    setDeepLink(null)
     setStage("home")
   }, [])
 
   const handleSessionExpired = useCallback(() => {
     handleSignOut()
   }, [handleSignOut])
+
+  useEffect(() => {
+    if (stage !== "home" || !schoolUrl) return
+    let unsub: (() => void) | null = null
+    try {
+      const Notifications = require("expo-notifications")
+      unsub = Notifications.addNotificationResponseReceivedListener((response: { notification: { request: { content: { data?: Record<string, string | number | boolean | null> } } } }) => {
+        const target = resolvePushTarget(response.notification.request.content.data)
+        if (!target) return
+        setPortal(target.portal)
+        setDeepLink(target)
+        setStage("portal")
+      })
+    } catch {
+      // Push listener is best-effort; ignore when expo-notifications is absent.
+    }
+    return () => {
+      if (unsub) unsub()
+    }
+  }, [stage, schoolUrl])
 
   return (
     <View style={styles.container}>
@@ -229,6 +265,7 @@ function Root() {
             theme={theme}
             onBack={handleClosePortal}
             onSessionExpired={handleSessionExpired}
+            initialView={deepLink?.portal === "parent" ? deepLink.view : undefined}
           />
         ) : portal === "student" ? (
           <StudentPortal
@@ -236,6 +273,7 @@ function Root() {
             theme={theme}
             onBack={handleClosePortal}
             onSessionExpired={handleSessionExpired}
+            initialView={deepLink?.portal === "student" ? deepLink.view : undefined}
           />
         ) : portal === "teacher" ? (
           <TeacherPortal
@@ -243,6 +281,7 @@ function Root() {
             theme={theme}
             onBack={handleClosePortal}
             onSessionExpired={handleSessionExpired}
+            initialView={deepLink?.portal === "teacher" ? deepLink.view : undefined}
           />
         ) : portal === "notifications" ? (
           <NotificationsScreen
@@ -250,6 +289,8 @@ function Root() {
             theme={theme}
             onBack={handleClosePortal}
             onSessionExpired={handleSessionExpired}
+            onOpenNotification={handleOpenNotification}
+            initialTab={deepLink?.portal === "notifications" ? deepLink.tab : undefined}
           />
         ) : portal === "security" ? (
           <SecurityScreen

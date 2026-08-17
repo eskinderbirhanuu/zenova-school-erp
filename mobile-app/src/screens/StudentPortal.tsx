@@ -22,6 +22,7 @@ interface StudentPortalProps {
   theme: SchoolTheme
   onBack: () => void
   onSessionExpired: () => void
+  initialView?: PortalView
 }
 
 type PortalView = "dashboard" | "assignments" | "exams" | "finance" | "documents"
@@ -32,9 +33,9 @@ const EXAMS_CACHE = "zenova.cache.student.exams"
 const FINANCE_CACHE = "zenova.cache.student.finance"
 const DOCUMENTS_CACHE = "zenova.cache.student.documents"
 
-export default function StudentPortal({ schoolUrl, theme, onBack, onSessionExpired }: StudentPortalProps) {
+export default function StudentPortal({ schoolUrl, theme, onBack, onSessionExpired, initialView }: StudentPortalProps) {
   const { t } = useI18n()
-  const [view, setView] = useState<PortalView>("dashboard")
+  const [view, setView] = useState<PortalView>(initialView ?? "dashboard")
 
   const dash = useCachedResource(
     useCallback(() => fetchStudentDashboard(schoolUrl), [schoolUrl]),
