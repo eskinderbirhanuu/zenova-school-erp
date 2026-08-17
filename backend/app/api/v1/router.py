@@ -68,4 +68,5 @@ router.include_router(currencies.router, prefix="/finance", tags=["currencies"])
 router.include_router(features.router, prefix="", tags=["features"])
 router.include_router(password_recovery.router, prefix="", tags=["password-recovery"])
 router.include_router(roles.router, prefix="", tags=["roles"])
+router.include_router(ws.router, prefix="", tags=["ws"])
 

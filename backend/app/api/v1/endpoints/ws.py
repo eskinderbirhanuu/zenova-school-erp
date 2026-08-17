@@ -7,8 +7,8 @@ router = APIRouter()
 
 
 @router.websocket("/ws/notifications")
-async def ws_notifications(websocket: WebSocket, token: str = Query(...)):
-    payload = decode_access_token(token)
+async def ws_notifications(websocket: WebSocket, token: str | None = Query(default=None)):
+    payload = _resolve_ws_user(websocket, token)
     if payload is None or payload.get("type") != "access":
         await websocket.close(code=4001)
         return
@@ -27,8 +27,8 @@ async def ws_notifications(websocket: WebSocket, token: str = Query(...)):
 
 
 @router.websocket("/ws/nfc-scans")
-async def ws_nfc_scans(websocket: WebSocket, token: str = Query(...)):
-    payload = decode_access_token(token)
+async def ws_nfc_scans(websocket: WebSocket, token: str | None = Query(default=None)):
+    payload = _resolve_ws_user(websocket, token)
     if payload is None or payload.get("type") != "access":
         await websocket.close(code=4001)
         return
@@ -40,3 +40,10 @@ async def ws_nfc_scans(websocket: WebSocket, token: str = Query(...)):
         scan_event_manager.disconnect("nfc-scans", websocket)
     except Exception:
         scan_event_manager.disconnect("nfc-scans", websocket)
+
+
+def _resolve_ws_user(websocket: WebSocket, token: str | None):
+    raw = token or websocket.cookies.get("access_token")
+    if not raw:
+        return None
+    return decode_access_token(raw)
