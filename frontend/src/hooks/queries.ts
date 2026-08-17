@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useApiQuery, useApiMutation } from "./use-api"
+import { useApiQuery, useApiMutation, unwrapPaginated } from "./use-api"
 import type {
   Student, Parent, Teacher, Staff,
   Class, Section, Subject, AcademicYear, Semester, Exam, ExamResult, TimetableEntry,
@@ -41,7 +41,10 @@ export function useLoginMutation() {
 // ─── Students ───────────────────────────────────────────
 
 export function useStudents(params?: Record<string, unknown>) {
-  return useApiQuery<Student[]>(["students", params], () => studentService.list(params))
+  return useApiQuery<Student[]>(["students", params], async () => {
+    const res = await studentService.list(params)
+    return unwrapPaginated<Student>(res.data)
+  })
 }
 
 export function useStudent(id?: string) {
@@ -267,7 +270,10 @@ export function useMyTimetable() {
 // ─── Branches ───────────────────────────────────────────
 
 export function useBranches(params?: Record<string, unknown>) {
-  return useApiQuery<(Branch & { student_count?: number })[]>(["branches", params], () => branchService.list(params))
+  return useApiQuery<(Branch & { student_count?: number })[]>(["branches", params], async () => {
+    const res = await branchService.list(params)
+    return unwrapPaginated<Branch & { student_count?: number }>(res.data)
+  })
 }
 
 export function useBranch(id?: string) {
@@ -289,7 +295,10 @@ export function useDeleteBranch() {
 // ─── Finance: Accounts ──────────────────────────────────
 
 export function useAccounts() {
-  return useApiQuery<Account[]>(["accounts"], () => financeService.accounts.list())
+  return useApiQuery<Account[]>(["accounts"], async () => {
+    const res = await financeService.accounts.list()
+    return unwrapPaginated<Account>(res.data)
+  })
 }
 
 export function useCreateAccount() {
@@ -319,7 +328,10 @@ export function useCreatePayment() {
 // ─── Finance: Fee Types & Structures ────────────────────
 
 export function useFeeTypes() {
-  return useApiQuery<FeeType[]>(["fee-types"], () => financeService.feeTypes.list())
+  return useApiQuery<FeeType[]>(["fee-types"], async () => {
+    const res = await financeService.feeTypes.list()
+    return unwrapPaginated<FeeType>(res.data)
+  })
 }
 
 export function useCreateFeeType() {
@@ -327,7 +339,10 @@ export function useCreateFeeType() {
 }
 
 export function useFeeStructures(params?: Record<string, unknown>) {
-  return useApiQuery<FeeStructure[]>(["fee-structures", params], () => financeService.feeStructures.list(params))
+  return useApiQuery<FeeStructure[]>(["fee-structures", params], async () => {
+    const res = await financeService.feeStructures.list(params)
+    return unwrapPaginated<FeeStructure>(res.data)
+  })
 }
 
 export function useCreateFeeStructure() {
@@ -337,7 +352,10 @@ export function useCreateFeeStructure() {
 // ─── Finance: Budgets ───────────────────────────────────
 
 export function useBudgets(params?: Record<string, unknown>) {
-  return useApiQuery<Budget[]>(["budgets", params], () => financeService.budgets.list(params))
+  return useApiQuery<Budget[]>(["budgets", params], async () => {
+    const res = await financeService.budgets.list(params)
+    return unwrapPaginated<Budget>(res.data)
+  })
 }
 
 export function useCreateBudget() {
@@ -367,7 +385,10 @@ export function useTrialBalance() {
 // ─── HR: Contracts ──────────────────────────────────────
 
 export function useContracts(params?: Record<string, unknown>) {
-  return useApiQuery<Contract[]>(["contracts", params], () => hrService.contracts.list(params))
+  return useApiQuery<Contract[]>(["contracts", params], async () => {
+    const res = await hrService.contracts.list(params)
+    return unwrapPaginated<Contract>(res.data)
+  })
 }
 
 export function useCreateContract() {
@@ -377,7 +398,10 @@ export function useCreateContract() {
 // ─── HR: Leave Requests ─────────────────────────────────
 
 export function useLeaveRequests(params?: Record<string, unknown>) {
-  return useApiQuery<LeaveRequest[]>(["leave-requests", params], () => hrService.leaveRequests.list(params))
+  return useApiQuery<LeaveRequest[]>(["leave-requests", params], async () => {
+    const res = await hrService.leaveRequests.list(params)
+    return unwrapPaginated<LeaveRequest>(res.data)
+  })
 }
 
 export function useCreateLeaveRequest() {
@@ -395,7 +419,10 @@ export function useRejectLeaveRequest() {
 // ─── HR: Attendance ─────────────────────────────────────
 
 export function useAttendance(params?: Record<string, unknown>) {
-  return useApiQuery<Attendance[]>(["attendance", params], () => hrService.attendance.list(params))
+  return useApiQuery<Attendance[]>(["attendance", params], async () => {
+    const res = await hrService.attendance.list(params)
+    return unwrapPaginated<Attendance>(res.data)
+  })
 }
 
 export function useMarkAttendance() {
@@ -419,7 +446,10 @@ export function useCreateInventoryCategory() {
 // ─── Inventory: Items ───────────────────────────────────
 
 export function useInventoryItems(params?: Record<string, unknown>) {
-  return useApiQuery<InventoryItem[]>(["inventory", "items", params], () => inventoryService.items.list(params))
+  return useApiQuery<InventoryItem[]>(["inventory", "items", params], async () => {
+    const res = await inventoryService.items.list(params)
+    return unwrapPaginated<InventoryItem>(res.data)
+  })
 }
 
 export function useCreateInventoryItem() {
@@ -433,7 +463,10 @@ export function useUpdateInventoryItem() {
 // ─── Inventory: Stock Movements ─────────────────────────
 
 export function useStockMovements(params?: Record<string, unknown>) {
-  return useApiQuery<StockMovement[]>(["inventory", "stock-movements", params], () => inventoryService.stockMovements.list(params))
+  return useApiQuery<StockMovement[]>(["inventory", "stock-movements", params], async () => {
+    const res = await inventoryService.stockMovements.list(params)
+    return unwrapPaginated<StockMovement>(res.data)
+  })
 }
 
 export function useCreateStockMovement() {
@@ -453,7 +486,10 @@ export function useCreateSupplier() {
 // ─── Library: Books ─────────────────────────────────────
 
 export function useBooks(params?: Record<string, unknown>) {
-  return useApiQuery<Book[]>(["library", "books", params], () => libraryService.books.list(params))
+  return useApiQuery<Book[]>(["library", "books", params], async () => {
+    const res = await libraryService.books.list(params)
+    return unwrapPaginated<Book>(res.data)
+  })
 }
 
 export function useCreateBook() {
@@ -463,7 +499,10 @@ export function useCreateBook() {
 // ─── Library: Borrowings ────────────────────────────────
 
 export function useBorrowings(params?: Record<string, unknown>) {
-  return useApiQuery<Borrowing[]>(["library", "borrowings", params], () => libraryService.borrowings.list(params))
+  return useApiQuery<Borrowing[]>(["library", "borrowings", params], async () => {
+    const res = await libraryService.borrowings.list(params)
+    return unwrapPaginated<Borrowing>(res.data)
+  })
 }
 
 export function useBorrowBook() {
@@ -477,7 +516,10 @@ export function useReturnBook() {
 // ─── Cafeteria ──────────────────────────────────────────
 
 export function useCafeteriaProducts(params?: Record<string, unknown>) {
-  return useApiQuery<CafeteriaProduct[]>(["cafeteria", "products", params], () => cafeteriaService.products.list(params))
+  return useApiQuery<CafeteriaProduct[]>(["cafeteria", "products", params], async () => {
+    const res = await cafeteriaService.products.list(params)
+    return unwrapPaginated<CafeteriaProduct>(res.data)
+  })
 }
 
 export function useCreateCafeteriaProduct() {
@@ -485,7 +527,10 @@ export function useCreateCafeteriaProduct() {
 }
 
 export function useCafeteriaOrders(params?: Record<string, unknown>) {
-  return useApiQuery<CafeteriaOrder[]>(["cafeteria", "orders", params], () => cafeteriaService.orders.list(params))
+  return useApiQuery<CafeteriaOrder[]>(["cafeteria", "orders", params], async () => {
+    const res = await cafeteriaService.orders.list(params)
+    return unwrapPaginated<CafeteriaOrder>(res.data)
+  })
 }
 
 export function useCreateCafeteriaOrder() {
@@ -557,7 +602,10 @@ export function useCreateCorporateDepartment() {
 }
 
 export function useCorporateEmployees(params?: Record<string, unknown>) {
-  return useApiQuery<CorporateEmployee[]>(["corporate", "employees", params], () => corporateService.employees.list(params))
+  return useApiQuery<CorporateEmployee[]>(["corporate", "employees", params], async () => {
+    const res = await corporateService.employees.list(params)
+    return unwrapPaginated<CorporateEmployee>(res.data)
+  })
 }
 
 export function useCorporateEmployee(id?: string) {
@@ -579,7 +627,10 @@ export function useDeleteCorporateEmployee() {
 // ─── Audit ──────────────────────────────────────────────
 
 export function useAuditLogs(params?: Record<string, unknown>) {
-  return useApiQuery<AuditLog[]>(["audit-logs", params], () => auditService.list(params))
+  return useApiQuery<AuditLog[]>(["audit-logs", params], async () => {
+    const res = await auditService.list(params)
+    return unwrapPaginated<AuditLog>(res.data)
+  })
 }
 
 // ─── Notifications ──────────────────────────────────────
@@ -725,7 +776,10 @@ export function useWalletTransactions(params?: Record<string, unknown>) {
 }
 
 export function usePerformanceReviews(params?: Record<string, unknown>) {
-  return useApiQuery<any[]>(["performance-reviews", params], () => hrService.performanceReviews.list(params))
+  return useApiQuery<any[]>(["performance-reviews", params], async () => {
+    const res = await hrService.performanceReviews.list(params)
+    return unwrapPaginated<any>(res.data)
+  })
 }
 
 export function useRecruitment(params?: Record<string, unknown>) {
@@ -809,7 +863,10 @@ export function useLibraryReports() {
 }
 
 export function useCalendarEvents(params?: Record<string, unknown>) {
-  return useApiQuery<any[]>(["calendar", "events", params], () => api.get("/events", { params }))
+  return useApiQuery<any[]>(["calendar", "events", params], async () => {
+    const res = await api.get("/events", { params })
+    return unwrapPaginated<any>(res.data)
+  })
 }
 
 export function useProcurementItems(endpoint: string) {
@@ -821,7 +878,10 @@ export function useStudentAssignments(params?: Record<string, unknown>) {
 }
 
 export function useMessages(params?: Record<string, unknown>) {
-  return useApiQuery<any[]>(["messages", params], () => api.get("/messages", { params }))
+  return useApiQuery<any[]>(["messages", params], async () => {
+    const res = await api.get("/messages", { params })
+    return unwrapPaginated<any>(res.data)
+  })
 }
 
 export function useParentPaymentsDashboard() {

@@ -23,7 +23,7 @@ export default function NewRegistrarPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await createStaff({ full_name: form.name, email: form.email, phone: form.phone, password: form.password, role: "registrar" } as any)
+      await createStaff({ full_name: form.name, email: form.email, phone: form.phone, password: form.password, role_name: "REGISTRAR" } as any)
       toast({ title: "Registrar account created successfully" })
       setSuccess(true)
       setTimeout(() => router.push("/director/registrars"), 1500)

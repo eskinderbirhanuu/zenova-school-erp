@@ -9,7 +9,7 @@ import { useStaff } from "@/hooks/queries"
 
 export default function AdminDirectors() {
   const [search, setSearch] = useState("")
-  const { data: rawDirectors, isLoading, error } = useStaff({ role: "director" })
+  const { data: rawDirectors, isLoading, error } = useStaff({ role_name: "DIRECTOR" })
 
   useEffect(() => {
     if (error) {
@@ -17,7 +17,7 @@ export default function AdminDirectors() {
     }
   }, [error])
 
-  const directors = (rawDirectors || []).map((d: any) => ({ ...d, department: d.department || d.role || "—" }))
+  const directors = (rawDirectors || []).map((d: any) => ({ ...d, name: d.full_name || d.name, department: d.department || d.role || "—" }))
   const filtered = directors.filter((d: any) => !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.email.toLowerCase().includes(search.toLowerCase()))
 
   return (

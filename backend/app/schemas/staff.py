@@ -6,7 +6,7 @@ class StaffCreate(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=255)
     email: str = Field(..., max_length=255)
     phone: str = Field(..., max_length=50)
-    role_name: str = Field(..., pattern="^(REGISTRAR|FINANCE|HR|INVENTORY|LIBRARY|CAFETERIA|AUDITOR)$")
+    role_name: str = Field(..., pattern="^(DIRECTOR|REGISTRAR|FINANCE|HR|INVENTORY|LIBRARY|CAFETERIA|AUDITOR)$")
     department: str | None = None
     employment_date: date | None = None
     photo_url: str | None = None

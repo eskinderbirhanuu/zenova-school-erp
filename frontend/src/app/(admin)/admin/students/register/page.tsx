@@ -25,7 +25,7 @@ export default function StudentRegistrationPage() {
   })
 
   const { data: classes } = useClasses()
-  const { data: sections } = useSections(form.class_id ? { class_id: form.class_id } : undefined)
+  const { data: sections } = useSections(form.class_id ? { class_id: form.class_id } : undefined, { enabled: !!form.class_id })
   const { data: academicYears } = useAcademicYears()
   const { mutateAsync: createStudent } = useCreateStudent()
   const { mutateAsync: createParent } = useCreateParent()

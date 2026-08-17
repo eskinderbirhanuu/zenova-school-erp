@@ -20,19 +20,19 @@ export const ROLE_DASHBOARD: Record<string, string> = {
   ZENOVA_SUPPORT: "/corporate/dashboard",
 }
 
-/** URL prefixes each role is allowed to access. */
+/** URL prefixes each role is allowed to access. Mirrors ROUTE_GROUP_ACCESS below (server-side guard). */
 export const ROLE_PREFIXES: Record<string, string[]> = {
-  SUPER_ADMIN: ["/super-admin", "/platform"],
-  ADMIN: ["/admin"],
-  DIRECTOR: ["/director"],
+  SUPER_ADMIN: ["/super-admin", "/platform", "/admin", "/audit", "/cafeteria", "/corporate", "/director", "/finance", "/hr", "/inventory", "/library", "/registrar", "/teacher"],
+  ADMIN: ["/admin", "/audit", "/cafeteria", "/corporate", "/director", "/finance", "/hr", "/inventory", "/library", "/registrar", "/teacher"],
+  DIRECTOR: ["/director", "/cafeteria", "/finance", "/hr", "/inventory", "/library", "/registrar", "/teacher"],
   REGISTRAR: ["/registrar"],
   TEACHER: ["/teacher"],
-  FINANCE: ["/finance"],
+  FINANCE: ["/finance", "/inventory"],
   INVENTORY: ["/inventory"],
   HR: ["/hr"],
   LIBRARY: ["/library"],
   CAFETERIA: ["/cafeteria"],
-  AUDITOR: ["/audit"],
+  AUDITOR: ["/audit", "/finance"],
   PARENT: ["/parent"],
   STUDENT: ["/student"],
   ZENOVA_CORPORATE_ADMIN: ["/corporate"],

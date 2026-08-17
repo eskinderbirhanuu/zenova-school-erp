@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
 import { toast } from "@/hooks/use-toast"
 import { staffService } from "@/services/api"
+import type { Staff } from "@/types/api"
 import { UserCog, Loader2, CheckCircle2, ArrowLeft, Mail, Phone, Briefcase } from "lucide-react"
 import Link from "next/link"
 
@@ -23,7 +24,7 @@ export default function NewDirectorPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await staffService.create({ ...form, role: "director" })
+      await staffService.create({ full_name: form.name, email: form.email, phone: form.phone, department: form.department, password: form.password, role_name: "DIRECTOR" } as Partial<Staff>)
       toast({ title: "Director created successfully" })
       setSuccess(true)
       setTimeout(() => router.push("/admin/directors"), 1500)

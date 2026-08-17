@@ -23,7 +23,7 @@ export default function NewStaffPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await createStaff({ full_name: form.name, email: form.email, phone: form.phone, department: form.department, role: form.role, password: form.password } as any)
+      await createStaff({ full_name: form.name, email: form.email, phone: form.phone, department: form.department, role_name: form.role, password: form.password } as any)
       toast({ title: "Staff account created successfully" })
       setSuccess(true)
       setTimeout(() => router.push("/director/staff"), 1500)
@@ -92,7 +92,16 @@ export default function NewStaffPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Role</label>
-                <Input placeholder="e.g. Secretary" value={form.role} onChange={e => update({ role: e.target.value })} required />
+                <select value={form.role} onChange={e => update({ role: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" required>
+                  <option value="">Select role</option>
+                  <option value="REGISTRAR">Registrar</option>
+                  <option value="FINANCE">Finance</option>
+                  <option value="HR">HR</option>
+                  <option value="INVENTORY">Inventory</option>
+                  <option value="LIBRARY">Library</option>
+                  <option value="CAFETERIA">Cafeteria</option>
+                  <option value="AUDITOR">Auditor</option>
+                </select>
               </div>
             </div>
             <div className="space-y-2">

@@ -10,6 +10,7 @@ from app.core.audit import log_audit
 
 
 ROLE_MAP = {
+    "DIRECTOR": "DIRECTOR",
     "REGISTRAR": "REGISTRAR",
     "FINANCE": "FINANCE",
     "HR": "HR",
@@ -71,6 +72,7 @@ def create_staff(
         staff_id=staff_id,
         department=department,
         employment_date=employment_date,
+        school_id=school_id,
     )
     db.add(profile)
     log_audit(

@@ -5,7 +5,7 @@ import { useStudents } from "@/hooks/queries"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { GenericListPage } from "@/components/ui/generic-list-page"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { Plus, Upload } from "lucide-react"
 
 export default function AdminStudentsPage() {
   const router = useRouter()
@@ -35,9 +35,14 @@ export default function AdminStudentsPage() {
       emptyTitle="No students enrolled"
       onRowClick={(r) => router.push(`/admin/students/${r.id}`)}
       actions={
-        <Button onClick={() => router.push("/admin/students/register")}>
-          <Plus className="mr-2 h-4 w-4" /> Register New
-        </Button>
+        <>
+          <Button variant="outline" onClick={() => router.push("/registrar/students/import")}>
+            <Upload className="mr-2 h-4 w-4" /> Import
+          </Button>
+          <Button onClick={() => router.push("/admin/students/register")}>
+            <Plus className="mr-2 h-4 w-4" /> Register New
+          </Button>
+        </>
       }
     />
   )
