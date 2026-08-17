@@ -26,6 +26,7 @@ export default function NewSchool() {
   const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [website, setWebsite] = useState("")
+  const [logoUrl, setLogoUrl] = useState("")
   const [licenseKey, setLicenseKey] = useState(generateLicenseKey())
   const [maxBranches, setMaxBranches] = useState("5")
   const [success, setSuccess] = useState(false)
@@ -38,6 +39,7 @@ export default function NewSchool() {
       await setupService.createSchool({
         name, code, address: address || undefined, phone: phone || undefined,
         email: email || undefined, website: website || undefined,
+        logo_url: logoUrl || undefined,
         max_branches: parseInt(maxBranches) || 5,
         license_key: licenseKey,
       })
@@ -105,6 +107,10 @@ export default function NewSchool() {
               <div className="space-y-2">
                 <Label htmlFor="website">Website</Label>
                 <Input id="website" placeholder="https://school.com" value={website} onChange={(e) => setWebsite(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="logoUrl">Logo URL</Label>
+                <Input id="logoUrl" placeholder="https://school.com/logo.png" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="maxBranches">Max Branches</Label>

@@ -104,6 +104,7 @@ def create_license(
             valid_from=data.valid_from,
             valid_until=data.valid_until,
             max_users=data.max_users,
+            school_id=data.school_id,
         )
         return LicenseResponse.model_validate(license_record)
     except ValueError as e:

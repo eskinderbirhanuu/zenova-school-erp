@@ -25,6 +25,7 @@ def _make_license(**kwargs):
         "valid_until": datetime.now(timezone.utc) + timedelta(days=335),
         "max_users": 1000,
         "school_id": "school-1",
+        "branch_id": None,
         "machine_fingerprint": None,
         "hardware_id": None,
         "tpm_sealed_data": None,
@@ -117,6 +118,228 @@ class TestLicenseStatus:
         result = get_license_status(db, "school-nonexistent")
 
         assert result is None
+
+
+class TestCreateLicense:
+    def test_create_license_stores_school_id(self, db):
+        """Regression: POST /licenses sent school_id but the schema/service dropped it."""
+        from app.services.license_service import create_license
+        db.query.return_value.filter.return_value.first.return_value = None
+        lic = _make_license()
+        db.add.return_value = None
+        db.refresh.return_value = None
+
+        with patch("app.services.license_service.License", return_value=lic) as m:
+            result = create_license(db, "ZNV-TEST-1234-5678", "main", school_id="school-9")
+
+        assert result is lic
+        assert m.call_args.kwargs.get("school_id") == "school-9"
+        assert m.call_args.kwargs.get("license_type") == LicenseType.MAIN
+
+    def test_create_license_accepts_capitalized_type(self, db):
+        """Regression: UI sends 'Main'/'Branch' — enum value is lowercase."""
+        from app.services.license_service import create_license
+        db.query.return_value.filter.return_value.first.return_value = None
+        lic = _make_license()
+        db.add.return_value = None
+        db.refresh.return_value = None
+
+        with patch("app.services.license_service.License", return_value=lic) as m:
+            result = create_license(db, "ZNV-TEST-1234-5678", "Main")
+
+        assert result is lic
+        assert m.call_args.kwargs.get("license_type") == LicenseType.MAIN
+
+    def test_create_license_rejects_unknown_type(self, db):
+        from app.services.license_service import create_license
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        with pytest.raises(ValueError):
+            create_license(db, "ZNV-TEST-1234-5678", "bogus_type")
+
+    def test_create_license_duplicate_key_raises(self, db):
+        from app.services.license_service import create_license
+        from app.core.exceptions import ConflictException
+        db.query.return_value.filter.return_value.first.return_value = _make_license()
+
+        with pytest.raises(ConflictException):
+            create_license(db, LEGACY_KEY, "main")
+
+
+class TestCreateSchoolWithLicense:
+    def test_create_school_with_license_key_creates_license(self, db):
+        """Regression: /setup/school accepted license_key but never created a License row."""
+        from app.services.license_service import create_school
+        from app.models.license import License
+
+        db.query.return_value.filter.return_value.first.side_effect = [None, None]
+        school = MagicMock()
+        school.id = "school-new-1"
+        db.add.return_value = None
+        db.flush.return_value = None
+        db.commit.return_value = None
+        db.refresh.return_value = None
+
+        with patch("app.services.license_service.School", return_value=school) as m_school, \
+             patch("app.services.license_service.License", return_value=MagicMock(spec=License)) as m_lic, \
+             patch("app.services.license_service.log_audit"):
+            result = create_school(db, "Test School", "TS001", license_key="ZNV-MAIN-1234-5678")
+
+        assert result is school
+        assert m_lic.call_args.kwargs.get("key") == "ZNV-MAIN-1234-5678"
+        assert m_lic.call_args.kwargs.get("license_type") == LicenseType.MAIN
+        assert m_lic.call_args.kwargs.get("school_id") == "school-new-1"
+        assert school.main_license_key == "ZNV-MAIN-1234-5678"
+
+    def test_create_school_without_license_key_creates_no_license(self, db):
+        from app.services.license_service import create_school
+
+        db.query.return_value.filter.return_value.first.side_effect = [None]
+        school = MagicMock()
+        school.id = "school-new-2"
+        db.add.return_value = None
+        db.flush.return_value = None
+        db.commit.return_value = None
+        db.refresh.return_value = None
+
+        with patch("app.services.license_service.School", return_value=school) as m_school, \
+             patch("app.services.license_service.License") as m_lic, \
+             patch("app.services.license_service.log_audit"):
+            create_school(db, "Test School", "TS002")
+
+        m_lic.assert_not_called()
+
+    def test_create_school_stores_website_and_logo(self, db):
+        from app.services.license_service import create_school
+
+        db.query.return_value.filter.return_value.first.side_effect = [None]
+        school = MagicMock()
+        db.add.return_value = None
+        db.flush.return_value = None
+        db.commit.return_value = None
+        db.refresh.return_value = None
+
+        with patch("app.services.license_service.School", return_value=school) as m_school, \
+             patch("app.services.license_service.log_audit"):
+            create_school(db, "Test School", "TS003",
+                          website="https://school.com", logo_url="https://school.com/logo.png")
+
+        assert m_school.call_args.kwargs.get("website") == "https://school.com"
+        assert m_school.call_args.kwargs.get("logo_url") == "https://school.com/logo.png"
+
+    def test_create_school_duplicate_license_key_raises(self, db):
+        from app.services.license_service import create_school
+        from app.core.exceptions import ConflictException
+
+        db.query.return_value.filter.return_value.first.side_effect = [None, _make_license()]
+        school = MagicMock()
+        school.id = "school-new-3"
+        db.flush.return_value = None
+
+        with patch("app.services.license_service.School", return_value=school), \
+             patch("app.services.license_service.log_audit"):
+            with pytest.raises(ConflictException):
+                create_school(db, "Test School", "TS004", license_key=LEGACY_KEY)
+
+
+class TestSchoolsEndpointBugs:
+    def test_list_schools_has_no_motto_or_func_import_bug(self):
+        """Regression: GET /schools 500'd — School model has no motto column and
+        `func` was not imported for the branch-count aggregation."""
+        import inspect
+        from app.api.v1.endpoints import schools as schools_module
+
+        src = inspect.getsource(schools_module)
+        assert "from sqlalchemy import func" in src
+        assert "school.motto" not in src
+
+    def test_list_schools_serializes_website_and_logo(self):
+        from app.api.v1.endpoints.schools import _school_to_dict
+
+        school = MagicMock()
+        school.id = "school-1"
+        school.name = "Test"
+        school.code = "T001"
+        school.address = "addr"
+        school.phone = "123"
+        school.email = "a@b.c"
+        school.website = "https://t.com"
+        school.logo_url = "https://t.com/logo.png"
+        school.is_active = True
+        school.is_setup_complete = True
+        school.created_at = None
+
+        result = _school_to_dict(school, 2)
+
+        assert result["website"] == "https://t.com"
+        assert result["logo_url"] == "https://t.com/logo.png"
+        assert result["branch_count"] == 2
+
+
+class TestLicenseSchemaTypes:
+    def test_license_response_max_users_is_int(self):
+        """Regression: LicenseResponse.max_users was str but the column is Integer —
+        model_validate() on GET /licenses 500'd with real rows (value 100)."""
+        from app.schemas.license import LicenseResponse
+
+        lic = MagicMock()
+        lic.id = "lic-1"
+        lic.key = "ZNV-TEST-1234-5678"
+        lic.license_type = "main"
+        lic.status = "active"
+        lic.school_id = None
+        lic.branch_id = None
+        lic.valid_from = datetime(2026, 1, 1)
+        lic.valid_until = None
+        lic.max_users = 100
+        lic.created_at = datetime(2026, 1, 1)
+        lic.updated_at = datetime(2026, 1, 1)
+
+        resp = LicenseResponse.model_validate(lic)
+
+        assert resp.max_users == 100
+        assert isinstance(resp.max_users, int)
+    def test_endpoint_passes_school_id(self):
+        """Regression: POST /licenses endpoint never forwarded school_id to the service."""
+        from app.api.v1.endpoints.licenses import create_license
+
+        data = MagicMock()
+        data.key = "ZNV-ENDPT-1234-5678"
+        data.license_type = "Main"
+        data.valid_from = None
+        data.valid_until = None
+        data.max_users = None
+        data.school_id = "school-9"
+
+        lic = _make_license(branch_id=None, max_users="1000")
+        db = MagicMock()
+        db.commit.return_value = None
+        db.refresh.return_value = None
+
+        with patch("app.api.v1.endpoints.licenses.license_service.create_license", return_value=lic) as m:
+            result = create_license(data=data, db=db, current_user=MagicMock(is_superuser=True))
+
+        assert result.school_id == "school-1"
+        assert m.call_args.kwargs.get("school_id") == "school-9"
+
+    def test_endpoint_school_id_none_passes_none(self):
+        from app.api.v1.endpoints.licenses import create_license
+
+        data = MagicMock()
+        data.key = "ZNV-ENDPT-1234-5678"
+        data.license_type = "branch"
+        data.valid_from = None
+        data.valid_until = None
+        data.max_users = None
+        data.school_id = None
+
+        lic = _make_license(branch_id=None, max_users="1000")
+        db = MagicMock()
+
+        with patch("app.api.v1.endpoints.licenses.license_service.create_license", return_value=lic) as m:
+            create_license(data=data, db=db, current_user=MagicMock(is_superuser=True))
+
+        assert m.call_args.kwargs.get("school_id") is None
 
 
 class TestFingerprintBinding:

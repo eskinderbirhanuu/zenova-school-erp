@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -25,9 +25,10 @@ class LicenseActivateResponse(BaseModel):
 class LicenseCreateRequest(BaseModel):
     key: str = Field(..., min_length=10, max_length=255)
     license_type: str = "trial"
+    school_id: str | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
-    max_users: str | None = None
+    max_users: int | None = None
 
 
 class LicenseStatusUpdate(BaseModel):
@@ -43,7 +44,7 @@ class LicenseResponse(BaseModel):
     branch_id: str | None
     valid_from: datetime
     valid_until: datetime | None
-    max_users: str | None
+    max_users: int | None
     created_at: datetime
     updated_at: datetime
 
@@ -61,6 +62,9 @@ class SchoolCreateRequest(BaseModel):
     address: str | None = None
     phone: str | None = None
     email: str | None = None
+    website: str | None = None
+    logo_url: str | None = None
+    license_key: str | None = None
 
 
 class SchoolResponse(BaseModel):
@@ -70,6 +74,9 @@ class SchoolResponse(BaseModel):
     address: str | None
     phone: str | None
     email: str | None
+    website: str | None
+    logo_url: str | None
+    main_license_key: str | None
     is_active: bool
     is_setup_complete: bool
     created_at: datetime
@@ -134,7 +141,7 @@ class LicenseStatusResponse(BaseModel):
     status: str
     valid_from: datetime
     valid_until: datetime | None
-    max_users: str | None
+    max_users: int | None
     days_remaining: int | None
     is_expired: bool
 
@@ -228,7 +235,7 @@ class BranchWithLicenseRequest(BaseModel):
     school_id: str | None = None
 
 
-# ─── Activation Flow v2 ──────────────────────────────────
+# â”€â”€â”€ Activation Flow v2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class ValidateLicenseTypeRequest(BaseModel):
     key: str = Field(..., min_length=10, max_length=255)
@@ -309,7 +316,7 @@ class VerifyContactResponse(BaseModel):
 class ResetPasswordRequest(BaseModel):
     employee_id: str = Field(..., min_length=1, max_length=50)
     # A recovery code minted by an authenticated admin (or the license server).
-    # The license key alone is NO LONGER sufficient to reset a password — that
+    # The license key alone is NO LONGER sufficient to reset a password â€” that
     # design allowed full account takeover since license keys are widely shared.
     recovery_code: str = Field(..., min_length=10, max_length=512)
     new_password: str = Field(..., min_length=8, max_length=128)
@@ -331,7 +338,7 @@ class IssueRecoveryCodeResponse(BaseModel):
     message: str
 
 
-# ─── Device Change Review (Phase 2) ───────────────────────
+# â”€â”€â”€ Device Change Review (Phase 2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class DeviceChangeRequestResponse(BaseModel):
     id: str

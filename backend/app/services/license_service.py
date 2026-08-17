@@ -175,6 +175,7 @@ def create_license(
     valid_from: datetime | None = None,
     valid_until: datetime | None = None,
     max_users: str | None = None,
+    school_id: str | None = None,
 ) -> License:
     """Create a new license (SUPER_ADMIN only)"""
     existing = db.query(License).filter(License.key == key).first()
@@ -184,12 +185,13 @@ def create_license(
     if valid_from is None:
         valid_from = datetime.now(timezone.utc)
 
-    type_enum = LicenseType(license_type)
+    type_enum = LicenseType(license_type.strip().lower())
 
     license_record = License(
         key=key,
         license_type=type_enum,
         status=LicenseStatus.ACTIVE,
+        school_id=school_id,
         valid_from=valid_from,
         valid_until=valid_until,
         max_users=max_users,
@@ -233,7 +235,8 @@ def get_license_status(db: Session, school_id: str | None = None) -> License | N
 
 def create_school(db: Session, name: str, code: str, address: str | None = None,
                   phone: str | None = None, email: str | None = None,
-                  logo_url: str | None = None) -> School:
+                  logo_url: str | None = None, website: str | None = None,
+                  license_key: str | None = None) -> School:
     """Create a new school"""
     existing = db.query(School).filter(School.code == code).first()
     if existing:
@@ -246,9 +249,24 @@ def create_school(db: Session, name: str, code: str, address: str | None = None,
         phone=phone,
         email=email,
         logo_url=logo_url,
+        website=website,
     )
     db.add(school)
     db.flush()
+
+    if license_key:
+        existing_lic = db.query(License).filter(License.key == license_key).first()
+        if existing_lic:
+            raise ConflictException("License key already exists", code=ErrorCode.CONFLICT_LICENSE_EXISTS)
+        db.add(License(
+            key=license_key,
+            license_type=LicenseType.MAIN,
+            status=LicenseStatus.ACTIVE,
+            school_id=school.id,
+            valid_from=datetime.now(timezone.utc),
+        ))
+        school.main_license_key = license_key
+
     log_audit(
         db=db,
         user_id="system",

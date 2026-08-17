@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.v1.deps import get_current_user
@@ -16,7 +17,6 @@ class SchoolUpdate(BaseModel):
     address: str | None = None
     phone: str | None = None
     email: str | None = None
-    motto: str | None = None
 
 
 def _school_to_dict(school: School, branch_count: int) -> dict:
@@ -27,7 +27,8 @@ def _school_to_dict(school: School, branch_count: int) -> dict:
         "address": school.address,
         "phone": school.phone,
         "email": school.email,
-        "motto": school.motto,
+        "website": school.website,
+        "logo_url": school.logo_url,
         "is_active": school.is_active,
         "is_setup_complete": school.is_setup_complete,
         "branch_count": branch_count,
@@ -64,8 +65,6 @@ def update_my_school(
         school.phone = data.phone
     if data.email is not None:
         school.email = data.email
-    if data.motto is not None:
-        school.motto = data.motto
     db.commit()
     db.refresh(school)
     branch_count = db.query(Branch).filter(Branch.school_id == school.id).count()
