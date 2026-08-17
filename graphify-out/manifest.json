@@ -540,8 +540,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/license_service.py": {
-    "mtime": 1786272063.323377,
-    "ast_hash": "f715c2268a125da1b5a12928024daa68",
+    "mtime": 1786990731.739679,
+    "ast_hash": "218df18e8cc528cf1e02d2d058aa8d1b",
     "semantic_hash": ""
   },
   "backend/app/services/nfc_service.py": {
@@ -1680,8 +1680,8 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1786980188.336543,
-    "ast_hash": "2b778b40cb6dfb1b0ea1ee2c2cd32880",
+    "mtime": 1786994094.4739563,
+    "ast_hash": "0b7f7aee93d3659044a2622a2d3271f9",
     "semantic_hash": ""
   },
   "backend/docker-compose.yml": {
@@ -6690,8 +6690,8 @@
     "semantic_hash": ""
   },
   "frontend/src/config/roles.ts": {
-    "mtime": 1786976525.9445152,
-    "ast_hash": "bfd8c140197543fdaa32eef48ac0e0d9",
+    "mtime": 1786984005.603235,
+    "ast_hash": "358c8a1706b486d505ef67c036326915",
     "semantic_hash": ""
   },
   "frontend/src/hooks/use-features.ts": {
@@ -8964,79 +8964,9 @@
     "ast_hash": "3c200efc246bc9d80b5896e78f5828da",
     "semantic_hash": ""
   },
-  "frontend/pw_admin_flow.js": {
-    "mtime": 1786953748.1088707,
-    "ast_hash": "69a40dd6301a3530089ffa8caf565136",
-    "semantic_hash": ""
-  },
-  "frontend/pw_dbg_branch.js": {
-    "mtime": 1786953386.4112968,
-    "ast_hash": "c37f2eab7fd6d1edd874e6f6470758e9",
-    "semantic_hash": ""
-  },
-  "frontend/pw_dbg_directors.js": {
-    "mtime": 1786969089.36301,
-    "ast_hash": "c4ef0a774fe96dd7a0309695c8266e3a",
-    "semantic_hash": ""
-  },
-  "frontend/pw_dbg_import.js": {
-    "mtime": 1786969208.7902045,
-    "ast_hash": "f7c2e0c9897917db41edf312abbcc36a",
-    "semantic_hash": ""
-  },
-  "frontend/pw_dbg_login.js": {
-    "mtime": 1786950058.7205043,
-    "ast_hash": "ee5d462f241b5aff5806ff6091281301",
-    "semantic_hash": ""
-  },
-  "frontend/pw_dbg_students.js": {
-    "mtime": 1786954474.3829103,
-    "ast_hash": "c82bb150047b256498271e4843eb0373",
-    "semantic_hash": ""
-  },
-  "frontend/pw_dir.js": {
-    "mtime": 1786947181.4936762,
-    "ast_hash": "d2bad6cc104da60f9506b1d24b2c26c2",
-    "semantic_hash": ""
-  },
-  "frontend/pw_full.js": {
-    "mtime": 1786968954.8473456,
-    "ast_hash": "15fe457367cc906af05da3ee340bd6f3",
-    "semantic_hash": ""
-  },
-  "frontend/pw_student_reg.js": {
-    "mtime": 1786954377.3707108,
-    "ast_hash": "88efd76fe5fa7bc4b4e6488bf5d68919",
-    "semantic_hash": ""
-  },
-  "frontend/pw_superadmin_flow.js": {
-    "mtime": 1786954001.6860657,
-    "ast_hash": "704488538f93d9bcd657579e43a5592b",
-    "semantic_hash": ""
-  },
   "mobile-app/src/services/deepLink.ts": {
     "mtime": 1786979143.8911953,
     "ast_hash": "8ee67b9dceca679e2dc16fbceb54596e",
-    "semantic_hash": ""
-  },
-  "frontend/shot_branch.png": {
-    "mtime": 1786968929.6827457,
-    "ast_hash": "cebce157754988cbd841844abaa590f2",
-    "semantic_hash": ""
-  },
-  "frontend/shot_director_submit.png": {
-    "mtime": 1786947244.7980266,
-    "ast_hash": "500cb9c2082dfe7b963613132068713f",
-    "semantic_hash": ""
-  },
-  "frontend/shot_login_fail.png": {
-    "mtime": 1786951744.563131,
-    "ast_hash": "e3b1e5f124edea6974ab68ca25653fc3",
-    "semantic_hash": ""
-  },
-  "frontend/shot_new_admin.png": {
-    "mtime": 1786978978.601563,
-    "ast_hash": "edd1e5321d7b3de499686a7395bae092",
     "semantic_hash": ""
   }
 }
