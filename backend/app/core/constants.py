@@ -82,6 +82,9 @@ CSRF_EXEMPT_PATHS = frozenset({
     "/api/v1/activate/status",
     "/api/v1/activate/recovery/issue",
     "/api/v1/activate/recovery/reset",
+    "/api/v1/license/ping",
+    "/api/v1/license/school-verify",
+    "/api/v1/heartbeat",
 })
 
 CSRF_EXEMPT_PREFIXES = ("/api/v1/auth/verify-super-admin",)

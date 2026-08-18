@@ -59,6 +59,7 @@ services:
       CORS_ORIGINS: "https://${DOMAIN},http://localhost:3000"
       ZENOVA_LICENSE_KEY: ${ZENOVA_LICENSE_KEY:-}
       ZENOVA_LICENSE_SERVER: ${ZENOVA_LICENSE_SERVER:-https://superadmin.free.nf}
+      LICENSE_SERVER_URL: ${ZENOVA_LICENSE_SERVER:-https://superadmin.free.nf}
       SCHOOL_ID: ${SCHOOL_ID:-}
       MASTER_SETUP_KEY: ${MASTER_SETUP_KEY:-}
     volumes:

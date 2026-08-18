@@ -211,8 +211,15 @@ def bulk_import_students(
             d["student_id"] = id_service.generate_id(db, "student", forced_school_id)
         d["school_id"] = forced_school_id
         d.setdefault("registered_by", current_user.id)
-    students = student_service.bulk_create_students(db, data)
-    return {"message": f"{len(students)} students imported", "count": len(students)}
+    result = student_service.bulk_create_students(db, data)
+    created = result["created"]
+    errors = result["errors"]
+    message = f"{len(created)} students imported"
+    if errors:
+        message += f". {len(errors)} row(s) skipped: {errors[0]}"
+        if len(errors) > 1:
+            message += f" (+{len(errors) - 1} more)"
+    return {"message": message, "count": len(created), "errors": errors}
 
 
 @router.post("/students/import-excel", status_code=status.HTTP_201_CREATED)
@@ -232,8 +239,15 @@ def import_students_excel(
             d["student_id"] = id_service.generate_id(db, "student", forced_school_id)
         d["school_id"] = forced_school_id
         d.setdefault("registered_by", current_user.id)
-    students = student_service.bulk_create_students(db, data)
-    return {"message": f"{len(students)} students imported", "count": len(students)}
+    result = student_service.bulk_create_students(db, data)
+    created = result["created"]
+    errors = result["errors"]
+    message = f"{len(created)} students imported"
+    if errors:
+        message += f". {len(errors)} row(s) skipped: {errors[0]}"
+        if len(errors) > 1:
+            message += f" (+{len(errors) - 1} more)"
+    return {"message": message, "count": len(created), "errors": errors}
 
 
 @router.get("/students/export-excel")
@@ -243,9 +257,9 @@ def export_students_excel(
 ):
     include_deleted = current_user.can_include_deleted()
     students = student_service.search_students(db, school_id=current_user.school_id, limit=5000, include_deleted=include_deleted)
-    headers = ["Student ID", "First Name", "Middle Name", "Last Name", "Gender", "Date of Birth",
-               "Grade ID", "Section ID", "Status", "Address", "Nationality", "Blood Group",
-               "Emergency Contact", "Admission Date", "Stream", "Medical Notes"]
+    headers = ["student_id", "first_name", "middle_name", "last_name", "gender", "date_of_birth",
+               "grade_id", "section_id", "status", "address", "nationality", "blood_group",
+               "emergency_contact", "admission_date", "stream", "medical_notes"]
     rows = []
     for s in students:
         rows.append([

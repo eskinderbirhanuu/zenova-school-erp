@@ -55,6 +55,8 @@ function Field({ label, name, type = "text", required, placeholder, options, cla
         <textarea
           name={name}
           rows={3}
+          value={(form as any)[name] ?? ""}
+          onChange={handleChange}
           className="flex w-full rounded-xl border border-border/60 bg-background/80 px-4 py-3 text-sm backdrop-blur-sm resize-none
             focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-200"
           placeholder={placeholder}
@@ -62,6 +64,8 @@ function Field({ label, name, type = "text", required, placeholder, options, cla
       ) : (
         <div className="relative">
           <Input name={name} type={type} required={required} placeholder={placeholder}
+            value={(form as any)[name] ?? ""}
+            onChange={handleChange}
             className="h-11 rounded-xl border-border/60 bg-background/80 backdrop-blur-sm
               focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all duration-200" />
         </div>
@@ -80,7 +84,7 @@ export default function RegisterStudentPage() {
   const { data: classes } = useClasses()
   const [mounted, setMounted] = useState(false)
 
-  const [form] = useState({
+  const [form, setForm] = useState({
     first_name: "", middle_name: "", last_name: "",
     gender: "", date_of_birth: "",
     grade_id: "", section_id: "",
@@ -103,6 +107,10 @@ export default function RegisterStudentPage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true) }, [])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setForm((prev: any) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
 
   const searchParents = useCallback((q: string) => {
     if (q.length < 2) { setParentResults([]); return }
@@ -196,17 +204,17 @@ export default function RegisterStudentPage() {
         <div className="grid gap-5 md:grid-cols-2">
           <SectionCard icon={User} title="Personal Information">
             <FieldGroup>
-              <Field label="First Name" name="first_name" required placeholder="Abebe" />
-              <Field label="Middle Name" name="middle_name" placeholder="Kebede" />
-              <Field label="Last Name" name="last_name" required placeholder="Girma" />
-              <Field label="Gender" name="gender" type="select" required options={[{value:"male",label:"Male"},{value:"female",label:"Female"}]} />
-              <Field label="Date of Birth" name="date_of_birth" type="date" required />
-              <Field label="Nationality" name="nationality" placeholder="Ethiopian" />
-              <Field label="Blood Group" name="blood_group" type="select" options={["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(b=>({value:b,label:b}))} />
-              <Field label="Emergency Contact" name="emergency_contact" placeholder="+251 9xx xxx xxx" />
+              <Field label="First Name" name="first_name" required placeholder="Abebe" form={form} handleChange={handleChange} />
+              <Field label="Middle Name" name="middle_name" placeholder="Kebede" form={form} handleChange={handleChange} />
+              <Field label="Last Name" name="last_name" required placeholder="Girma" form={form} handleChange={handleChange} />
+              <Field label="Gender" name="gender" type="select" required options={[{value:"male",label:"Male"},{value:"female",label:"Female"}]} form={form} handleChange={handleChange} />
+              <Field label="Date of Birth" name="date_of_birth" type="date" required form={form} handleChange={handleChange} />
+              <Field label="Nationality" name="nationality" placeholder="Ethiopian" form={form} handleChange={handleChange} />
+              <Field label="Blood Group" name="blood_group" type="select" options={["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(b=>({value:b,label:b}))} form={form} handleChange={handleChange} />
+              <Field label="Emergency Contact" name="emergency_contact" placeholder="+251 9xx xxx xxx" form={form} handleChange={handleChange} />
             </FieldGroup>
             <div className="mt-4">
-              <Field label="Address" name="address" placeholder="Full address" />
+              <Field label="Address" name="address" placeholder="Full address" form={form} handleChange={handleChange} />
             </div>
           </SectionCard>
 
@@ -214,16 +222,19 @@ export default function RegisterStudentPage() {
             <SectionCard icon={GraduationCap} title="Academic Information">
               <div className="space-y-4">
                 <Field label="Grade / Class" name="grade_id" type="select"
-                  options={(classes || []).map((c: any) => ({value: c.id, label: c.name}))} />
+                  options={(classes || []).map((c: any) => ({value: c.id, label: c.name}))}
+                  form={form} handleChange={handleChange} />
                 <Field label="Section" name="section_id" type="select"
-                  options={(sectionsData || []).map((s: any) => ({value: s.id, label: s.name}))} />
+                  options={(sectionsData || []).map((s: any) => ({value: s.id, label: s.name}))}
+                  form={form} handleChange={handleChange} />
                 <Field label="Stream" name="stream" type="select"
-                  options={[{value:"natural",label:"Natural Science"},{value:"social",label:"Social Science"},{value:"language",label:"Language"},{value:"vocational",label:"Vocational"}]} />
+                  options={[{value:"natural",label:"Natural Science"},{value:"social",label:"Social Science"},{value:"language",label:"Language"},{value:"vocational",label:"Vocational"}]}
+                  form={form} handleChange={handleChange} />
               </div>
             </SectionCard>
 
             <SectionCard icon={Heart} title="Health Information">
-              <Field label="Medical Notes" name="medical_notes" type="textarea" placeholder="Allergies, chronic conditions, medications, etc." />
+              <Field label="Medical Notes" name="medical_notes" type="textarea" placeholder="Allergies, chronic conditions, medications, etc." form={form} handleChange={handleChange} />
             </SectionCard>
           </div>
 

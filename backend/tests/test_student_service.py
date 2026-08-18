@@ -271,16 +271,18 @@ class TestTransferStudent:
 class TestBulkCreateStudents:
     def test_bulk_create(self):
         db = MagicMock()
-        students_data = [{"student_id": "STU-01", "first_name": "A"}, {"student_id": "STU-02", "first_name": "B"}]
+        students_data = [{"student_id": "STU-01", "first_name": "A", "last_name": "B", "gender": "male"},
+                         {"student_id": "STU-02", "first_name": "C", "last_name": "D", "gender": "female"}]
         with patch("app.services.student_service.enqueue_sync"):
             result = student_service.bulk_create_students(db, students_data)
-            assert len(result) == 2
+            assert len(result["created"]) == 2
+            assert len(result["errors"]) == 0
             assert db.add.call_count == 2
             assert db.commit.called
 
     def test_bulk_create_enqueues_sync_per_student(self):
         db = MagicMock()
-        students_data = [{"student_id": "STU-01", "first_name": "A", "school_id": "school-1"}]
+        students_data = [{"student_id": "STU-01", "first_name": "A", "last_name": "B", "gender": "male", "school_id": "school-1"}]
         with patch("app.services.student_service.enqueue_sync") as mock_sync:
             student_service.bulk_create_students(db, students_data)
             assert mock_sync.called
@@ -288,7 +290,43 @@ class TestBulkCreateStudents:
     def test_bulk_create_empty_list(self):
         db = MagicMock()
         result = student_service.bulk_create_students(db, [])
-        assert result == []
+        assert result["created"] == []
+        assert result["errors"] == []
+
+    def test_bulk_create_defaults_admission_date(self):
+        db = MagicMock()
+        students_data = [{"student_id": "STU-01", "first_name": "A", "last_name": "B",
+                          "gender": "male", "date_of_birth": "2010-01-15"}]
+        with patch("app.services.student_service.enqueue_sync"):
+            result = student_service.bulk_create_students(db, students_data)
+            assert len(result["created"]) == 1
+            added = db.add.call_args[0][0]
+            assert added.admission_date is not None
+
+    def test_bulk_create_skips_invalid_rows_with_error(self):
+        db = MagicMock()
+        students_data = [
+            {"student_id": "STU-01", "first_name": "A", "last_name": "B", "gender": "male"},
+            {"student_id": "STU-02", "first_name": "C", "last_name": "", "gender": "male"},
+            {"student_id": "STU-03", "first_name": "", "last_name": "D", "gender": "male"},
+            {"student_id": "STU-04", "first_name": "E", "last_name": "F", "gender": "male",
+             "date_of_birth": "not-a-date"},
+        ]
+        with patch("app.services.student_service.enqueue_sync"):
+            result = student_service.bulk_create_students(db, students_data)
+            assert len(result["created"]) == 1
+            assert len(result["errors"]) == 3
+            assert "Row 2" in result["errors"][0]
+            assert "Row 4" in result["errors"][-1]
+
+    def test_bulk_create_ignores_unknown_columns(self):
+        db = MagicMock()
+        students_data = [{"student_id": "STU-01", "first_name": "A", "last_name": "B",
+                          "gender": "male", "totally_unknown_col": "x"}]
+        with patch("app.services.student_service.enqueue_sync"):
+            result = student_service.bulk_create_students(db, students_data)
+            assert len(result["created"]) == 1
+            assert len(result["errors"]) == 0
 
 
 class TestPromoteStudent:

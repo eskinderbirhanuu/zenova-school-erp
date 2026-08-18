@@ -52,7 +52,7 @@ def iga_health_summary(
                 "is_trusted": s.is_trusted,
                 "sync_enabled": s.sync_enabled,
                 "vps_url": s.vps_url,
-                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "registered_at": s.registered_at.isoformat() if s.registered_at else None,
             }
             for s in server_rows
         ],

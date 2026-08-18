@@ -8,6 +8,29 @@ import { toast } from "@/hooks/use-toast"
 import { Upload, Download, CheckCircle, AlertCircle, FileSpreadsheet } from "lucide-react"
 import Link from "next/link"
 
+function parseCsvLine(line: string): string[] {
+  const result: string[] = []
+  let current = ""
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { current += '"'; i++ } else { inQuotes = false }
+      } else { current += ch }
+    } else if (ch === '"') {
+      inQuotes = true
+    } else if (ch === ",") {
+      result.push(current.trim())
+      current = ""
+    } else {
+      current += ch
+    }
+  }
+  result.push(current.trim())
+  return result
+}
+
 export default function StudentImportPage() {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<any[]>([])
@@ -34,9 +57,9 @@ export default function StudentImportPage() {
       const text = evt.target?.result as string
       const lines = text.split("\n").filter(l => l.trim())
       if (lines.length < 2) { toast({ title: "CSV must have header + at least 1 row", variant: "destructive" }); return }
-      const headers = lines[0].split(",").map(h => h.trim().replace(/"/g, ""))
+      const headers = parseCsvLine(lines[0]).map(h => h.replace(/"/g, ""))
       const rows = lines.slice(1, 11).filter(l => l.trim()).map(line => {
-        const vals = line.split(",").map(v => v.trim().replace(/"/g, ""))
+        const vals = parseCsvLine(line)
         const row: Record<string, string> = {}
         headers.forEach((h, i) => { row[h] = vals[i] || "" })
         return row
@@ -99,9 +122,9 @@ export default function StudentImportPage() {
       const text = evt.target?.result as string
       const lines = text.split("\n").filter(l => l.trim())
       if (lines.length < 2) { toast({ title: "Invalid CSV", variant: "destructive" }); setImporting(false); return }
-      const headers = lines[0].split(",").map(h => h.trim().replace(/"/g, ""))
+      const headers = parseCsvLine(lines[0]).map(h => h.replace(/"/g, ""))
       const rows = lines.slice(1).map(line => {
-        const vals = line.split(",").map(v => v.trim().replace(/"/g, ""))
+        const vals = parseCsvLine(line)
         const row: Record<string, any> = {}
         headers.forEach((h, i) => { row[h] = vals[i] || null })
         return row

@@ -236,21 +236,56 @@ def transfer_student(db: Session, student_id: str, grade_id: str, section_id: st
     return student
 
 
-def bulk_create_students(db: Session, students_data: list[dict]) -> list[Student]:
+def bulk_create_students(db: Session, students_data: list[dict]) -> dict:
+    from datetime import date as _date
     created = []
-    for data in students_data:
-        student = Student(**data)
-        db.add(student)
-        created.append(student)
-    db.commit()
-    for s in created:
-        db.refresh(s)
-        school_id = getattr(s, "school_id", None)
-        branch_id = getattr(s, "branch_id", None)
-        enqueue_sync(db, "students", s.id, "CREATE",
-                     {"student_id": s.student_id, "first_name": s.first_name, "last_name": s.last_name},
-                     school_id, branch_id)
-    return created
+    errors = []
+    valid_columns = {
+        "student_id", "first_name", "middle_name", "last_name", "gender",
+        "date_of_birth", "grade_id", "section_id", "academic_year_id",
+        "address", "nationality", "stream", "medical_notes", "blood_group",
+        "photo_url", "emergency_contact", "admission_date", "status",
+        "school_id", "branch_id", "registered_by", "user_id",
+    }
+    for idx, data in enumerate(students_data, start=1):
+        clean = {}
+        for k, v in data.items():
+            if k in valid_columns and v is not None and str(v).strip() != "":
+                clean[k] = v
+        if not clean.get("first_name") or not clean.get("last_name"):
+            errors.append(f"Row {idx}: first_name and last_name are required")
+            continue
+        if not clean.get("gender"):
+            errors.append(f"Row {idx}: gender is required")
+            continue
+        for date_field in ("date_of_birth", "admission_date"):
+            if clean.get(date_field):
+                try:
+                    clean[date_field] = _date.fromisoformat(str(clean[date_field])[:10])
+                except ValueError:
+                    errors.append(f"Row {idx}: {date_field} must be YYYY-MM-DD")
+                    break
+        else:
+            clean.setdefault("admission_date", _date.today())
+        if errors and errors[-1].startswith(f"Row {idx}"):
+            continue
+        try:
+            student = Student(**clean)
+            db.add(student)
+            created.append(student)
+        except Exception as exc:
+            db.rollback()
+            errors.append(f"Row {idx}: {str(exc)}")
+    if created:
+        db.commit()
+        for s in created:
+            db.refresh(s)
+            school_id = getattr(s, "school_id", None)
+            branch_id = getattr(s, "branch_id", None)
+            enqueue_sync(db, "students", s.id, "CREATE",
+                         {"student_id": s.student_id, "first_name": s.first_name, "last_name": s.last_name},
+                         school_id, branch_id)
+    return {"created": created, "errors": errors}
 
 
 def promote_student(db: Session, student_id: str, to_grade_id: str, academic_year_id: str, school_id: str = None, user_id: str = None, include_deleted: bool = False) -> Student | None:
