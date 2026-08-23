@@ -127,6 +127,5 @@ export const PUBLIC_ROUTES = [
   "/cookies",
   "/license",
   "/recovery",
-  "/recovery/codes",
-  "/recovery/emergency",
+  "/runtime-config.js",
 ]

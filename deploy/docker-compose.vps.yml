@@ -82,6 +82,10 @@ services:
     expose:
       - "3000"
     environment:
+      # Server-side (middleware) API base + identity, read at runtime. Client API
+      # base/mode come from /runtime-config.js (public/, per-server editable).
+      ZENOVA_API_URL: "${ZENOVA_API_URL:-http://backend:8000/api/v1}"
+      ZENOVA_APP_MODE: "${ZENOVA_APP_MODE:-school}"
       NEXT_PUBLIC_API_URL: "${DOMAIN_URL}/api/v1"
       NEXT_PUBLIC_WS_URL: "wss://${DOMAIN}/ws"
     healthcheck:

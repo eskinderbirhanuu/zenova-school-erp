@@ -29,7 +29,9 @@ MFA_REQUIRED_ROLES = frozenset({"SUPER_ADMIN", "FINANCE"})
 MFA_VALID_WINDOW = 1
 
 # ─── Heartbeat ────────────────────────────────────────────────────────
-HEARTBEAT_INTERVAL_HOURS = 6
+# 1h interval: org receives fleet telemetry + remote-control directives
+# (suspend/force_verify) within ≤1h of an org-side license action.
+HEARTBEAT_INTERVAL_HOURS = 1
 
 # ─── Webhook Retry ────────────────────────────────────────────────────
 WEBHOOK_MAX_RETRIES = 3

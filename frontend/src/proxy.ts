@@ -8,7 +8,27 @@ import {
   canAccessRoute,
 } from "@/config/roles"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
+// Server-side (middleware) API base: ZENOVA_API_URL is read at runtime (set per-server
+// in compose, e.g. http://backend:8000/api/v1) so middleware fetches don't depend on
+// the build-time NEXT_PUBLIC_API_URL.
+const API_URL = process.env.ZENOVA_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
+
+// Server identity: "school" (default) or "org" (ZENOVA Control Center).
+// Enforced server-side so redirects happen before any page renders; the client
+// runtime-config.js (APP_MODE) covers client-side reads.
+const APP_MODE = process.env.ZENOVA_APP_MODE || "school"
+const isOrg = APP_MODE === "org"
+
+// School route groups — blocked on org servers (org staff see org only).
+const SCHOOL_ROUTE_PREFIXES = [
+  "/admin", "/registrar", "/teacher", "/finance", "/hr", "/inventory",
+  "/library", "/cafeteria", "/auditor", "/director", "/corporate",
+  "/parent", "/student",
+]
+
+function isSchoolRoute(pathname: string): boolean {
+  return SCHOOL_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))
+}
 
 async function checkSetupComplete(): Promise<boolean> {
   try {
@@ -37,9 +57,26 @@ export async function proxy(request: NextRequest) {
     pathname === "/favicon.ico" ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js" ||
+    pathname === "/runtime-config.js" ||
     pathname.startsWith("/icons/")
   ) {
     return NextResponse.next()
+  }
+
+  // Mode-aware public-route redirects (server identity separation):
+  // - org server: school login → org login; school installer branches → org installer
+  // - school server: org login/installer → school login/installer
+  if (isOrg && pathname === "/login") {
+    return NextResponse.redirect(new URL("/super-admin/login", request.url))
+  }
+  if (isOrg && (pathname === "/installer" || pathname === "/installer/school" || pathname === "/installer/main" || pathname === "/installer/branch")) {
+    return NextResponse.redirect(new URL("/installer/super-admin", request.url))
+  }
+  if (!isOrg && pathname === "/super-admin/login") {
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
+  if (!isOrg && (pathname === "/installer" || pathname === "/installer/super-admin")) {
+    return NextResponse.redirect(new URL("/installer/school", request.url))
   }
 
   if (PUBLIC_ROUTES.some((r: any) => pathname === r || pathname.startsWith(r + "/"))) {
@@ -72,13 +109,22 @@ export async function proxy(request: NextRequest) {
     if (!setupComplete) {
       return NextResponse.next()
     }
-    return NextResponse.redirect(new URL("/login", request.url))
+    return NextResponse.redirect(new URL(isOrg ? "/super-admin/login" : "/login", request.url))
   }
 
   if (!accessToken || allRoles.length === 0) {
-    const loginUrl = new URL("/login", request.url)
+    const loginUrl = new URL(isOrg ? "/super-admin/login" : "/login", request.url)
     loginUrl.searchParams.set("redirect", pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Server-identity gating (after auth): org servers block school routes,
+  // school servers block the entire /super-admin/* area.
+  if (isOrg && isSchoolRoute(pathname)) {
+    return NextResponse.redirect(new URL("/super-admin/dashboard", request.url))
+  }
+  if (!isOrg && (pathname === "/super-admin" || pathname.startsWith("/super-admin/"))) {
+    return NextResponse.redirect(new URL("/login", request.url))
   }
 
   const allowed = canAccessRoute(allRoles, pathname)
@@ -106,5 +152,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons/.*|runtime-config.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 }

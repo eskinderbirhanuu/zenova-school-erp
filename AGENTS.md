@@ -116,6 +116,37 @@ Rules:
 - **ORG↔SCHOOL LICENSE AUTHORITY LIVE (2026-08-18, backend v4 `3a38fa7b80e5`, commit `961d2cb`)**: the school's import was locked ("View only mode. Cannot use import without a valid license" PERM_001) because `validate_license_at_startup` cloud-verifies against `settings.license_server_url` and the seeded key `ZNV-AAAA-1111-BBBB-2222` doesn't exist on the Render license server. **Fix = org serves the license-authority contract**: new `backend/app/api/v1/endpoints/license_authority.py` — `GET /license/ping` (`{"status":"ok"}`), `POST /license/school-verify` (SchoolVerifyRequest/Response → delegates `license_service.verify_license`, returns `valid/license_type/status/valid_until/max_users`), `POST /heartbeat` (HMAC-verified when `SYNC_SECRET` set; accepts without secret). Registered in `router.py` (prefix ""); CSRF-exempt paths added in `constants.py` (`/api/v1/license/ping`, `/api/v1/license/school-verify`, `/api/v1/heartbeat` — machine-to-machine). Tests `backend/tests/test_license_authority.py` (6, MagicMock-style — real-DB `drop_all` raises CircularDependencyError so conftest must mock); full suite **546 passed**. **3 deploy gotchas found live**: (1) **compose passes `ZENOVA_LICENSE_SERVER` but pydantic-settings reads `LICENSE_SERVER_URL`** → the school silently fell back to the default `superadmin.free.nf` (fixed: compose now maps `LICENSE_SERVER_URL: ${ZENOVA_LICENSE_SERVER:-...}`); (2) **self-signed HTTPS broke httpx verify** (`CERTIFICATE_VERIFY_FAILED`) → VM org nginx now proxies `/api/v1/license/` + `/api/v1/heartbeat` over plain HTTP on port 80 (in `deploy/nginx.conf`); (3) **Redis `license:status` cache (TTL 1800s) holds stale failures** → after fixing the URL, clear with `docker exec deploy-redis-1 redis-cli -a $REDIS_PASSWORD DEL license:status` or restart backend. Verified end-to-end: org `school-verify` → `{"valid":true,"license_type":"main","status":"active"}`; heartbeat → ok; invalid key → `{"valid":false,"message":"License key not found"}`; school startup log → "License is valid (cloud verified)"; **bulk-import 2 students → `{"message":"2 students imported"}`** (payload is a RAW LIST, not `{students:[...]}`); register flow → student `STU-2026-00003` created (gender enum `male|female` lowercase, `address` is a string not object). Physical: `ZENOVA_LICENSE_SERVER=http://10.223.249.133` (org), backend `67185800ecb0`, frontend fe10 `9c5832dbe56a` recreated; VM org: backend v4 + nginx recreated with license proxy. Git `961d2cb` pushed.
 - **FRESH INSTALL DEMO GREEN (2026-08-17, deployed backend `0318a03fd4d8` + frontend fe7 `799d119cbcc7`)**: full clean-install browser flow verified on the VM. **DB was fully reset** (backup `/home/p/zenova_prod_backup_20260817_161805.sql`; DROP SCHEMA + alembic head `e5f6a7b8c9d0`; `/data/server_id.json` removed) and seeded with local licenses `SAL-1111-2222-3333` (SUPER_ADMIN) + `ZNV-AAAA-1111-BBBB-2222` (MAIN) — **enum stores member names** (`SUPER_ADMIN`/`ACTIVE`, not `super_admin`); license verification is LOCAL (DB lookup, no cloud call). **3 bugs found & fixed**: (1) `/installer*` missing from `PUBLIC_ROUTES` in `roles.ts` → middleware redirected fresh-install to /login (fe7, `799d119cbcc7`); (2) `license_service.py:122` naive-vs-aware datetime TypeError (seeded `valid_until` has no tzinfo) → 500 on super-admin activation — same bug class as grace_period_enforcer/license_crypto, this instance was missed (backend rebuild `0318a03fd4d8`); (3) installer rate limit `installer_init` = 3/3600s hits fast during testing → clear `ratelimit:*` keys in redis (`redis-cli -a $REDIS_PASSWORD --scan --pattern 'ratelimit:*'`). Demo results (real browser): installer selection → super-admin form → **wrong master key rejected** ("Invalid master setup key") → correct key (`M7WrFCuNEh3pLJ5OISnURfjtZ4VvksX8GzixKy6mHPBoglcD` from `/home/p/deploy/.env.vps`) + SAL license → **"Super Admin Activated!"** with server ID (SRV-) → installer redirects to /login by design (layout checks `server_identity_exists`). Login → MFA bootstrap auto-flow (`/auth/mfa/bootstrap/setup` + `/verify` with TOTP from DB secret) → **/super-admin/dashboard 200**. School path (`/installer/school`) redirects to /login on a SUPER_ADMIN server by design (school install is a separate machine). Test-user quirk: `iga@zenova.app`/`DryrunTest123!` — roleadmin@zenova.app no longer exists (DB reset). Playwright gotcha that wasted time: master-key input is `type="password"` (masked), so `input[type="password"]` selector matches the master-key field FIRST — must use `input[placeholder="Min 8 characters"]` for the real password. Git: `d3854f2..b5e0fcc` committed (installer PUBLIC_ROUTES + license_service tz fix).
 
+- **APP_MODE SEPARATION — Org vs School (2026-08-23)**: Complete product split — single codebase, two deploy-time identities via `APP_MODE`:
+  - **School mode** (`APP_MODE=school`): installer → School ID + License Key; login → `/login`; `/super-admin/*` blocked (307→`/login`); school routes only
+  - **Org mode** (`APP_MODE=org`): installer → Super Admin + Master Key; login → `/super-admin/login`; school routes blocked (307→`/super-admin/dashboard`); org routes only
+  - **Runtime config**: nginx serves `/runtime-config.js` (bypasses middleware) with `API_URL: "/api/v1", APP_MODE: "school|org"`
+  - **Middleware** (`proxy.ts`): reads `ZENOVA_APP_MODE` env, enforces redirects before page render
+  - **Installer page**: auto-redirects to correct branch (no choice presented)
+  - **Compose env**: `ZENOVA_APP_MODE` + `ZENOVA_API_URL` in `docker-compose.vps.yml`
+  - **Typecheck**: 0 new errors (30 pre-existing)
+  - **Deployed**: Physical school server (192.168.1.6) = school mode; VM org (10.195.176.133) = org mode
+
+- **REMOTE LICENSE CONTROL — Heartbeat + Control Channel (2026-08-23)**:
+  - **SchoolHeartbeat model + migration** `ab1c2d3e4f50`: org persists every heartbeat (server_id, school_code, version, license_key, ip, status, received_at)
+  - **Heartbeat interval**: 6h → **1h** (`HEARTBEAT_INTERVAL_HOURS = 1`) for faster control propagation
+  - **Control directives**: Org heartbeat response carries `{suspend, force_verify, message}` derived from license status (suspended/revoked/expired → suspend; status change → force_verify; school deactivated → suspend)
+  - **School applies control**: `apply_remote_control()` in `heartbeat_service.py` → writes `license:status` to Redis (300s TTL for suspend, deletes cache for force_verify)
+  - **Schools Overview endpoint** (`GET /api/v1/schools/overview`): org sees all schools with online/offline, last_seen, version, license status
+  - **Org Schools UI**: Updated page with Online, Version, License columns (StatusBadge with variants)
+  - **Tests**: 546 backend tests passed (incl. new license_authority, heartbeat, schools overview)
+
+- **ONE-COMMAND INSTALLER** (`deploy/install.sh`): `curl -fsSL ... | sudo bash` — installs Docker, generates secure `.env.vps`, loads images (local `--images` dir or registry), generates SSL, starts stack, runs migrations, prints URLs
+
+- **NGINX RUNTIME CONFIG**: Serves `/runtime-config.js` directly (bypasses Next.js middleware), returns `window.__RUNTIME_CONFIG__ = { API_URL: "/api/v1", APP_MODE: "school" }` — org server overrides via docker cp
+
+- **DEPLOYED & VERIFIED** (Physical 192.168.1.6 = school mode):
+  - `/installer` → 307 `/installer/school`
+  - `/super-admin/login` → 307 `/login`
+  - `/runtime-config.js` → `APP_MODE: "school"`
+  - `/api/v1/health/live` → `{"status":"alive"}`
+  - All 7 containers healthy (db, redis, backend, frontend, nginx, sync-worker, backup-worker)
+  - Backend `v5` + Frontend `fe11` images loaded
+
 ### Remaining for production readiness
 - Intermittent `auth.setup` 401 flake: root-caused to the standalone server serving an empty login shell when `.next/static` is missing after rebuild (fixed + documented above); `auth.setup.ts` de-instrumented after 3 consecutive full-suite passes
 - APU future cycles (NOT implemented — docs exist, code must not be fabricated): sync engine, offline-first ERP, device/session management, backup, analytics, privacy, audit logs, deployment docs. All 16 APU docs are in `docs/` (indexed in `docs/README.md`); `APU_GAPS_AND_DEPENDENCIES.md` classifies open gaps and `APU_IMPLEMENTATION_PLAN.md` sequences them.
@@ -136,5 +167,18 @@ Rules:
 - `frontend/src/components/dashboard/` — 14 shared widget components + shell + registry
 - `frontend/e2e/` — 10 Playwright E2E test files
 - `deploy/deploy.sh` — Deployment script (school|cc|license modes)
-- `backend/alembic/versions/9663cee3ff8a_fix_string_to_integer_types.py` — Latest fix migration
-- `docs/` — 16 documentation files
+- `deploy/install.sh` — One-command school installer
+- `deploy/nginx.conf` — Runtime config + license/heartbeat proxies + WS
+- `backend/alembic/versions/ab1c2d3e4f50_add_school_heartbeats.py` — Heartbeat persistence migration
+- `backend/app/api/v1/endpoints/license_authority.py` — Org license authority + heartbeat + control
+- `backend/app/services/heartbeat_service.py` — School-side control application
+- `backend/app/models/heartbeat.py` — SchoolHeartbeat model
+- `frontend/src/lib/runtime-config.ts` — Runtime config (getApiUrl, getAppMode)
+- `frontend/src/proxy.ts` — Middleware APP_MODE gating
+- `frontend/src/config/roles.ts` — PUBLIC_ROUTES + runtime-config.js
+- `frontend/public/runtime-config.js` — Per-server config (no rebuild)
+- `frontend/src/app/(installer)/installer/page.tsx` — Mode-aware installer
+- `docs/APP_MODES.md` — Org vs School separation
+- `docs/REMOTE_CONTROL.md` — Heartbeat + control channel
+- `docs/DEPLOYMENT.md` — Updated with one-command install + runtime config
+- `docs/` — 18 documentation files

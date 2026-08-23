@@ -28,11 +28,73 @@ Six services orchestrated by Docker Compose:
 | `backup-worker` | postgres:16-alpine | Scheduled daily pg_dump to `/backups` (7-day retention) |
 | `certbot` | certbot/certbot | SSL renewal (profile: `ssl`, checked every 12h) |
 
-## Quick Start
+## Quick Start — One-Command Install (Recommended)
+
+### School Server (Physical)
+
+```bash
+# As root on fresh Ubuntu 22.04/24.04
+curl -fsSL https://zenova.example/install.sh | sudo bash
+# Or with local images (USB/offline):
+sudo bash install.sh --images /path/to/images --domain 192.168.1.100
+```
+
+The installer (`deploy/install.sh`):
+1. Installs Docker + Compose (if missing)
+2. Generates secure `.env.vps` with random passwords
+3. Loads images (from local `--images` dir or registry)
+4. Generates self-signed SSL cert
+5. Starts stack with `docker compose up -d`
+6. Runs migrations
+7. Prints URLs for installer + login
+
+**After install:**
+```bash
+# Open browser
+https://<domain>/installer
+# → School ID + License Key → Admin account → Login → Dashboard
+```
+
+### Control Center (Org Server)
+
+```bash
+# Separate VM/VPS for ZENOVA organization
+cp deploy/.env.cc.example deploy/.env.cc
+# Edit CC_DOMAIN, CC_DB_PASSWORD, CC_SECRET_KEY, CC_ADMIN_EMAIL
+./deploy/deploy.sh cc
+```
+
+---
+
+## Traditional Deploy (Manual)
+
+### System Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| RAM | 2 GB | 4 GB |
+| CPU | 2 cores | 4 cores |
+| Disk | 20 GB | 50 GB SSD |
+| OS | Ubuntu 22.04 LTS | Ubuntu 24.04 LTS |
+| Docker | 24+ with Compose plugin | Latest |
+| Network | Static IP (DHCP reservation) | Static IP |
+
+### Docker Stack
+
+Six services orchestrated by Docker Compose:
+
+| Service | Image | Role |
+|---------|-------|------|
+| `nginx` | nginx:1.26-alpine | Reverse proxy (port 80/443), TLS termination, rate limiting |
+| `db` | postgres:16-alpine | Primary database, automated pg_dump backups |
+| `redis` | redis:7-alpine | Cache, session store, rate limiter, sync queue |
+| `backend` | zenova/backend | FastAPI application server (health-checked) |
+| `frontend` | zenova/frontend | Next.js 16 server (health-checked) |
+| `sync-worker` | zenova/backend | Async sync queue processor |
+| `backup-worker` | postgres:16-alpine | Scheduled daily pg_dump to `/backups` (7-day retention) |
+| `certbot` | certbot/certbot | SSL renewal (profile: `ssl`, checked every 12h) |
 
 ### 1. First-time Server Setup
-
-Run once on a fresh Ubuntu server:
 
 ```bash
 # As root
@@ -43,7 +105,7 @@ What this does:
 - Updates system packages
 - Installs Docker + Docker Compose plugin + PHP CLI
 - Creates `zenova` user, adds to `docker` group
-- Creates `/home/zenova/zenova/` directory
+- Creates `/opt/zenova/` directory
 - Copies deployment files (compose, nginx config, SSL)
 - Loads pre-built Docker images from `zenova-backend-*.tar.gz` / `zenova-frontend-*.tar.gz`
 - Installs systemd service for auto-start on boot
@@ -53,18 +115,17 @@ What this does:
 ### 2. Environment Configuration
 
 ```bash
-# VPS (internet-connected)
+# School server (VPS or on-prem)
 cp deploy/.env.vps.example deploy/.env.vps
-# Edit: DOMAIN, DB_PASSWORD, REDIS_PASSWORD, SECRET_KEY
+# Edit: DOMAIN, DB_PASSWORD, REDIS_PASSWORD, SECRET_KEY, ZENOVA_APP_MODE=school
 nano deploy/.env.vps
 
-# On-prem (air-gapped, school LAN)
-cp deploy/.env.vps.example deploy/.env.vps
-# Edit: SERVER_IP instead of DOMAIN, same secrets
-nano deploy/.env.vps
+# Org server (Control Center)
+cp deploy/.env.cc.example deploy/.env.cc
+# Edit CC_DOMAIN, CC_DB_PASSWORD, CC_SECRET_KEY, CC_ADMIN_EMAIL
 ```
 
-**Required variables:**
+**Required variables (School):**
 | Variable | Purpose | Example |
 |----------|---------|---------|
 | `DOMAIN` | Server domain or IP | `school.zenova.et` or `192.168.1.100` |
@@ -72,8 +133,16 @@ nano deploy/.env.vps
 | `REDIS_PASSWORD` | Redis password (32+ chars) | Random string |
 | `SECRET_KEY` | JWT signing key (64+ chars) | Random string |
 | `ZENOVA_LICENSE_KEY` | License key (fill after purchase) | `ZNV-A1B2-C3D4-E5F6-ABCD` |
-| `ZENOVA_LICENSE_SERVER` | License validation server | `https://superadmin.free.nf` |
+| `ZENOVA_LICENSE_SERVER` | License validation server (org) | `https://org.zenova.et` |
 | `SCHOOL_ID` | School ID (from control center) | UUID |
+| `ZENOVA_APP_MODE` | Server identity | `school` |
+| `ZENOVA_API_URL` | Middleware API base | `http://backend:8000/api/v1` |
+
+**Required variables (Org):**
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `ZENOVA_APP_MODE` | Server identity | `org` |
+| `ZENOVA_API_URL` | Middleware API base | `http://backend:8000/api/v1` |
 
 ### 3. Deploy
 
@@ -92,6 +161,55 @@ nano deploy/.env.vps
 4. Runs `docker compose up -d`
 5. Waits for database readiness
 6. Runs Alembic migrations (`alembic upgrade head`)
+
+### 4. Runtime Config (nginx-served)
+
+`deploy/nginx.conf` serves `/runtime-config.js` directly:
+
+```nginx
+location /runtime-config.js {
+    add_header Content-Type application/javascript;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    return 200 "window.__RUNTIME_CONFIG__ = { API_URL: '/api/v1', APP_MODE: 'school' };";
+}
+```
+
+**Org server** must override this file (one-time docker cp):
+
+```bash
+# Content for org: APP_MODE: "org"
+docker cp runtime-config-org.js deploy-frontend-1:/app/public/runtime-config.js
+docker compose restart frontend nginx
+```
+
+### 5. SSL Certificate (VPS only)
+
+```bash
+# Replace self-signed cert with Let's Encrypt
+docker compose --profile ssl run certbot certonly \
+  --webroot -w /var/www/certbot \
+  -d your-domain.com
+
+# Nginx auto-picks up the new cert; no restart needed
+```
+
+### 6. License Activation
+
+After deployment, open the installer:
+
+```
+https://<server-ip>/installer
+```
+
+Flow:
+1. Enter **School ID + License Key** → system validates against org license server
+2. Create school profile (name, code, logo — auto-fetched from license)
+3. Create admin account
+4. (Optional) Enter Branch License Key for multi-branch
+5. Setup Wizard guides through: academic year → classes → sections → subjects → teachers
+6. System unlocked — login at `https://<server-ip>/login`
+
+Internet is required for first activation (org license server validation). After activation, the system runs fully offline with a 45-day grace period.
 
 ### 4. SSL Certificate (VPS only)
 

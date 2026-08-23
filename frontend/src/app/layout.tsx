@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import Script from "next/script"
 import { Providers } from "@/services/providers"
 import { AuthProvider } from "@/services/auth-context"
 import { Toaster } from "@/components/layout/toaster"
@@ -33,6 +34,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          src="/runtime-config.js"
+          strategy="beforeInteractive"
+          id="runtime-config"
+        />
+      </head>
       <body>
         <Providers>
           <AuthProvider>

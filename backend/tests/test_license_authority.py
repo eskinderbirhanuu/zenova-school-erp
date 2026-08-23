@@ -82,6 +82,7 @@ class TestLicenseAuthority:
         from app.api.v1.endpoints.license_authority import license_heartbeat
         from app.api.v1.endpoints.license_authority import HeartbeatPayload
 
+        db = MagicMock()
         result = license_heartbeat(
             HeartbeatPayload(
                 server_id="SRV-TEST-0001",
@@ -91,8 +92,9 @@ class TestLicenseAuthority:
                 license_key="ZNV-AAAA-1111-BBBB-2222",
             ),
             request=MagicMock(),
+            db=db,
         )
-        assert result["status"] == "ok"
+        assert result.status == "ok"
 
     def test_heartbeat_rejects_bad_hmac(self):
         from app.api.v1.endpoints.license_authority import license_heartbeat
@@ -100,10 +102,12 @@ class TestLicenseAuthority:
 
         with patch("app.api.v1.endpoints.license_authority.settings") as m:
             m.sync_secret = "test-secret"
+            db = MagicMock()
             result = license_heartbeat(
                 HeartbeatPayload(server_id="SRV-X", school_code="ETA82444"),
                 request=MagicMock(),
+                db=db,
                 x_server_id="SRV-X",
                 x_hmac_signature="deadbeef",
             )
-        assert result["status"] == "rejected"
+        assert result.status == "rejected"

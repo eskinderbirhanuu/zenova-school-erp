@@ -3,6 +3,7 @@ from app.database import Base
 from app.models.user import User
 from app.models.role import Role
 from app.models.server import ServerIdentity, ServerRole
+from app.models.heartbeat import SchoolHeartbeat
 from app.models.school import School
 from app.models.branch import Branch
 from app.models.license import License, LicenseType, LicenseStatus
