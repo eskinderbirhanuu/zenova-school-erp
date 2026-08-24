@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
+
 class Customer(Base):
     __tablename__ = "customers"
 
@@ -24,5 +25,10 @@ class Customer(Base):
     features: Mapped[str] = mapped_column(Text, default="{}")
     local_url: Mapped[str] = mapped_column(String(500), default="")
     local_url_label: Mapped[str] = mapped_column(String(255), default="")
+    # School-specific fields
+    school_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    school_type: Mapped[str] = mapped_column(String(20), default="main")
+    country: Mapped[str] = mapped_column(String(100), default="")
+    city: Mapped[str] = mapped_column(String(100), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

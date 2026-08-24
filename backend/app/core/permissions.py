@@ -115,11 +115,30 @@ ROLE_PERMISSIONS = {
 
 
 def get_role_permissions_from_db(role_name: str) -> Optional[list[str]]:
-    """Fetch permissions from role_permissions table.
+    """Fetch permissions from role_permissions table with Redis caching.
+    
+    Uses Redis to cache role permissions for 5 minutes to avoid
+    creating a new DB connection on every permission check.
 
     Returns None if no DB-backed permissions exist for this role,
     indicating the caller should fall back to ROLE_PERMISSIONS dict.
     """
+    import json
+    cache_key = f"role_perms:{role_name}"
+    
+    # Try Redis cache first
+    try:
+        from app.core.redis_client import get_redis
+        redis = get_redis()
+        cached = redis.get(cache_key)
+        if cached is not None:
+            if cached == "__NONE__":
+                return None
+            return json.loads(cached)
+    except Exception:
+        pass  # Redis unavailable, fall through to DB
+    
+    # Fetch from database
     try:
         from app.database import SessionLocal
         from app.models.role import Role
@@ -128,6 +147,7 @@ def get_role_permissions_from_db(role_name: str) -> Optional[list[str]]:
         try:
             role = db.query(Role).filter(Role.name == role_name, Role.deleted_at.is_(None)).first()
             if not role:
+                _cache_role_permissions(cache_key, None)
                 return None
             rps = db.query(RolePermission).filter(
                 RolePermission.role_id == role.id,
@@ -135,12 +155,39 @@ def get_role_permissions_from_db(role_name: str) -> Optional[list[str]]:
                 RolePermission.deleted_at.is_(None),
             ).all()
             if not rps:
+                _cache_role_permissions(cache_key, None)
                 return None
-            return [rp.permission_key for rp in rps]
+            perms = [rp.permission_key for rp in rps]
+            _cache_role_permissions(cache_key, perms)
+            return perms
         finally:
             db.close()
     except Exception:
         return None
+
+
+def _cache_role_permissions(cache_key: str, perms: Optional[list[str]]):
+    """Cache role permissions in Redis with 5-minute TTL."""
+    import json
+    try:
+        from app.core.redis_client import get_redis
+        redis = get_redis()
+        if perms is None:
+            redis.setex(cache_key, 300, "__NONE__")
+        else:
+            redis.setex(cache_key, 300, json.dumps(perms))
+    except Exception:
+        pass  # Redis unavailable, skip caching
+
+
+def invalidate_role_permissions_cache(role_name: str):
+    """Invalidate cached permissions for a role (call after role/permission changes)."""
+    try:
+        from app.core.redis_client import get_redis
+        redis = get_redis()
+        redis.delete(f"role_perms:{role_name}")
+    except Exception:
+        pass
 
 
 def get_role_permissions(role_name: str) -> list[str]:
@@ -169,7 +216,11 @@ def get_user_permissions(user: User) -> set[str]:
 def has_permission(user: User, permission: str) -> bool:
     if user.is_superuser:
         return True
-    if user.is_view_only and permission not in ["students.view", "audit.view"]:
+    if user.is_view_only:
+        # Allow all read-only permissions for view-only users
+        # (outside school network restriction per constitution)
+        if permission.endswith(".view") or permission.endswith(".read") or permission.endswith(".list"):
+            return True
         return False
     user_perms = get_user_permissions(user)
     return permission in user_perms

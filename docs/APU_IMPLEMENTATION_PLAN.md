@@ -61,7 +61,7 @@ Goal: parents/students can view their data from the phone. Requires **no backend
 
 ## Future cycles (NOT implemented — must not be fabricated)
 
-- Push notifications (Phase 3 split out), device/session management, backup, analytics, privacy/deep links, audit logs, deployment docs.
+- Device/session management, backup, analytics, privacy, audit logs, deployment docs.
 - Offline-first ERP beyond attendance queue (results entry offline stays gated by backend).
 
 ## Sequencing rules

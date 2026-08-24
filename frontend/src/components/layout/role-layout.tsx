@@ -143,6 +143,7 @@ export function RoleLayout({ role, navItems, children }: { role: string; navItem
   const previousFocusRef = useRef<HTMLElement | null>(null)
 
   const accent = ROLE_ACCENT[role] || ROLE_ACCENT.DEFAULT
+  const isOrg = role === "SUPER_ADMIN"
 
   const handleLogout = () => {
     logout()
@@ -212,19 +213,27 @@ export function RoleLayout({ role, navItems, children }: { role: string; navItem
 
       <aside
         className={cn(
-          "hidden lg:flex lg:flex-col lg:border-r glass lg:h-screen lg:sticky lg:top-0 transition-all duration-300",
-          collapsed ? "lg:w-[68px]" : "lg:w-64"
+          "hidden lg:flex lg:flex-col lg:border-r lg:h-screen lg:sticky lg:top-0 transition-all duration-300",
+          collapsed ? "lg:w-[68px]" : "lg:w-64",
+          isOrg
+            ? "org-sidebar bg-[hsl(222_47%_7%)] border-r border-border"
+            : "glass"
         )}
         style={{ borderLeftColor: `hsl(${accent.hue}, 70%, 55%)` } as React.CSSProperties}
       >
-        <div className="flex h-14 items-center gap-2 border-b px-4">
+        <div className="flex h-14 items-center gap-2 border-b border-border px-4">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-lg font-bold text-sm text-white shrink-0"
             style={{ backgroundColor: `hsl(${accent.hue}, 70%, 50%)` }}
           >
             Z
           </div>
-          {!collapsed && <span className="font-semibold">ZENOVA</span>}
+          {!collapsed && (
+            <span className="leading-tight">
+              <span className="font-semibold block">ZENOVA</span>
+              {isOrg && <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70 block -mt-0.5">Control Center</span>}
+            </span>
+          )}
           <button
             onClick={() => setCollapsed((c) => !c)}
             className={cn(
@@ -274,9 +283,12 @@ export function RoleLayout({ role, navItems, children }: { role: string; navItem
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
-            className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r glass"
+            className={cn(
+              "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r",
+              isOrg ? "org-sidebar bg-[hsl(222_47%_7%)] border-r border-border" : "glass"
+            )}
           >
-            <div className="flex h-14 items-center justify-between border-b px-6">
+            <div className="flex h-14 items-center justify-between border-b border-border px-6">
               <div className="flex items-center gap-2">
                 <div
                   className="flex h-8 w-8 items-center justify-center rounded-lg font-bold text-sm text-white"
@@ -284,7 +296,10 @@ export function RoleLayout({ role, navItems, children }: { role: string; navItem
                 >
                   Z
                 </div>
-                <span className="font-semibold">ZENOVA</span>
+                <span className="leading-tight">
+                  <span className="font-semibold block">ZENOVA</span>
+                  {isOrg && <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70 block -mt-0.5">Control Center</span>}
+                </span>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)} aria-label="Close navigation">
                 <X className="h-5 w-5" />
@@ -304,7 +319,7 @@ export function RoleLayout({ role, navItems, children }: { role: string; navItem
       )}
 
       <div className="flex flex-1 flex-col min-w-0">
-        <header className="flex h-14 items-center gap-4 px-4 lg:px-6 glass">
+        <header className={cn("flex h-14 items-center gap-4 px-4 lg:px-6 glass", isOrg && "org-sidebar border-b border-border")}>
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open navigation">
             <Menu className="h-5 w-5" />
           </Button>

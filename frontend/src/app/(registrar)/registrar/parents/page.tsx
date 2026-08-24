@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast"
 import { Search, Users, UserPlus, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { parentService } from "@/services/api"
+import { getApiUrl } from "@/lib/runtime-config"
 
 export default function ParentsPage() {
   const [search, setSearch] = useState("")
@@ -83,7 +84,7 @@ export default function ParentsPage() {
                       <Link href={`/registrar/students?parent_id=${p.id}`}>
                         <Button variant="ghost" size="sm">View</Button>
                       </Link>
-                      <Button variant="ghost" size="sm" onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/parents/${p.id}/id-card`, "_blank")}>
+                      <Button variant="ghost" size="sm" onClick={() => window.open(`${getApiUrl()}/parents/${p.id}/id-card`, "_blank")}>
                         ID Card
                       </Button>
                     </td>

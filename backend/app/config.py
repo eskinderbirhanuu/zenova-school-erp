@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     environment: str = "development"
     bcrypt_rounds: int = 12
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://192.168.1.5:3000"
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     login_rate_limit: int = 5
     login_rate_window_seconds: int = 300
     auth_rate_limit: int = 10
@@ -74,7 +74,6 @@ class Settings(BaseSettings):
 
     base_url: str = "http://localhost:8000"
     license_server_url: str = "https://superadmin.free.nf"
-    license_offline_grace_days: int = 45
     chapa_api_url: str = "https://api.chapa.co/v1"
     feature_chapa: bool = False
 

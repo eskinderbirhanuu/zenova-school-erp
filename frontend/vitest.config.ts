@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    pool: "forks",
+    maxWorkers: 1,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}"],
     coverage: {

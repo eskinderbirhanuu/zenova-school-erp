@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -12,6 +13,8 @@ from app.services import nfc_v2_service
 from app.api.v1.deps import get_current_user, require_licensed_feature, rate_limit as _rate_limit
 from app.core.permissions import require_permission, Permission
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["nfc"])
 
@@ -100,7 +103,7 @@ def public_lookup_card(
 
 
 @router.post("/nfc/scan", response_model=NfcScanResponse)
-def scan_nfc_card(
+async def scan_nfc_card(
     data: NfcScanRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -108,6 +111,14 @@ def scan_nfc_card(
     result = nfc_v2_service.scan_nfc(db, data.card_uid, data.scan_type, data.reader_location)
     if not result["success"]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=result["message"])
+    # Broadcast NFC scan event to connected WebSocket clients
+    broadcast_payload = result.pop("_broadcast", None)
+    if broadcast_payload:
+        from app.services.scan_event_manager import scan_event_manager
+        try:
+            await scan_event_manager.broadcast("nfc-scans", broadcast_payload)
+        except Exception:
+            logger.warning("WebSocket broadcast failed during NFC scan")
     return NfcScanResponse(**result)
 
 

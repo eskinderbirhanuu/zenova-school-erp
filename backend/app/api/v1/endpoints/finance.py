@@ -210,6 +210,21 @@ def list_payments(
     return finance_service.get_payments(db, current_user.school_id, invoice_id, student_id, include_deleted=include_deleted, skip=skip, limit=limit)
 
 
+@router.get("/wallets", dependencies=VIEW_FINANCE)
+def list_wallets(
+    student_id: str = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """List all wallets for the school (finance/admin view)."""
+    return finance_service.list_wallets(
+        db, current_user.school_id, student_id=student_id,
+        page=page, page_size=page_size,
+    )
+
+
 @router.get("/wallet/{student_id}", response_model=WalletResponse, dependencies=VIEW_FINANCE)
 def get_wallet(student_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return finance_service.get_wallet(db, student_id, current_user.school_id)

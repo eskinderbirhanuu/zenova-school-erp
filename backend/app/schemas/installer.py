@@ -54,7 +54,7 @@ class InitializeBranchResponse(BaseModel):
     success: bool
     server_id: str
     branch_id: str
-    admin_email: str | None
+    admin_email: str | None = None
     message: str
 
 
@@ -63,3 +63,20 @@ class WhoAmIResponse(BaseModel):
     is_main_school: bool
     is_branch: bool
     server_role: str | None = None
+
+
+class LicenseVerifyRequest(BaseModel):
+    license_key: str
+    school_id: str | None = None
+    school_code: str | None = None
+
+
+class LicenseVerifyResponse(BaseModel):
+    valid: bool
+    license_type: str | None = None
+    status: str | None = None
+    valid_until: str | None = None
+    max_users: int | None = None
+    message: str = ""
+    school_name: str | None = None
+    school_code: str | None = None

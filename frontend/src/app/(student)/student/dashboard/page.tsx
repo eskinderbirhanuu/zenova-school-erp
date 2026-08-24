@@ -33,6 +33,11 @@ function formatDate(): string {
 
 export default function StudentDashboard() {
   const { data, isLoading } = useStudentPortalDashboard()
+  const dashboard = (data ?? {}) as Record<string, any>
+  const d = dashboard
+  const schedule = Array.isArray(dashboard.schedule) ? dashboard.schedule : []
+  const grades = Array.isArray(dashboard.grades) ? dashboard.grades : []
+  const assignments = Array.isArray(dashboard.assignments) ? dashboard.assignments : []
 
   const greeting = useMemo(() => getGreeting(), [])
   const dateStr = useMemo(() => formatDate(), [])

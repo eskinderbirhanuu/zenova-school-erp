@@ -1,7 +1,7 @@
 # APU Notifications
 
-> **Status:** IMPLEMENTED (2026-08-09) — device-token registration + FCM relay live.
-> Backend: `backend/app/services/fcm_relay.py`, `push_devices` table, `/notifications/device-token*` (feature-gated `FEATURE_PUSH`). Mobile: `mobile-app/src/services/push.ts` (register on sign-in/boot, unregister on sign-out). See `APU_GAPS_AND_DEPENDENCIES.md` row N2.
+> **Status:** IMPLEMENTED (2026-08-09) — device-token registration + FCM relay live + WS push + tap deep-links (2026-08-10).
+> Backend: `backend/app/services/fcm_relay.py`, `push_devices` table, `/notifications/device-token*` (feature-gated `FEATURE_PUSH`), WS endpoint `ws.py` (`notification_manager.push` by user_id, role-agnostic). Mobile: `mobile-app/src/services/push.ts` (register on sign-in/boot, unregister on sign-out), tap deep-links via `mobile-app/src/services/deepLink.ts` + expo-notifications response listener. See `APU_GAPS_AND_DEPENDENCIES.md` rows N2, N3.
 
 ## 1. WHAT are we building?
 

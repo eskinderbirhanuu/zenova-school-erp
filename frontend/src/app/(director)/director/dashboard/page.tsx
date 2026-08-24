@@ -11,6 +11,7 @@ import {
   UserPlus, FileText, Eye, Award,
 } from "lucide-react"
 import { StaggerContainer, StaggerItem } from "@/components/3d/micro-animations"
+import { Button } from "@/components/ui/button"
 import DashboardShell from "@/components/dashboard/dashboard-shell"
 import QuickActionsWidget from "@/components/dashboard/widgets/quick-actions-widget"
 import BarChartCard from "@/components/dashboard/bar-chart-card"

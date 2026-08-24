@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useClasses, useSections } from "@/hooks/queries"
+import { academicService } from "@/services/api"
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
@@ -14,13 +15,11 @@ export default function TimetablePage() {
   const { data: classes } = useClasses()
   const { data: sections } = useSections(classId ? { class_id: classId } as any : undefined)
 
-  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
-
   useEffect(() => {
     if (sectionId) {
-      fetch(`${API}/timetable?section_id=${sectionId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` }
-      }).then((r: any) => r.json()).then(setEntries).catch(() => {})
+      academicService.timetable.list({ section_id: sectionId })
+        .then((r) => setEntries(r.data as any[]))
+        .catch(() => {})
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionId])

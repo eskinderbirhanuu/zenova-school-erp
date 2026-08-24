@@ -55,7 +55,7 @@ export default function AuditorDashboard() {
   }, [rawLogs])
 
   if (isLoading) {
-    return <DashboardShell isLoading />
+    return <DashboardShell isLoading widgets={[]} />
   }
 
   return (
@@ -101,6 +101,7 @@ export default function AuditorDashboard() {
         <ChartsGrid key="more">
           <PlaceholderCard title="Compliance Status" description="Current compliance overview" icon={CheckCircle} />
           <QuickActionsWidget
+            widgetId="audit-quick-actions"
             title="Quick Actions"
             description="Common audit tasks"
             icon={Eye}

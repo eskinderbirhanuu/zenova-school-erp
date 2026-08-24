@@ -5,13 +5,14 @@ import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useMe } from "@/hooks/queries"
+import { getApiUrl, getWsUrl } from "@/lib/runtime-config"
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<any[]>([])
   const wsRef = useRef<WebSocket | null>(null)
   const { data: user } = useMe()
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
-  const WS_BASE = API_BASE.replace(/^http/, "ws")
+  const API_BASE = getApiUrl()
+  const WS_BASE = getWsUrl(API_BASE)
 
   const load = useCallback(() => {
     const opts: RequestInit = {

@@ -128,6 +128,36 @@ body {
   box-shadow: var(--glass-shadow);
 }
 
+/* ZENOVA Control Center (Org) — dark command-center chrome */
+.org-sidebar {
+  --background: 222 47% 7%;
+  --foreground: 0 0% 98%;
+  --card: 222 47% 10%;
+  --card-foreground: 0 0% 98%;
+  --popover: 222 47% 10%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 265 89% 64%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 222 30% 16%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 222 30% 16%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 222 30% 16%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62% 40%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 30% 18%;
+  --input: 222 30% 18%;
+  --ring: 265 89% 64%;
+  --glass-bg: rgba(13, 19, 33, 0.92);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.org-sidebar .glass {
+  background: var(--glass-bg);
+}
+
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

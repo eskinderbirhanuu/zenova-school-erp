@@ -1,6 +1,7 @@
 import uuid
 import secrets
 import logging
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from app.services import license_service
 from app.services.license_crypto import bind_license_to_hardware, invalidate_license_cache
 from app.core import server_identity
 from app.api.v1.deps import rate_limit as _rate_limit
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +25,14 @@ INSTALLER_INIT_LIMIT = _rate_limit("installer_init", limit=3, window_seconds=360
 CONNECT_VPS_LIMIT = _rate_limit("connect_vps", limit=10, window_seconds=300)
 from app.core.security import get_password_hash
 from app.services.watermark import watermark_seed_data, set_school_watermark
-from app.config import settings
 from app.models.server import ServerIdentity, ServerRole
 from app.models.school import School
 from app.models.branch import Branch
 from app.models.license import License, LicenseType, LicenseStatus
 from app.models.user import User
 from app.models.role import Role
+from app.core.security import get_password_hash
+from app.services.watermark import watermark_seed_data, set_school_watermark
 
 _roles_seeded = False
 
@@ -123,6 +126,74 @@ def installer_status(db: Session = Depends(get_db), _=Depends(INSTALLER_STATUS_L
         setup_complete=school.is_setup_complete if school else False,
         school_name=school.name if school else None,
         has_master_key=has_master,
+    )
+
+
+class LicenseVerifyRequest(BaseModel):
+    license_key: str
+    school_id: str | None = None
+    school_code: str | None = None
+
+
+class LicenseVerifyResponse(BaseModel):
+    valid: bool
+    license_type: str | None = None
+    status: str | None = None
+    valid_until: str | None = None
+    max_users: int | None = None
+    message: str = ""
+    school_name: str | None = None
+    school_code: str | None = None
+
+
+@router.post("/installer/verify-license", response_model=LicenseVerifyResponse)
+def installer_verify_license(data: LicenseVerifyRequest, db: Session = Depends(get_db)):
+    """Verify a license key for school setup. 
+    If ZENOVA_LICENSE_SERVER is configured, verifies against Control Center.
+    Otherwise, validates locally."""
+    license_server_url = settings.license_server_url
+    
+    # If license server is configured and not localhost, try remote verification first
+    if license_server_url and "localhost" not in license_server_url and "127.0.0.1" not in license_server_url:
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.post(
+                    f"{license_server_url.rstrip('/')}/api/v1/licenses/validate-public",
+                    json={
+                        "license_key": data.license_key,
+                        "school_id": data.school_id or data.school_code or "",
+                        "domain": data.school_id or data.school_code or "",
+                    },
+                    timeout=10.0,
+                )
+                if response.status_code == 200:
+                    return LicenseVerifyResponse(**response.json())
+        except Exception as e:
+            logger.warning(f"Remote license verification failed, falling back to local: {e}")
+    
+    # Fallback to local verification
+    result = license_service.verify_license(db, data.license_key)
+    if not result["valid"]:
+        return LicenseVerifyResponse(
+            valid=False,
+            message=result.get("message", "License validation failed"),
+        )
+    
+    # Get license details
+    lic = db.query(License).filter(License.key == data.license_key).first()
+    school = None
+    if lic and lic.school_id:
+        school = db.query(School).filter(School.id == lic.school_id).first()
+    
+    return LicenseVerifyResponse(
+        valid=True,
+        license_type=result.get("license_type"),
+        status="active",
+        valid_until=lic.valid_until.isoformat() if lic and lic.valid_until else None,
+        max_users=lic.max_users if lic else None,
+        message="License is valid",
+        school_name=school.name if school else None,
+        school_code=school.code if school else None,
     )
 
 

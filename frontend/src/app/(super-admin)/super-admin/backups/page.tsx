@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header"
 import { useApiQuery, useApiMutation } from "@/hooks/use-api"
 import api from "@/services/api"
 import { useToast } from "@/hooks/use-toast"
+import { getApiUrl } from "@/lib/runtime-config"
 import { Loader2, HardDrive, Download, Trash2 } from "lucide-react"
 
 export default function SuperAdminBackups() {
@@ -28,7 +29,7 @@ export default function SuperAdminBackups() {
 
   const handleDownload = (filename: string) => {
     const a = document.createElement("a")
-    a.href = `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/backups/${encodeURIComponent(filename)}/download`
+    a.href = `${getApiUrl()}/backups/${encodeURIComponent(filename)}/download`
     a.download = filename
     a.click()
   }

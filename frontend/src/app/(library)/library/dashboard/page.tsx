@@ -89,6 +89,7 @@ export default function LibraryDashboard() {
         <ChartsGrid key="more">
           <PlaceholderCard title="Member Stats" description="Active library members this month" icon={Users} />
           <QuickActionsWidget
+            widgetId="library-quick-actions"
             title="Quick Actions"
             description="Common library tasks"
             icon={BookPlus}

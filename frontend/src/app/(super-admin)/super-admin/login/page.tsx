@@ -30,23 +30,24 @@ export default function SuperAdminLogin() {
       }
       router.push("/super-admin/dashboard")
       router.refresh()
-    } catch {
-      toast({ title: "Invalid credentials", variant: "destructive" })
+    } catch (err: unknown) {
+      const msg = (err as any)?.response?.data?.detail || "Invalid credentials"
+      toast({ title: "Login failed", description: msg, variant: "destructive" })
     } finally { setLoading(false) }
   }
 
   if (mfa?.mfaToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="org-sidebar min-h-screen flex items-center justify-center p-4 bg-[hsl(222_47%_7%)]">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
               <ShieldCheck className="h-5 w-5" />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight">Super Admin</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-white">ZENOVA Control Center</h1>
             <p className="mt-1 text-sm text-muted-foreground">Two-factor authentication</p>
           </div>
-          <Card className="border shadow-sm">
+          <Card className="border border-border bg-card/80 shadow-2xl shadow-black/40">
             <CardContent className="p-6">
               <MfaFlow
                 mfaToken={mfa.mfaToken}
@@ -69,16 +70,19 @@ export default function SuperAdminLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="org-sidebar min-h-screen flex items-center justify-center p-4 bg-[hsl(222_47%_7%)]">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <ShieldCheck className="h-5 w-5" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
+            <ShieldCheck className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">Super Admin</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Enterprise platform access</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">ZENOVA Control Center</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">Enterprise platform access</p>
+          <div className="mt-4 mx-auto w-fit rounded-full border border-border bg-muted/40 px-3 py-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Authorized personnel only</p>
+          </div>
         </div>
-        <Card className="border shadow-sm">
+        <Card className="border border-border bg-card/80 shadow-2xl shadow-black/40">
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -86,7 +90,7 @@ export default function SuperAdminLogin() {
                 <Input
                   type="email"
                   placeholder="admin@zenova.com"
-                  className="mt-1.5"
+                  className="mt-1.5 bg-background/60 border-border focus:border-primary"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -98,7 +102,7 @@ export default function SuperAdminLogin() {
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    className="pr-9"
+                    className="pr-9 bg-background/60 border-border focus:border-primary"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -115,7 +119,7 @@ export default function SuperAdminLogin() {
               <Button type="submit" className="w-full" disabled={loading || !email || !password}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign In"}
               </Button>
-              <div className="rounded-md bg-muted px-3 py-2">
+              <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
                 <p className="text-xs text-muted-foreground">
                   All login attempts are logged. Unauthorized access is prohibited.
                 </p>

@@ -12,6 +12,12 @@ from app.core.exceptions import UnauthorizedException, ForbiddenException
 
 
 def get_client_ip(request: Request) -> str:
+    """Get the real client IP address.
+    
+    Security: Only trust X-Forwarded-For when trusted_proxies is configured.
+    Without trusted_proxies, always use the direct connection IP to prevent
+    IP spoofing for rate limiting bypass.
+    """
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         ips = [ip.strip() for ip in forwarded.split(",")]
@@ -19,11 +25,13 @@ def get_client_ip(request: Request) -> str:
         if trusted_raw:
             trusted = {t.strip() for t in trusted_raw.split(",") if t.strip()}
             if trusted:
+                # Walk backwards through the chain to find the first untrusted IP
                 for ip in reversed(ips):
                     if ip not in trusted:
                         return ip
                 return ips[-1]
-        return ips[0].strip()
+        # No trusted proxies configured — never trust X-Forwarded-For
+        # Fall through to use direct connection IP
     return request.client.host if request.client else "unknown"
 
 

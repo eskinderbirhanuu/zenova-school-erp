@@ -15,8 +15,9 @@ import type {
   NotificationPreferences,
   CorporateDepartment, CorporateEmployee,
 } from "@/types/api"
+import { getApiUrl } from "@/lib/runtime-config"
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
+const BASE_URL = getApiUrl()
 
 function getCsrfToken(): string | undefined {
   if (typeof document === "undefined") return undefined
@@ -64,6 +65,10 @@ api.interceptors.response.use((response) => response,
           }
         }
       }
+    }
+    if (error.response?.status === 403 && typeof window !== "undefined") {
+      window.location.href = "/unauthorized"
+      return Promise.reject(error)
     }
     if (error.response?.status === 429 && typeof window !== "undefined") {
       console.warn("Rate limited — too many requests")
@@ -251,13 +256,19 @@ export const financeService = {
   },
   trialBalance: (): ApiResponse<{ total_debit: number; total_credit: number; rows: unknown[] }> => api.get("/reports/trial-balance"),
   payroll: {
-    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/payroll", { params }),
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/payroll-runs", { params }),
+    runs: {
+      list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/payroll-runs", { params }),
+      approve: (runId: string): ApiResponse<any> => api.post(`/payroll-runs/${runId}/approve`),
+    },
   },
   reports: {
     list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/reports/finance", { params }),
   },
   walletTransactions: {
-    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/wallet/transactions", { params }),
+    list: (params?: Record<string, unknown>): ApiResponse<any[]> => api.get("/wallets", { params }),
+    listForStudent: (studentId: string, params?: Record<string, unknown>): ApiResponse<any[]> => api.get(`/wallet/${studentId}/transactions`, { params }),
+    create: (studentId: string, data: Record<string, unknown>): ApiResponse<any> => api.post(`/wallet/${studentId}/transactions`, data),
   },
 }
 
@@ -440,8 +451,9 @@ export const setupService = {
   installerStatus: (): ApiResponse<{ server_identity_exists: boolean; setup_complete: boolean }> => api.get("/installer/status"),
   installerWhoami: (): ApiResponse<{ role: string; email: string }> => api.get("/installer/whoami"),
   installerInitSuperAdmin: (data: { email: string; password: string }): ApiResponse<{ success: boolean }> => api.post("/installer/initialize-super-admin", data),
-  installerInitMain: (data: { school_name: string; admin_email: string; admin_password: string }): ApiResponse<{ success: boolean }> => api.post("/installer/initialize-main", data),
+  installerInitMain: (data: { fingerprint: string; school_id: string; main_license: string; admin_email: string; admin_password: string }): ApiResponse<{ success: boolean }> => api.post("/installer/initialize-main", data),
   installerInitBranch: (data: { branch_name: string; branch_code: string; license_key: string }): ApiResponse<{ success: boolean }> => api.post("/installer/initialize-branch", data),
+  installerVerifyLicense: (data: { license_key: string; school_id?: string }): ApiResponse<{ valid: boolean; school_name?: string; school_code?: string; valid_until?: string; license_type?: string; max_users?: number; message?: string }> => api.post("/installer/verify-license", data),
 }
 
 export const branchService = {
@@ -455,6 +467,7 @@ export const branchService = {
 export const schoolService = {
   list: (params?: Record<string, unknown>): ApiResponse<{ id: string; name: string; code: string }[]> => api.get("/schools", { params }),
   get: (id: string): ApiResponse<{ id: string; name: string; code: string }> => api.get(`/schools/${id}`),
+  overview: (params?: Record<string, unknown>): ApiResponse<{ schools: any[]; total: number }> => api.get("/schools/overview", { params }),
 }
 
 export const telegramService = {

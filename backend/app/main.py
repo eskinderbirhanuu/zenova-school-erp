@@ -20,6 +20,7 @@ from app.core.logging_config import configure_logging
 from app.api.v1.endpoints.metrics import MetricsMiddleware
 from app.core.request_logging_middleware import RequestLoggingMiddleware
 from app.core.request_id_middleware import RequestIDMiddleware, get_request_id
+from app.core.tenant import set_tenant_context, clear_tenant_context
 
 logger = configure_logging(settings.environment)
 
@@ -33,7 +34,6 @@ app = FastAPI(
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://192.168.1.5:3000",
 ]
 if os.getenv("ALLOWED_ORIGINS"):
     ALLOWED_ORIGINS.extend(os.getenv("ALLOWED_ORIGINS").split(","))
@@ -110,6 +110,56 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(CSRFMiddleware)
+
+
+class TenantMiddleware(BaseHTTPMiddleware):
+    """Automatically set tenant context for authenticated requests.
+    
+    Extracts school_id from the authenticated user and sets it in the
+    request-scoped context for downstream services to enforce row-level security.
+    """
+    async def dispatch(self, request: Request, call_next) -> Response:
+        # Only set context for authenticated API requests
+        if request.url.path.startswith("/api/") and not request.url.path.startswith("/api/v1/auth/"):
+            try:
+                token = request.cookies.get("access_token", "")
+                if not token:
+                    auth_header = request.headers.get("Authorization", "")
+                    if auth_header.startswith("Bearer "):
+                        token = auth_header[7:]
+                
+                if token:
+                    from app.services.auth_service import decode_token, get_user_by_id
+                    from app.database import SessionLocal
+                    
+                    payload = decode_token(token)
+                    if payload and payload.get("type") == "access":
+                        user_id = payload.get("sub")
+                        if user_id:
+                            db = SessionLocal()
+                            try:
+                                user = get_user_by_id(db, user_id)
+                                if user:
+                                    set_tenant_context(
+                                        school_id=getattr(user, 'school_id', None),
+                                        user_id=user.id,
+                                        superuser=user.is_superuser
+                                    )
+                            finally:
+                                db.close()
+            except Exception:
+                # Don't fail the request if tenant context setup fails
+                pass
+        
+        try:
+            response = await call_next(request)
+            return response
+        finally:
+            # Always clear context at end of request
+            clear_tenant_context()
+
+
+app.add_middleware(TenantMiddleware)
 
 app.include_router(v1_router)
 

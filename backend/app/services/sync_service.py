@@ -95,14 +95,33 @@ def process_queue(db: Session, limit: int = 50) -> dict:
 
 
 def _validate_vps_url_at_connect(vps_url: str) -> str:
-    """Validate VPS URL at connection time (anti-DNS-rebinding). Returns the URL or raises."""
+    """Validate VPS URL at connection time.
+
+    Checks:
+      1. Scheme is HTTPS (required in production; HTTP only allowed in
+         documented trusted-LAN mode via ZENOVA_ALLOW_SYNC_HTTP=true).
+      2. Hostname does not resolve to a private/internal IP (anti-DNS-rebinding).
+
+    Returns the validated URL or raises RuntimeError.
+    """
     from urllib.parse import urlparse
     import socket
 
     parsed = urlparse(vps_url)
     hostname = parsed.hostname
+    scheme = (parsed.scheme or '').lower()
+
     if not hostname:
         raise RuntimeError("Invalid VPS URL: no hostname")
+
+    # Enforce HTTPS unless explicitly overridden for trusted LAN
+    import os
+    allow_http = os.environ.get('ZENOVA_ALLOW_SYNC_HTTP', '').lower() in ('true', '1', 'yes')
+    if scheme != 'https' and not allow_http:
+        raise RuntimeError(
+            f"VPS URL must use HTTPS (got {scheme}://). "
+            "Set ZENOVA_ALLOW_SYNC_HTTP=true only for trusted LAN deployments."
+        )
 
     try:
         addrs = socket.getaddrinfo(hostname, None)
@@ -114,7 +133,8 @@ def _validate_vps_url_at_connect(vps_url: str) -> str:
         for ip_str in resolved:
             addr = ip_address(ip_str)
             if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_multicast:
-                raise RuntimeError(f"VPS URL resolves to internal IP: {ip_str}")
+                if not allow_http:
+                    raise RuntimeError(f"VPS URL resolves to internal IP: {ip_str}")
     except socket.gaierror as e:
         raise RuntimeError(f"VPS URL DNS resolution failed: {e}")
 
@@ -177,25 +197,36 @@ def _send_to_vps(entry: SyncQueue):
     _vps_sync_breaker.call(_do_send)
 
 
-def get_queue_stats(db: Session) -> dict:
+def get_queue_stats(db: Session, school_id: str = None) -> dict:
+    """Get queue statistics, optionally filtered by school_id for tenant isolation."""
     from sqlalchemy import func
 
-    total = db.query(func.count(SyncQueue.id)).scalar() or 0
-    pending = db.query(func.count(SyncQueue.id)).filter(
+    base = db.query(func.count(SyncQueue.id))
+    if school_id:
+        base = base.filter(SyncQueue.school_id == school_id)
+
+    total = base.scalar() or 0
+
+    pending_q = db.query(func.count(SyncQueue.id)).filter(
         SyncQueue.status == SyncStatus.PENDING
-    ).scalar() or 0
-    synced = db.query(func.count(SyncQueue.id)).filter(
+    )
+    synced_q = db.query(func.count(SyncQueue.id)).filter(
         SyncQueue.status == SyncStatus.SYNCED
-    ).scalar() or 0
-    failed = db.query(func.count(SyncQueue.id)).filter(
+    )
+    failed_q = db.query(func.count(SyncQueue.id)).filter(
         SyncQueue.status == SyncStatus.FAILED
-    ).scalar() or 0
+    )
+
+    if school_id:
+        pending_q = pending_q.filter(SyncQueue.school_id == school_id)
+        synced_q = synced_q.filter(SyncQueue.school_id == school_id)
+        failed_q = failed_q.filter(SyncQueue.school_id == school_id)
 
     return {
         "total": total,
-        "pending": pending,
-        "synced": synced,
-        "failed": failed,
+        "pending": pending_q.scalar() or 0,
+        "synced": synced_q.scalar() or 0,
+        "failed": failed_q.scalar() or 0,
         "vps_connected": VPS_SYNC_ENABLED,
     }
 

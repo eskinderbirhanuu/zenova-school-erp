@@ -86,6 +86,7 @@ export default function HrDashboard() {
         <ChartsGrid key="more">
           <PlaceholderCard title="Attendance Overview" description="This month&apos;s attendance statistics" icon={BarChart3} />
           <QuickActionsWidget
+            widgetId="hr-quick-actions"
             title="Quick Actions"
             description="Common HR tasks"
             icon={Award}

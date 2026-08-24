@@ -22,13 +22,10 @@ export default function ScanMonitorPage() {
   const eventsRef = useRef<any[]>([])
 
   const connect = useCallback(() => {
-    const token = localStorage.getItem("zenova_token") || ""
-    if (!token) {
-      toast({ title: "No auth token", description: "Login required for real-time monitoring", variant: "destructive" })
-      return
-    }
+    // WebSocket auth: browser sends cookies automatically with the same-origin
+    // WebSocket connection. The backend ws endpoint reads the access_token cookie.
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-    const url = `${protocol}//${window.location.host}/api/v1/ws/nfc-scans?token=${token}`
+    const url = `${protocol}//${window.location.host}/api/v1/ws/nfc-scans`
     const ws = new WebSocket(url)
     ws.onopen = () => setConnected(true)
     ws.onclose = () => { setConnected(false); wsRef.current = null }

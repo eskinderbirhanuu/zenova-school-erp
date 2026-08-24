@@ -437,6 +437,42 @@ def get_payments(db: Session, school_id: str, invoice_id: str = None, student_id
     return q.order_by(Payment.created_at.desc()).offset(skip).limit(limit).all()
 
 
+def list_wallets(db: Session, school_id: str, student_id: str = None, page: int = 1, page_size: int = 50) -> dict:
+    """List all wallets for a school, with optional student_id filter.
+    
+    Returns a paginated response with wallet data including student name.
+    Used by finance and cafeteria admin pages.
+    """
+    from app.core.pagination import paginate, build_paginated_response
+    from app.models.student import Student
+    
+    q = db.query(Wallet).filter(Wallet.school_id == school_id, Wallet.deleted_at.is_(None))
+    if student_id:
+        q = q.filter(Wallet.student_id == student_id)
+    q = q.order_by(Wallet.created_at.desc())
+    
+    paginated_q, total, cur_page, cur_size, total_pages = paginate(q, page, page_size)
+    items = paginated_q.all()
+    
+    # Enrich with student names
+    result = []
+    for w in items:
+        student = db.query(Student).filter(Student.id == w.student_id).first()
+        result.append({
+            "id": w.id,
+            "student_id": w.student_id,
+            "student_name": student.full_name if student else None,
+            "balance": float(w.balance),
+            "created_at": w.created_at.isoformat() if w.created_at else None,
+            "updated_at": w.updated_at.isoformat() if w.updated_at else None,
+        })
+    
+    return build_paginated_response(
+        items=result, total=total, page=cur_page,
+        page_size=cur_size, total_pages=total_pages,
+    )
+
+
 def get_wallet(db: Session, student_id: str, school_id: str) -> Wallet:
     w = db.query(Wallet).filter(Wallet.student_id == student_id, Wallet.school_id == school_id).first()
     if not w:

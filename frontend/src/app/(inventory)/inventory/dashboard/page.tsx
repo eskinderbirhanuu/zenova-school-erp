@@ -79,6 +79,7 @@ export default function InventoryDashboard() {
         <ChartsGrid key="more">
           <PlaceholderCard title="Stock Movements" description="Recent transfers and adjustments" icon={Warehouse} />
           <QuickActionsWidget
+            widgetId="inventory-quick-actions"
             title="Quick Actions"
             description="Common inventory tasks"
             icon={ClipboardCheck}

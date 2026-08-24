@@ -11,6 +11,7 @@ class Payment(Base):
     payment_number = Column(String(50), nullable=False)
     __table_args__ = (
         UniqueConstraint("school_id", "payment_number", name="uq_payments_school_payment_number"),
+        UniqueConstraint("school_id", "idempotency_key", name="uq_payments_school_idempotency_key"),
     )
     invoice_id = Column(String(36), ForeignKey("invoices.id"), nullable=True, index=True)
     student_id = Column(String(36), ForeignKey("students.id"), nullable=True, index=True)

@@ -73,6 +73,7 @@ export default function CafeteriaDashboard() {
         <ChartsGrid key="more">
           <PlaceholderCard title="Revenue Breakdown" description="By product category" icon={TrendingUp} />
           <QuickActionsWidget
+            widgetId="cafeteria-quick-actions"
             title="Quick Actions"
             description="Common cafeteria tasks"
             icon={Clock}

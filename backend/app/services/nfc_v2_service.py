@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
@@ -211,26 +210,8 @@ def scan_nfc(
     db.commit()
     db.refresh(scan)
 
-    # Broadcast scan event (safe for both sync and async contexts)
-    try:
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(scan_event_manager.broadcast("nfc-scans", {
-                "event": "nfc_scan",
-                "card_uid": uid_hash,
-                "reference_type": ref_type,
-                "reference_id": ref_id,
-                "scan_type": scan_type,
-                "reader_location": reader_location,
-                "person_name": person_name,
-                "scanned_at": str(scan.scanned_at),
-            }))
-        except RuntimeError:
-            # No running event loop (sync context) — skip broadcast
-            pass
-    except Exception:
-        logger.warning("WebSocket broadcast failed during NFC scan")
-
+    # Build broadcast payload for caller to send (this is a sync function;
+    # the caller should fire scan_event_manager.broadcast() in async context).
     return {
         "success": True,
         "card_uid": uid_hash,
@@ -239,6 +220,16 @@ def scan_nfc(
         "person_name": person_name,
         "photo_url": photo_url,
         "message": f"{scan_type} scan successful",
+        "_broadcast": {
+            "event": "nfc_scan",
+            "card_uid": uid_hash,
+            "reference_type": ref_type,
+            "reference_id": ref_id,
+            "scan_type": scan_type,
+            "reader_location": reader_location,
+            "person_name": person_name,
+            "scanned_at": str(scan.scanned_at),
+        },
     }
 
 

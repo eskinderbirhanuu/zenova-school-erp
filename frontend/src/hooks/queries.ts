@@ -738,7 +738,7 @@ export function useNfcScanLogs() {
 }
 
 export function useSchoolList(params?: Record<string, unknown>) {
-  return useApiQuery<{ id: string; name: string; code: string }[]>(["schools", params], () => schoolService.list(params))
+  return useApiQuery<{ schools: any[]; total: number }>(["schools", "overview", params], () => schoolService.overview(params))
 }
 
 export function useSchool(id?: string) {

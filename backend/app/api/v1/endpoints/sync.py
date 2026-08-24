@@ -25,7 +25,8 @@ def sync_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return {"queue": sync_service.get_queue_stats(db)}
+    school_id = str(current_user.school_id) if getattr(current_user, 'school_id', None) else None
+    return {"queue": sync_service.get_queue_stats(db, school_id=school_id)}
 
 
 @router.post("/sync/trigger")
@@ -45,6 +46,10 @@ def sync_queue_list(
     current_user: User = Depends(get_current_user),
 ):
     q = db.query(SyncQueue)
+    # Tenant isolation: only show queue entries for the user's school
+    school_id = getattr(current_user, 'school_id', None)
+    if school_id is not None and not current_user.is_superuser:
+        q = q.filter(SyncQueue.school_id == str(school_id))
     if status_filter:
         q = q.filter(SyncQueue.status == SyncStatus(status_filter))
     entries = q.order_by(SyncQueue.created_at.desc()).limit(limit).all()
@@ -70,9 +75,12 @@ def retry_failed(
     db: Session = Depends(get_db),
     current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
-    failed = db.query(SyncQueue).filter(
-        SyncQueue.status == SyncStatus.FAILED
-    ).all()
+    q = db.query(SyncQueue).filter(SyncQueue.status == SyncStatus.FAILED)
+    # Tenant isolation: only retry queue entries for the user's school
+    school_id = getattr(current_user, 'school_id', None)
+    if school_id is not None and not current_user.is_superuser:
+        q = q.filter(SyncQueue.school_id == str(school_id))
+    failed = q.all()
     for entry in failed:
         entry.status = SyncStatus.PENDING
     db.commit()
@@ -86,10 +94,15 @@ def purge_old_sync(
     current_user: User = require_permission(Permission.SETTINGS_MANAGE),
 ):
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    deleted = db.query(SyncQueue).filter(
+    q = db.query(SyncQueue).filter(
         SyncQueue.synced_at.isnot(None),
         SyncQueue.synced_at < cutoff,
-    ).delete(synchronize_session=False)
+    )
+    # Tenant isolation: only purge queue entries for the user's school
+    school_id = getattr(current_user, 'school_id', None)
+    if school_id is not None and not current_user.is_superuser:
+        q = q.filter(SyncQueue.school_id == str(school_id))
+    deleted = q.delete(synchronize_session=False)
     db.commit()
     return {"purged": deleted}
 
@@ -120,6 +133,28 @@ def receive_sync(
     secret = identity.get("sync_secret")
     if not secret:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="Sync not configured")
+
+    # ── Sender binding validation (SYNC-002) ─────────────────────────
+    # Verify the sender server_id is registered and bound to a school.
+    # A compromised sync secret should NOT allow data injection for
+    # arbitrary schools.
+    sender_school_id = payload.get("school_id")
+    if sender_school_id:
+        # The sender's school_id in the payload must match the school_id
+        # registered for this server_id.  For MAIN_SCHOOL/BRANCH servers
+        # the identity file contains the canonical school_id.
+        local_school_id = identity.get("school_id")
+        sender_role = identity.get("server_role")
+
+        # SUPER_ADMIN and VPS servers can accept data for any school
+        if sender_role not in ("SUPER_ADMIN", "VPS"):
+            if local_school_id and str(sender_school_id) != str(local_school_id):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    detail="Sender school_id does not match registered school",
+                )
+
+    # ── Signature verification ────────────────────────────────────────
     try:
         ts = int(x_zenova_sync_ts)
     except ValueError:
