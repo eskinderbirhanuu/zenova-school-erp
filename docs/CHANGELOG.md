@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.0-two-ip] - 2026-08-24
+
+### Two-IP Architecture Design — Single Physical Server, Dual ZENOVA Systems
+- **Objective**: Deploy both School ERP and Organization/Demo on one physical Ubuntu Server (192.168.1.6) using two IP addresses
+- **Architecture**: Complete logical separation — separate databases, Redis, backend ports, frontend ports, Nginx bind IPs, APP_MODE
+- **School ERP (IP A: 192.168.1.6)**: Nginx bind 192.168.1.6:80/443, backend 8000, frontend 3000, PostgreSQL 5432, Redis 6379, DB zenova_prod, APP_MODE=school
+- **Org/Demo (IP B: TBD)**: Nginx bind 192.168.1.XXX:80/443, backend 8001, frontend 3001, PostgreSQL 5433, Redis 6380, DB zenova_org, APP_MODE=org
+- **Netplan**: Add secondary IP to existing interface (preserve 192.168.1.6), apply via `netplan apply`
+- **Firewall**: UFW allow 80/443 on both IPs from LAN, deny internal ports
+- **Service Management**: Two systemd services (zenova-school, zenova-org) for independent management
+- **Documentation**: Created `docs/infrastructure/ZENOVA_TWO_IP_ARCHITECTURE.md` with complete configs
+- **Status**: Design complete — awaiting physical server SSH access for network inspection and deployment
+
+### Project Analysis Documentation
+- **New**: `docs/ai-engineering/PROJECT_ANALYSIS.md` — Full architecture, backend, frontend, database, security, test coverage analysis
+- **New**: `docs/ai-engineering/CURRENT_STATUS.md` — Current project status, completed work, in-progress, planned
+- **Updated**: `docs/ai-engineering/PROJECT_ANALYSIS.md` with two-IP deployment design
+
 ## [1.0.0-apu-a5] - 2026-08-09
 
 ### APU A5 - PARENT/STUDENT self-registration decision (deferred)
